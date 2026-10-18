@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<section class="portada portada-ilustrada">
+  <div class="contenedor portada-contenido">
+    <h1>Da Vinci <span class="acento">Hub</span></h1>
+    <p>Toda la vida estudiantil de la Da Vinci, en un solo lugar.</p>
+    <div class="portada-acciones">
+      <a class="boton boton-grande" href="{{ url_for('auth.login') }}">Ingresar</a>
+    </div>
+  </div>
+</section>
+<section class="contenedor modulos">
+  <article class="modulo-foro">
+    <h2>Foro académico</h2>
+    <p>Preguntas y respuestas por materia, con estudiantes de cátedra reconocidos.</p>
+  </article>
+  <article class="modulo-objetos">
+    <h2>Objetos</h2>
+    <p>Vendé, intercambiá o prestá materiales entre estudiantes.</p>
+  </article>
+  <article class="modulo-reservas">
+    <h2>Reservas</h2>
+    <p>Espacios y recursos de la escuela, sin superposiciones.</p>
+  </article>
+  <article class="modulo-actividades">
+    <h2>Actividades</h2>
+    <p>Encuentros creados por estudiantes, con cupo e inscripción.</p>
+  </article>
+</section>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ codigo }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="pagina-error">
+  <div class="error-contenido">
+    <img src="{{ url_for('static', filename='img/perdido.png') }}" alt="">
+    <h1 class="codigo-error">{{ codigo }}</h1>
+    <p>{{ mensaje }}</p>
+    <a class="boton boton-primario" href="{{ url_for('inicio') }}">Volver al inicio</a>
+  </div>
+</section>
+{% endblock %}

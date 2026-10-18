@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block titulo %}Tu cursada — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="formulario-pagina">
+  <div class="tarjeta-acceso">
+  <img class="acceso-ilustracion" src="{{ url_for('static', filename='img/acceso.png') }}" alt="">
+  <form class="formulario" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="pasos">
+      <span class="paso-punto paso-activo"></span>
+      <span class="paso-punto paso-activo"></span>
+      <span class="pasos-texto">Paso 2 de 2</span>
+    </div>
+    <h1>Contanos de tu cursada</h1>
+    <div class="campo">
+      <label for="carrera_id">Carrera</label>
+      <select id="carrera_id" name="carrera_id" required>
+        <option value="">Elegí tu carrera</option>
+        {% for carrera in carreras %}
+          <option value="{{ carrera.id }}"
+                  {% if datos.get('carrera_id') == carrera.id|string %}selected{% endif %}>
+            {{ carrera.nombre }}
+          </option>
+        {% endfor %}
+      </select>
+      {% if errores.carrera_id %}<p class="error-texto">{{ errores.carrera_id }}</p>{% endif %}
+    </div>
+    <div class="campo-doble">
+      <div class="campo">
+        <label for="anio">Año</label>
+        <input id="anio" name="anio" inputmode="numeric" value="{{ datos.get('anio', '') }}" required>
+        {% if errores.anio %}<p class="error-texto">{{ errores.anio }}</p>{% endif %}
+      </div>
+      <div class="campo">
+        <label for="comision">Comisión</label>
+        <input id="comision" name="comision" value="{{ datos.get('comision', '') }}" required>
+        {% if errores.comision %}<p class="error-texto">{{ errores.comision }}</p>{% endif %}
+      </div>
+    </div>
+    <button class="boton boton-primario" type="submit">Guardar</button>
+  </form>
+  </div>
+</section>
+{% endblock %}
