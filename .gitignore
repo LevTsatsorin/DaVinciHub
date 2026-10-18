@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# Entornos y secretos
+.venv/
+venv/
+.env
+.env.*
+
+# Documentacion interna (no se versiona)
+docs/
+
+# Base de datos local
+instance/
+*.sqlite3
+*.db
+
+# Herramientas
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Sistema / IDE
+.DS_Store
+.vscode/
+.idea/
