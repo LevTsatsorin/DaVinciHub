@@ -7,6 +7,7 @@
   <div class="tarjeta-acceso">
   <img class="acceso-ilustracion" src="{{ url_for('static', filename='img/acceso.png') }}" alt="">
   <form class="formulario" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="pasos">
       <span class="paso-punto paso-activo"></span>
       <span class="paso-punto"></span>

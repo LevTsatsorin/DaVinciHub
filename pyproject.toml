@@ -5,6 +5,7 @@ description = "Plataforma de comunidad y servicios para estudiantes de Da Vinci"
 requires-python = ">=3.12"
 dependencies = [
     "flask>=3.0",
+    "flask-wtf>=1.2",
     "gunicorn>=21",
     "psycopg[binary]>=3.2",
 ]
@@ -23,7 +24,7 @@ build-backend = "setuptools.build_meta"
 include = ["davincihub*"]
 
 [tool.setuptools.package-data]
-davincihub = ["templates/**/*.html", "static/*", "*.sql"]
+davincihub = ["templates/**/*.html", "static/**/*", "*.sql"]
 
 [tool.ruff]
 line-length = 100

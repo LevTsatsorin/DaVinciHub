@@ -16,9 +16,14 @@ def _es_postgres(url: str) -> bool:
     return url.startswith(("postgres://", "postgresql://"))
 
 
+_LITERAL_O_PARAMETRO = re.compile(r"'(?:[^']|'')*'|(?<!:):([a-zA-Z_][a-zA-Z0-9_]*)")
+
+
 def _a_psycopg(sql: str) -> str:
     sql = sql.replace("%", "%%")
-    return re.sub(r"(?<!:):([a-zA-Z_][a-zA-Z0-9_]*)", r"%(\1)s", sql)
+    return _LITERAL_O_PARAMETRO.sub(
+        lambda m: f"%({m.group(1)})s" if m.group(1) else m.group(0), sql
+    )
 
 
 def get_db():
@@ -90,6 +95,9 @@ def execute(sql: str, **params) -> int:
 
 @contextmanager
 def transaccion():
+    if g.get("en_transaccion"):
+        yield
+        return
     conexion = get_db()
     if not g.db_es_pg:
         conexion.execute("BEGIN IMMEDIATE")

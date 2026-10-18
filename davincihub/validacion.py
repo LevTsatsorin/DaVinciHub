@@ -27,9 +27,9 @@ def validar_registro(form) -> dict[str, str]:
 def validar_datos_estudiante(form) -> dict[str, str]:
     errores = _obligatorios(form, CAMPOS_DATOS_ESTUDIANTE)
     carrera_id = (form.get("carrera_id") or "").strip()
-    if carrera_id and not carrera_id.isdigit():
+    if carrera_id and not carrera_id.isdecimal():
         errores.setdefault("carrera_id", "Elegí una carrera válida.")
     anio = (form.get("anio") or "").strip()
-    if anio and (not anio.isdigit() or not 1 <= int(anio) <= 10):
+    if anio and (not anio.isdecimal() or not 1 <= int(anio) <= 10):
         errores.setdefault("anio", "Debe ser un número entre 1 y 10.")
     return errores

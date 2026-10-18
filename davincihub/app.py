@@ -1,16 +1,27 @@
 import os
 
 from flask import Flask, render_template
+from flask_wtf.csrf import CSRFProtect
 
 from davincihub import auth, db, seguridad
+
+csrf = CSRFProtect()
 
 
 def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev")
+    en_render = bool(os.environ.get("RENDER"))
+    secreto = os.environ.get("SECRET_KEY")
+    if en_render and not secreto:
+        raise RuntimeError("Falta la variable de entorno SECRET_KEY.")
+    app.config["SECRET_KEY"] = secreto or "dev"
+    app.config["SESSION_COOKIE_SECURE"] = en_render
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["DATABASE_URL"] = os.environ.get("DATABASE_URL", "")
     if config:
         app.config.update(config)
+    csrf.init_app(app)
     db.registrar(app)
     app.register_blueprint(auth.bp)
     app.before_request(seguridad.cargar_usuario)

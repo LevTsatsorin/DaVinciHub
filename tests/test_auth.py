@@ -147,3 +147,17 @@ def test_login_usuario_bloqueado(client, app):
     respuesta = login(client)
     assert respuesta.status_code == 200
     assert "bloqueada" in respuesta.get_data(as_text=True)
+
+
+def test_registro_paso2_anio_superindice(client):
+    registrar(client)
+    respuesta = client.post("/auth/registro/datos", data=DATOS_ESTUDIANTE | {"anio": "²"})
+    assert respuesta.status_code == 200
+    assert "entre 1 y 10" in respuesta.get_data(as_text=True)
+
+
+def test_registro_paso2_carrera_superindice(client):
+    registrar(client)
+    respuesta = client.post("/auth/registro/datos", data=DATOS_ESTUDIANTE | {"carrera_id": "²"})
+    assert respuesta.status_code == 200
+    assert "Elegí una carrera válida" in respuesta.get_data(as_text=True)

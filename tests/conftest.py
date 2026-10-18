@@ -9,6 +9,7 @@ def app(tmp_path):
     aplicacion = create_app(
         {
             "TESTING": True,
+            "WTF_CSRF_ENABLED": False,
             "DATABASE_URL": f"sqlite:///{tmp_path}/test.db",
         }
     )

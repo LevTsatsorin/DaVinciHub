@@ -44,19 +44,23 @@ def test_demo_tiene_admin(app):
         assert admin["bloqueado"] == 0
 
 
+def _insertar_usuario(email):
+    return db.execute(
+        "INSERT INTO usuarios (nombre, apellido, email, password_hash, creado)"
+        " VALUES (:nombre, :apellido, :email, :hash, :creado)",
+        nombre="Otro",
+        apellido="Usuario",
+        email=email,
+        hash="x",
+        creado="2026-10-18T00:00:00",
+    )
+
+
 def test_email_unico(app):
     with app.app_context():
-        db.init_db(demo=True)
-        admin = db.query_one("SELECT email FROM usuarios WHERE rol = :rol", rol="admin")
+        assert _insertar_usuario("libre@davinci.edu.ar") == 1
         with pytest.raises(db.ErrorIntegridad):
-            db.execute(
-                "INSERT INTO usuarios (nombre, email, password_hash, creado)"
-                " VALUES (:nombre, :email, :hash, :creado)",
-                nombre="Otro",
-                email=admin["email"],
-                hash="x",
-                creado="2026-10-18T00:00:00",
-            )
+            _insertar_usuario("libre@davinci.edu.ar")
 
 
 def test_insertar_devuelve_id(app):
@@ -114,3 +118,25 @@ def test_demo_carreras_completas(app):
         assert huerfanas["n"] == 0
         total = db.query_one("SELECT count(*) AS n FROM materias")
         assert total["n"] > 200
+
+
+def test_a_psycopg_respeta_literales():
+    sql = "SELECT 'hola:mundo' AS t, '10:00' AS h WHERE x = :y"
+    assert db._a_psycopg(sql) == "SELECT 'hola:mundo' AS t, '10:00' AS h WHERE x = %(y)s"
+
+
+def test_a_psycopg_literal_con_comilla_escapada():
+    sql = "SELECT 'it''s :no' AS t, :si AS u"
+    assert db._a_psycopg(sql) == "SELECT 'it''s :no' AS t, %(si)s AS u"
+
+
+def test_transaccion_anidada_revierte_todo(app):
+    with app.app_context():
+        with pytest.raises(RuntimeError), db.transaccion():
+            db.execute("INSERT INTO carreras (nombre) VALUES (:nombre)", nombre="Externa")
+            with db.transaccion():
+                db.execute("INSERT INTO carreras (nombre) VALUES (:nombre)", nombre="Interna")
+            raise RuntimeError("boom")
+        nombres = {f["nombre"] for f in db.query("SELECT nombre FROM carreras")}
+        assert "Externa" not in nombres
+        assert "Interna" not in nombres

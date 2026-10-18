@@ -7,6 +7,7 @@
   <div class="tarjeta-acceso">
   <img class="acceso-ilustracion" src="{{ url_for('static', filename='img/acceso.png') }}" alt="">
   <form class="formulario" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h1>Ingresar</h1>
     {% if error %}<p class="error-texto">{{ error }}</p>{% endif %}
     <div class="campo">
