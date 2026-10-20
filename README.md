@@ -36,6 +36,23 @@ Ojo: la base PostgreSQL free de Render se elimina unos 30 días después de crea
 - Inserciones que necesitan el id: `... RETURNING id` con `db.query_one`.
 - Operaciones atómicas (ej. control de solapamiento de reservas): `with db.transaccion(): ...`.
 
+## Notificaciones (para todos los módulos)
+
+Para avisarle algo a un usuario, desde cualquier ruta:
+
+```python
+from davincihub.notificaciones import notificar
+
+notificar(usuario_id, "reservas", "Tu reserva del Auditorio quedó confirmada.", url_for("reservas.detalle", id=reserva_id))
+```
+
+- `tipo`: el módulo que avisa (`foro`, `objetos`, `prestamos`, `reservas`, `actividades`, `chat`…).
+- `cuerpo`: una frase corta, en segunda persona.
+- `enlace`: ruta interna del sitio a la que lleva el aviso (opcional; un enlace externo da error).
+- Si el aviso es parte de una operación con `db.transaccion()`, llamalo dentro: si la operación falla, el aviso no se crea.
+
+La bandeja, el contador de la barra y la privacidad (cada uno ve sólo lo suyo) ya están resueltos.
+
 ## Ramas
 
 `main` sólo para releases estables. El trabajo diario sale de `dev`: una rama por tarea (`feat/...`, `fix/...`) y PR a `dev` con revisión de otro integrante.

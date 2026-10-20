@@ -242,6 +242,8 @@ CREATE TABLE notificaciones (
     creado TEXT NOT NULL
 );
 
+CREATE INDEX idx_notificaciones_usuario ON notificaciones (usuario_id, leida);
+
 CREATE TABLE reportes (
     id {{PK}},
     autor_id INTEGER NOT NULL REFERENCES usuarios (id),

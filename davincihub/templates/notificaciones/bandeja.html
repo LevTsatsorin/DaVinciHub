@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block titulo %}Notificaciones — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo">
+  <div class="cabecera-modulo">
+    <h1>Notificaciones</h1>
+    {% if avisos_sin_leer %}
+      <form method="post" action="{{ url_for('notificaciones.leer_todas') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="boton" type="submit">Marcar todo como leído</button>
+      </form>
+    {% endif %}
+  </div>
+
+  {% if avisos %}
+    <ul class="lista-avisos">
+      {% for aviso in avisos %}
+        <li>
+          <a class="aviso-fila{% if not aviso.leida %} aviso-nuevo{% endif %}"
+             href="{{ url_for('notificaciones.abrir', aviso_id=aviso.id) }}">
+            <span class="aviso-punto" aria-hidden="true"></span>
+            <span class="aviso-texto">{{ aviso.cuerpo }}</span>
+            <time class="aviso-fecha" datetime="{{ aviso.creado }}">{{ aviso.creado|fecha_corta }}</time>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+      <h2>No tenés avisos por ahora</h2>
+      <p>Cuando alguien te responda, te escriba o cambie algo de tus préstamos y reservas, lo vas a ver acá.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
