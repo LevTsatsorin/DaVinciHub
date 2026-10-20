@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block titulo %}Editar perfil — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="perfil-pagina">
+  <div class="contenedor perfil-editor">
+    <a class="perfil-volver" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">← Volver al perfil</a>
+    <h1>Editar perfil</h1>
+    <form class="formulario perfil-formulario" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo perfil-campo-foto">
+        <span class="perfil-label">Foto de perfil</span>
+        <div class="perfil-foto-control">
+          <label class="perfil-selector-foto" for="foto" aria-label="Subir o cambiar foto de perfil">
+            <img id="foto-vista-previa" class="perfil-foto-vista-previa" alt="Vista previa de la foto de perfil" {% if estudiante.tiene_foto %}src="{{ url_for('perfil.foto', usuario_id=estudiante.id) }}"{% else %}hidden{% endif %}>
+            <span id="foto-iniciales" class="perfil-foto-iniciales" {% if estudiante.tiene_foto %}hidden{% endif %}>{{ estudiante.nombre[0] }}{{ estudiante.apellido[0] }}</span>
+          </label>
+          <label class="perfil-foto-mas" for="foto" aria-label="Subir foto de perfil">+</label>
+          <input class="perfil-foto-input" id="foto" name="foto" type="file" accept="image/png,image/jpeg,image/gif,image/webp">
+        </div>
+        {% if errores.foto %}<p class="error-texto">{{ errores.foto }}</p>{% endif %}
+      </div>
+      <div class="campo-doble">
+        <div class="campo">
+          <label for="nombre">Nombre</label>
+          <input id="nombre" name="nombre" value="{{ datos.get('nombre', '') }}" required>
+          {% if errores.nombre %}<p class="error-texto">{{ errores.nombre }}</p>{% endif %}
+        </div>
+        <div class="campo">
+          <label for="apellido">Apellido</label>
+          <input id="apellido" name="apellido" value="{{ datos.get('apellido', '') }}" required>
+          {% if errores.apellido %}<p class="error-texto">{{ errores.apellido }}</p>{% endif %}
+        </div>
+      </div>
+      <div class="campo">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" value="{{ datos.get('email', '') }}" readonly>
+        {% if errores.email %}<p class="error-texto">{{ errores.email }}</p>{% endif %}
+      </div>
+      <div class="campo">
+        <label for="carrera_id">Carrera</label>
+        <select id="carrera_id" name="carrera_id" required>
+          <option value="">Elegí tu carrera</option>
+          {% for carrera in carreras %}
+            <option value="{{ carrera.id }}" {% if datos.get('carrera_id')|string == carrera.id|string %}selected{% endif %}>{{ carrera.nombre }}</option>
+          {% endfor %}
+        </select>
+        {% if errores.carrera_id %}<p class="error-texto">{{ errores.carrera_id }}</p>{% endif %}
+      </div>
+      <div class="campo-doble">
+        <div class="campo">
+          <label for="anio">Año</label>
+          <input id="anio" name="anio" inputmode="numeric" value="{{ datos.get('anio', '') }}" required>
+          {% if errores.anio %}<p class="error-texto">{{ errores.anio }}</p>{% endif %}
+        </div>
+        <div class="campo">
+          <label for="comision">Comisión</label>
+          <input id="comision" name="comision" value="{{ datos.get('comision', '') }}" required>
+          {% if errores.comision %}<p class="error-texto">{{ errores.comision }}</p>{% endif %}
+        </div>
+      </div>
+      <div class="campo">
+        <label for="materias_catedra">Materias de cátedra</label>
+        <div class="materias-controles">
+          <input id="buscar-materia" type="search" placeholder="Buscar materia" aria-label="Buscar materia">
+          <span id="materias-contador" aria-live="polite"></span>
+        </div>
+        <div class="materias-cuadricula" id="materias_catedra" aria-describedby="materias-ayuda">
+          {% for materia in materias %}
+            <label class="materia-opcion">
+              <input type="checkbox" name="materias_catedra" value="{{ materia.id }}" {% if materia.id|string in materias_seleccionadas %}checked{% endif %}>
+              <span>{{ materia.nombre }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        <p class="nota" id="materias-ayuda">Elegí todas las materias que dictás. Podés seleccionar varias y buscarlas por nombre.</p>
+        {% if errores.materias_catedra %}<p class="error-texto">{{ errores.materias_catedra }}</p>{% endif %}
+      </div>
+      <button class="boton boton-primario" type="submit">Guardar cambios</button>
+    </form>
+
+    <section class="perfil-contrasena">
+      <h2>Cambiar contraseña</h2>
+      <form class="formulario perfil-formulario" method="post" action="{{ url_for('perfil.cambiar_contrasena', usuario_id=estudiante.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="campo">
+          <label for="password_actual">Contraseña actual</label>
+          <input id="password_actual" name="password_actual" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="campo-doble">
+          <div class="campo">
+            <label for="password_nueva">Nueva contraseña</label>
+            <input id="password_nueva" name="password_nueva" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+          <div class="campo">
+            <label for="confirmar">Repetir nueva contraseña</label>
+            <input id="confirmar" name="confirmar" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+        </div>
+        <button class="boton" type="submit">Actualizar contraseña</button>
+      </form>
+    </section>
+  </div>
+</section>
+<script>
+  const carrera = document.querySelector('#carrera_id');
+  const busquedaMateria = document.querySelector('#buscar-materia');
+  const cuadrillaMaterias = document.querySelector('#materias_catedra');
+  const contadorMaterias = document.querySelector('#materias-contador');
+  const crearTarjetaMateria = materia => {
+    const tarjeta = document.createElement('label');
+    tarjeta.className = 'materia-opcion';
+    const casilla = document.createElement('input');
+    casilla.type = 'checkbox';
+    casilla.name = 'materias_catedra';
+    casilla.value = materia.id;
+    const nombre = document.createElement('span');
+    nombre.textContent = materia.nombre;
+    tarjeta.append(casilla, nombre);
+    return tarjeta;
+  };
+  const actualizarMaterias = () => {
+    const termino = busquedaMateria.value.trim().toLocaleLowerCase();
+    const tarjetas = [...cuadrillaMaterias.querySelectorAll('.materia-opcion')];
+    for (const tarjeta of tarjetas) {
+      const coincide = tarjeta.textContent.toLocaleLowerCase().includes(termino);
+      tarjeta.hidden = !coincide;
+    }
+    const total = tarjetas.filter(tarjeta => tarjeta.querySelector('input').checked).length;
+    contadorMaterias.textContent = `${total} seleccionada${total === 1 ? '' : 's'}`;
+  };
+  carrera.addEventListener('change', async () => {
+    busquedaMateria.value = '';
+    cuadrillaMaterias.replaceChildren();
+    contadorMaterias.textContent = 'Cargando materias…';
+    if (!carrera.value) {
+      contadorMaterias.textContent = 'Elegí una carrera';
+      return;
+    }
+    const respuesta = await fetch(
+      `{{ url_for('perfil.materias_de_carrera', usuario_id=estudiante.id) }}?carrera_id=${encodeURIComponent(carrera.value)}`
+    );
+    if (!respuesta.ok) {
+      contadorMaterias.textContent = 'No se pudieron cargar las materias';
+      return;
+    }
+    for (const materia of await respuesta.json()) {
+      cuadrillaMaterias.append(crearTarjetaMateria(materia));
+    }
+    actualizarMaterias();
+  });
+  busquedaMateria.addEventListener('input', actualizarMaterias);
+  cuadrillaMaterias.addEventListener('change', actualizarMaterias);
+  actualizarMaterias();
+
+  const fotoInput = document.querySelector('#foto');
+  const fotoPreview = document.querySelector('#foto-vista-previa');
+  const fotoIniciales = document.querySelector('#foto-iniciales');
+  let fotoTemporal;
+  fotoInput.addEventListener('change', () => {
+    if (!fotoInput.files.length) return;
+    if (fotoTemporal) URL.revokeObjectURL(fotoTemporal);
+    fotoTemporal = URL.createObjectURL(fotoInput.files[0]);
+    fotoPreview.src = fotoTemporal;
+    fotoPreview.hidden = false;
+    fotoIniciales.hidden = true;
+  });
+</script>
+{% endblock %}

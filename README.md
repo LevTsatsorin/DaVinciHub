@@ -26,6 +26,8 @@ El repo incluye `render.yaml` (Blueprint): web service + PostgreSQL gestionado.
 2. La primera vez, desde tu máquina con la External Database URL que muestra Render (el plan free no tiene Shell): `DATABASE_URL='<external url>' flask --app davincihub.app init-db --demo`.
 3. `SECRET_KEY` y `DATABASE_URL` quedan configurados por el blueprint; no se versionan secretos.
 
+Al actualizar una base existente para agregar fotos de perfil, ejecutar una vez `flask --app davincihub.app migrate-profile-photos` con su `DATABASE_URL`. Este comando crea la tabla faltante sin borrar datos.
+
 Ojo: la base PostgreSQL free de Render se elimina unos 30 días después de creada. Si la entrega es más tarde, recrearla y volver a correr `init-db`.
 
 ## Capa de datos (convenciones del equipo)

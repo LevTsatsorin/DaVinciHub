@@ -22,7 +22,7 @@
     </div>
     <div class="barra-acciones">
       {% if g.usuario %}
-        <span class="usuario-nombre">{{ g.usuario.nombre }}</span>
+        {% if g.usuario.rol == 'estudiante' %}<a class="usuario-nombre" href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>{% endif %}
         <form method="post" action="{{ url_for('auth.salir') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="boton" type="submit">Salir</button>
@@ -50,6 +50,7 @@
     <p class="menu-usuario">Hola, <strong>{{ g.usuario.nombre }}</strong></p>
   {% endif %}
   <nav class="menu-enlaces">
+    {% if g.usuario and g.usuario.rol == 'estudiante' %}<a class="menu-enlace menu-enlace-perfil" href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>{% endif %}
     <a class="menu-enlace modulo-foro" href="#">Foro académico</a>
     <a class="menu-enlace modulo-objetos" href="#">Objetos</a>
     <a class="menu-enlace modulo-reservas" href="#">Reservas</a>

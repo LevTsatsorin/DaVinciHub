@@ -139,6 +139,14 @@ def init_db(demo: bool = False):
     conexion.commit()
 
 
+def migrar_fotos_perfil():
+    execute(
+        "CREATE TABLE IF NOT EXISTS fotos_perfil ("
+        " usuario_id INTEGER PRIMARY KEY REFERENCES usuarios (id),"
+        " tipo TEXT NOT NULL, contenido BYTEA NOT NULL, actualizado TEXT NOT NULL)"
+    )
+
+
 @click.command("init-db")
 @click.option("--demo", is_flag=True, help="Carga datos de demostración.")
 def comando_init_db(demo: bool):
@@ -146,6 +154,13 @@ def comando_init_db(demo: bool):
     click.echo("Base de datos inicializada." + (" Datos demo cargados." if demo else ""))
 
 
+@click.command("migrate-profile-photos")
+def comando_migrar_fotos_perfil():
+    migrar_fotos_perfil()
+    click.echo("Migración de fotos de perfil aplicada.")
+
+
 def registrar(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(comando_init_db)
+    app.cli.add_command(comando_migrar_fotos_perfil)

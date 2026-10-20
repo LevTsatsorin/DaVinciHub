@@ -3,7 +3,7 @@ import os
 from flask import Flask, render_template
 from flask_wtf.csrf import CSRFProtect
 
-from davincihub import auth, db, seguridad
+from davincihub import auth, db, perfil, seguridad
 
 csrf = CSRFProtect()
 
@@ -19,11 +19,13 @@ def create_app(config: dict | None = None) -> Flask:
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["DATABASE_URL"] = os.environ.get("DATABASE_URL", "")
+    app.config["MAX_CONTENT_LENGTH"] = 3 * 1024 * 1024 + 65536
     if config:
         app.config.update(config)
     csrf.init_app(app)
     db.registrar(app)
     app.register_blueprint(auth.bp)
+    app.register_blueprint(perfil.bp)
     app.before_request(seguridad.cargar_usuario)
 
     @app.route("/")
@@ -39,5 +41,10 @@ def create_app(config: dict | None = None) -> Flask:
     def no_encontrado(error):
         mensaje = "Esta página se perdió en el espacio."
         return render_template("error.html", codigo=404, mensaje=mensaje), 404
+
+    @app.errorhandler(413)
+    def solicitud_demasiado_grande(error):
+        mensaje = "La imagen supera el tamaño máximo permitido de 3 MB."
+        return render_template("error.html", codigo=413, mensaje=mensaje), 413
 
     return app

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ estudiante.nombre }} {{ estudiante.apellido }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="perfil-pagina">
+  <div class="contenedor perfil-contenido">
+    <header class="perfil-cabecera">
+      {% if estudiante.tiene_foto %}
+        <img class="perfil-foto" src="{{ url_for('perfil.foto', usuario_id=estudiante.id) }}" alt="Foto de {{ estudiante.nombre }} {{ estudiante.apellido }}">
+      {% else %}
+        <div class="perfil-iniciales" aria-hidden="true">{{ estudiante.nombre[0] }}{{ estudiante.apellido[0] }}</div>
+      {% endif %}
+      <div class="perfil-identidad">
+        <p class="perfil-etiqueta">Estudiante Da Vinci</p>
+        <h1>{{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
+        <p>{{ estudiante.carrera or 'Carrera sin completar' }}{% if estudiante.anio %} · {{ estudiante.anio }}° año{% endif %}{% if estudiante.comision %} · Comisión {{ estudiante.comision }}{% endif %}</p>
+      </div>
+      {% if g.usuario and g.usuario.id == estudiante.id %}
+        <a class="boton boton-primario" href="{{ url_for('perfil.editar', usuario_id=estudiante.id) }}">Editar perfil</a>
+      {% endif %}
+    </header>
+
+    {% if materias %}
+      <section class="perfil-seccion">
+        <h2>Materias de cátedra</h2>
+        <ul class="perfil-materias">
+          {% for materia in materias %}<li>{{ materia.nombre }}</li>{% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    <section class="perfil-seccion perfil-red">
+      <h2>Conexiones</h2>
+      {% if solicitudes_recibidas %}
+        <h3>Solicitudes recibidas</h3>
+        <ul class="perfil-conexiones">
+          {% for solicitud in solicitudes_recibidas %}
+            <li>
+              <a class="perfil-persona" href="{{ url_for('perfil.ver', usuario_id=solicitud.id) }}">
+                <strong>{{ solicitud.nombre }} {{ solicitud.apellido }}</strong>
+                {% if solicitud.carrera %}<span>{{ solicitud.carrera }}</span>{% endif %}
+              </a>
+              <div class="perfil-decision">
+                <form method="post" action="{{ url_for('perfil.aceptar_conexion', usuario_id=estudiante.id, solicitante_id=solicitud.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="boton boton-aceptar" type="submit">Aceptar</button>
+                </form>
+                <form method="post" action="{{ url_for('perfil.rechazar_conexion', usuario_id=estudiante.id, solicitante_id=solicitud.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="boton boton-rechazar" type="submit">Rechazar</button>
+                </form>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if conexiones %}
+        <ul class="perfil-conexiones">
+          {% for persona in conexiones %}
+            <li>
+              <a class="perfil-persona" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
+                <strong>{{ persona.nombre }} {{ persona.apellido }}</strong>
+                {% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}
+              </a>
+              {% if g.usuario and g.usuario.id == estudiante.id %}
+                <a class="boton boton-chat-pequeno" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Abrir chat</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% elif not solicitudes_recibidas %}
+        <p class="perfil-vacio">Todavía no hay conexiones.</p>
+      {% endif %}
+    </section>
+
+    <section class="perfil-seccion">
+      <h2>Actividad y reputación</h2>
+      <dl class="perfil-metricas">
+        <div><dt>Reputación</dt><dd>{% if reputacion.cantidad %}{{ reputacion.promedio|round(1) }} / 5{% else %}Sin valoraciones{% endif %}</dd></div>
+        <div><dt>Intercambios completados</dt><dd>{{ intercambios }}</dd></div>
+        <div><dt>Respuestas útiles</dt><dd>{{ respuestas_utiles }}</dd></div>
+        <div><dt>Actividades</dt><dd>{{ actividades_total }}</dd></div>
+      </dl>
+      <p class="perfil-nota">La reputación se calcula con el promedio de las valoraciones recibidas en operaciones.</p>
+      {% if actividades %}
+        <h3>Actividades recientes</h3>
+        <ul class="perfil-actividades">
+          {% for actividad in actividades %}
+            <li><strong>{{ actividad.nombre }}</strong><span>{{ actividad.inicio }} · {{ actividad.ubicacion }}</span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="perfil-vacio">Todavía no participó en actividades.</p>
+      {% endif %}
+    </section>
+
+    {% if g.usuario and g.usuario.id != estudiante.id %}
+      <section class="perfil-seccion perfil-contacto">
+        <h2>Conectar</h2>
+        <div class="perfil-acciones">
+          {% if conexion and conexion.estado == 'aceptada' %}
+            <p class="perfil-estado-conexion">Ya están conectados.</p>
+          {% elif conexion and conexion.estado == 'pendiente' %}
+            <p class="perfil-estado-conexion">{% if conexion.solicitante_id == g.usuario.id %}Solicitud enviada.{% else %}Esta persona te envió una solicitud de conexión.{% endif %}</p>
+          {% elif conexion %}
+            <p class="perfil-estado-conexion">La solicitud de conexión fue rechazada.</p>
+          {% else %}
+            <form method="post" action="{{ url_for('perfil.solicitar_conexion', usuario_id=estudiante.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="boton boton-conexion" type="submit">Pedir conexión</button>
+            </form>
+          {% endif %}
+          <a class="boton boton-primario" href="{{ url_for('perfil.chat', usuario_id=estudiante.id) }}">Abrir chat</a>
+        </div>
+      </section>
+    {% elif not g.usuario %}
+      <p class="perfil-iniciar"><a href="{{ url_for('auth.login') }}">Ingresá</a> para conectar o escribirle.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
