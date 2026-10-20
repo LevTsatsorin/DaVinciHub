@@ -273,15 +273,18 @@ INSERT INTO usuarios (nombre, apellido, email, password_hash, rol, carrera_id, a
 INSERT INTO catedras (usuario_id, materia_id)
 SELECT 4, id FROM materias WHERE carrera_id = 1 AND nombre = 'Lógica de la Programación';
 
--- espacios según la página de infraestructura de la escuela (capacidades estimadas)
+-- espacios según davinci.edu.ar/infraestructura; capacidades estimadas
 INSERT INTO espacios (nombre, descripcion, capacidad) VALUES
-    ('Aula de Informática 1', 'PCs actualizadas con software de diseño y programación', 30),
+    ('Aula de Informática 1', 'PCs con software de diseño y programación', 30),
     ('Aula de Informática 2', 'PCs para desarrollo, 3D y render', 30),
     ('Aula de Arte y Diseño', 'Mesas de trabajo y tabletas gráficas', 24),
-    ('Sala de Croma y Virtual Set', 'Croma para efectos especiales y set virtual', 12),
-    ('Estudio de Captura de Movimiento', 'Equipo de mocap para animación', 10),
+    ('Sala de Croma', 'Fondo de croma para efectos especiales y virtual set', 12),
+    ('Set de Filmación', 'Set con iluminación y cámaras para rodajes', 15),
+    ('Estudio de Virtual Production', 'Pantalla LED para producción virtual en tiempo real', 10),
     ('Aula de Realidad Virtual', 'Cascos VR para desarrollo y testeo', 16),
-    ('Laboratorio de Sonido', 'Grabación y edición de audio', 8),
+    ('Estudio de Sonido 1', 'Grabación con acústica tratada para cortos y publicidades', 6),
+    ('Estudio de Sonido 2', 'Edición y mezcla de audio', 6),
+    ('Laboratorio de Maquetado y Prototipado 3D', 'Impresoras 3D y herramientas para maquetas', 16),
     ('Auditorio', 'Charlas, muestras y eventos', 120),
     ('Sala de Exposiciones', 'Muestras de trabajos de alumnos', 60);
 
@@ -302,25 +305,39 @@ INSERT INTO horarios_espacios (espacio_id, dia_semana, abre, cierra) VALUES
     (3, 4, '09:00', '18:00'),
     (4, 1, '10:00', '18:00'),
     (4, 3, '10:00', '18:00'),
-    (5, 2, '10:00', '16:00'),
-    (5, 4, '10:00', '16:00'),
-    (6, 0, '12:00', '20:00'),
-    (6, 1, '12:00', '20:00'),
-    (6, 2, '12:00', '20:00'),
-    (6, 3, '12:00', '20:00'),
-    (7, 0, '10:00', '18:00'),
-    (7, 1, '10:00', '18:00'),
-    (7, 2, '10:00', '18:00'),
-    (7, 3, '10:00', '18:00'),
-    (7, 4, '10:00', '18:00'),
-    (8, 4, '10:00', '22:00'),
-    (9, 0, '12:00', '20:00'),
-    (9, 1, '12:00', '20:00'),
-    (9, 2, '12:00', '20:00'),
-    (9, 3, '12:00', '20:00'),
-    (9, 4, '12:00', '20:00');
+    (5, 0, '10:00', '19:00'),
+    (5, 2, '10:00', '19:00'),
+    (5, 4, '10:00', '19:00'),
+    (5, 5, '10:00', '14:00'),
+    (6, 2, '12:00', '18:00'),
+    (6, 4, '12:00', '18:00'),
+    (7, 0, '12:00', '20:00'),
+    (7, 1, '12:00', '20:00'),
+    (7, 2, '12:00', '20:00'),
+    (7, 3, '12:00', '20:00'),
+    (8, 0, '10:00', '18:00'),
+    (8, 1, '10:00', '18:00'),
+    (8, 2, '10:00', '18:00'),
+    (8, 3, '10:00', '18:00'),
+    (8, 4, '10:00', '18:00'),
+    (9, 0, '14:00', '21:00'),
+    (9, 1, '14:00', '21:00'),
+    (9, 3, '14:00', '21:00'),
+    (9, 4, '14:00', '21:00'),
+    (10, 0, '09:00', '13:00'),
+    (10, 0, '14:00', '18:00'),
+    (10, 2, '09:00', '13:00'),
+    (10, 2, '14:00', '18:00'),
+    (10, 4, '09:00', '13:00'),
+    (10, 4, '14:00', '18:00'),
+    (11, 4, '10:00', '22:00'),
+    (12, 0, '12:00', '20:00'),
+    (12, 1, '12:00', '20:00'),
+    (12, 2, '12:00', '20:00'),
+    (12, 3, '12:00', '20:00'),
+    (12, 4, '12:00', '20:00');
 
 INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, leida, creado) VALUES
     (2, 'bienvenida', '¡Bienvenida a Da Vinci Hub! Completá tu perfil para que tus compañeros te encuentren.', '/', 1, '2026-10-18T12:00:00+00:00'),
     (2, 'catedra', 'Lucía Paz respondió tu pregunta de Lógica de la Programación.', '/', 0, '2026-10-19T15:20:00+00:00'),
-    (2, 'reservas', 'Tu reserva del Laboratorio de Sonido quedó confirmada.', '/', 0, '2026-10-20T13:05:00+00:00');
+    (2, 'reservas', 'Tu reserva del Estudio de Sonido 1 quedó confirmada.', '/reservas/mis-reservas/', 0, '2026-10-20T13:05:00+00:00');

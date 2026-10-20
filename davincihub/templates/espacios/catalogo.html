@@ -18,9 +18,15 @@
         {% endif %}
       </li>
     </ul>
-    {% if g.usuario and g.usuario.rol == "admin" %}
-      <a class="enlace-admin" href="{{ url_for('espacios.admin_lista') }}">Administrar espacios</a>
-    {% endif %}
+    <div class="acciones-cabecera">
+      <a class="boton boton-primario" href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
+      {% if g.usuario and g.usuario.rol == "admin" %}
+        <div class="enlaces-admin">
+          <a class="enlace-admin" href="{{ url_for('espacios.reservas_admin_todas') }}">Todas las reservas</a>
+          <a class="enlace-admin" href="{{ url_for('espacios.admin_lista') }}">Administrar espacios</a>
+        </div>
+      {% endif %}
+    </div>
   </div>
 </section>
 
@@ -48,6 +54,10 @@
           {% else %}
             <p class="sin-horarios">Todavía no tiene horarios cargados.</p>
           {% endif %}
+          <span class="tarjeta-espacio-accion">
+            Ver disponibilidad
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
         </a>
       {% endfor %}
     </div>

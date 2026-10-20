@@ -193,6 +193,8 @@ CREATE TABLE reservas (
     usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
     inicio TEXT NOT NULL,
     fin TEXT NOT NULL,
+    motivo TEXT NOT NULL DEFAULT '',
+    personas INTEGER CHECK (personas IS NULL OR personas > 0),
     estado TEXT NOT NULL DEFAULT 'confirmada' CHECK (estado IN ('confirmada', 'cancelada')),
     creado TEXT NOT NULL,
     CHECK (inicio < fin)

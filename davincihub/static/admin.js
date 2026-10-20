@@ -97,6 +97,7 @@ if (listaFranjas) {
 if (dialogoConfirmar) {
   let formPendiente = null;
   const aceptar = dialogoConfirmar.querySelector("[data-dialogo-aceptar]");
+  const cancelar = dialogoConfirmar.querySelector("[data-dialogo-cancelar]");
 
   document.querySelectorAll("form[data-confirmar]").forEach((form) => {
     form.addEventListener("submit", (evento) => {
@@ -107,11 +108,17 @@ if (dialogoConfirmar) {
       dialogoConfirmar.querySelector("#dialogo-confirmar-texto").textContent =
         form.dataset.confirmarTexto || "";
       aceptar.textContent = form.dataset.confirmarBoton || "Confirmar";
+      const positivo = form.dataset.confirmarTono === "positivo";
+      dialogoConfirmar.querySelector("[data-icono-peligro]").hidden = positivo;
+      dialogoConfirmar.querySelector("[data-icono-ok]").hidden = !positivo;
+      aceptar.classList.toggle("boton-peligro", !positivo);
+      aceptar.classList.toggle("boton-primario", positivo);
+      cancelar.textContent = form.dataset.confirmarVolver || "Cancelar";
       dialogoConfirmar.showModal();
     });
   });
 
-  dialogoConfirmar.querySelector("[data-dialogo-cancelar]").addEventListener("click", () => {
+  cancelar.addEventListener("click", () => {
     dialogoConfirmar.close();
   });
   aceptar.addEventListener("click", () => {
