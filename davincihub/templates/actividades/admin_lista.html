@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block titulo %}Administrar actividades — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <div class="cabecera-modulo">
+    <h1>Actividades</h1>
+  </div>
+
+  <nav class="pestanas" aria-label="Estado de las actividades">
+    {% for estado_tab, label in [("pendiente","Pendientes"), ("aprobada","Aprobadas"), ("rechazada","Rechazadas"), ("cancelada","Canceladas")] %}
+      <a class="pestana{% if estado_actual == estado_tab %} pestana-activa{% endif %}"
+         href="{{ url_for('actividades.admin_lista', estado=estado_tab) }}"
+         {% if estado_actual == estado_tab %}aria-current="page"{% endif %}>
+        {{ label }} ({{ conteos.get(estado_tab, 0) }})
+      </a>
+    {% endfor %}
+  </nav>
+
+  {% if actividades %}
+    <ul class="lista-admin">
+      {% for a in actividades %}
+        <li class="fila-admin">
+          <div class="fila-admin-datos">
+            <div class="fila-admin-titulo">
+              <a href="{{ url_for('actividades.detalle', actividad_id=a.id) }}">{{ a.nombre }}</a>
+            </div>
+            <p class="fila-admin-detalle">
+              {{ a.inicio[:16].replace("T", " ") }} · {{ a.ubicacion }}
+              · {{ a.inscriptos }}/{{ a.cupo_maximo }} inscriptos
+              · Creado por {{ a.creador_nombre }} {{ a.creador_apellido }}
+            </p>
+            {% if a.motivo_rechazo %}<p class="fila-admin-detalle">Motivo: {{ a.motivo_rechazo }}</p>{% endif %}
+          </div>
+          <div class="fila-admin-acciones">
+            {% if a.estado == "pendiente" %}
+              <form method="post" action="{{ url_for('actividades.admin_estado', actividad_id=a.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="estado" value="aprobada">
+                <button class="boton boton-primario" type="submit">Aprobar</button>
+              </form>
+              <form method="post" action="{{ url_for('actividades.admin_estado', actividad_id=a.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="estado" value="rechazada">
+                <button class="boton boton-suave" type="submit">Rechazar</button>
+              </form>
+            {% elif a.estado == "aprobada" %}
+              <form method="post" action="{{ url_for('actividades.admin_estado', actividad_id=a.id) }}"
+                    data-confirmar="¿Cancelar «{{ a.nombre }}»?"
+                    data-confirmar-texto="Se notificará a los {{ a.inscriptos }} inscriptos."
+                    data-confirmar-boton="Cancelar">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="estado" value="cancelada">
+                <button class="boton boton-suave" type="submit">Cancelar</button>
+              </form>
+            {% endif %}
+            <a class="boton" href="{{ url_for('actividades.inscriptos', actividad_id=a.id) }}">Inscriptos</a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio">
+      <h2>No hay actividades {{ estado_actual }}s</h2>
+    </div>
+  {% endif %}
+</section>
+{% include "actividades/_dialogo.html" %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

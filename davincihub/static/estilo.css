@@ -929,6 +929,203 @@ a { color: inherit; }
 
 .cabecera-modulo h1 { margin: 0; font-size: 28px; }
 
+.pagina-detalle-actividad { max-width: 1000px; }
+
+.pagina-detalle-actividad .enlace-volver {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--gris-texto);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pagina-detalle-actividad .enlace-volver:hover { color: var(--magenta-oscuro); }
+
+.pagina-detalle-actividad .cabecera-modulo h1 { overflow-wrap: anywhere; }
+
+.detalle-actividad {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  align-items: start;
+  gap: clamp(32px, 5vw, 64px);
+}
+
+.detalle-actividad-cuerpo { min-width: 0; }
+
+.detalle-descripcion {
+  margin: 0 0 24px;
+  color: var(--gris-texto);
+  font-size: 18px;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.actividad-meta {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.actividad-meta li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--borde);
+  color: var(--gris-texto);
+  overflow-wrap: anywhere;
+}
+
+.actividad-meta svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 3px;
+  color: var(--magenta);
+}
+
+.actividad-meta strong { color: var(--tinta); }
+
+.panel-cupo {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--fondo);
+}
+
+.panel-cupo .cupo-numeros {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--gris-texto);
+  font-size: 14px;
+}
+
+.panel-cupo .cupo-inscriptos,
+.panel-cupo .cupo-maximo {
+  color: var(--tinta);
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.panel-cupo .cupo-sep { color: #a3a0ae; }
+
+.cupo-barra {
+  width: 100%;
+  height: 9px;
+  margin-top: 17px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--fondo-suave);
+}
+
+.cupo-barra-relleno {
+  height: 100%;
+  max-width: 100%;
+  border-radius: inherit;
+  background: var(--cian);
+  transition: width 180ms ease;
+}
+
+.cupo-barra-relleno.cupo-casi { background: var(--ambar); }
+.cupo-barra-relleno.cupo-lleno { background: var(--error); }
+
+.cupo-estado {
+  margin: 12px 0 0;
+  color: #087a66;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cupo-estado-casi { color: #9a5b00; }
+.cupo-estado-completa { color: #a61e1e; }
+.cupo-nota { margin: 14px 0 0; color: var(--gris-texto); font-size: 14px; }
+
+.boton-bloque {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  text-align: center;
+  white-space: normal;
+}
+
+.boton-bloque:disabled { cursor: not-allowed; opacity: 0.65; }
+
+.panel-admin-acciones {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--borde);
+}
+
+.panel-admin-acciones .cupo-nota { margin: 0; }
+
+.panel-admin-acciones .campo { width: 100%; }
+
+.formulario-actividad {
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.formulario-actividad .campos-fila { align-items: start; }
+
+.formulario-actividad .campos-fila-ubicacion {
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.55fr);
+}
+
+.formulario-actividad .formulario-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.formulario-actividad .formulario-acciones .boton { min-height: 42px; }
+
+@media (max-width: 720px) {
+  .formulario-actividad { padding: 20px; }
+
+  .formulario-actividad .campos-fila-ubicacion { grid-template-columns: 1fr; }
+}
+
+.tarjeta-actividad .chip-estado,
+.tarjeta-actividad .chip-inscripto,
+.pagina-modulo .chip-estado {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 26px;
+  padding: 3px 10px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--fondo-suave);
+  color: var(--gris-texto);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.tarjeta-actividad .chip-casi { border-color: #f2d39c; background: #fff7e6; color: #9a5b00; }
+.tarjeta-actividad .chip-completa { border-color: #f1b8b8; background: #fff0f0; color: #a61e1e; }
+.tarjeta-actividad .chip-inscripto { border-color: #a5dfd2; background: #eaf8f4; color: #087a66; }
+
+@media (max-width: 720px) {
+  .pagina-detalle-actividad { padding-top: 24px; }
+
+  .detalle-actividad { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+
+  .panel-cupo { padding: 18px; }
+
+  .pagina-detalle-actividad .cabecera-modulo > .boton { width: 100%; text-align: center; }
+}
+
 .lista-avisos {
   list-style: none;
   margin: 0;
@@ -1049,6 +1246,16 @@ a { color: inherit; }
   color: #e4e1ee;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
 }
+
+.cabecera-reservas .cabecera-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cabecera-reservas .boton-suave { color: var(--tinta); }
 
 .cifras-reservas {
   display: flex;

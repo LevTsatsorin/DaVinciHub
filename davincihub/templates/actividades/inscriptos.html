@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block titulo %}Inscriptos — {{ actividad.nombre }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <div class="cabecera-modulo">
+    <div>
+      <a class="enlace-volver" href="{{ url_for('actividades.detalle', actividad_id=actividad.id) }}">← {{ actividad.nombre }}</a>
+      <h1>Inscriptos</h1>
+    </div>
+    <div class="cupo-numeros">
+      <span class="cupo-inscriptos">{{ actividad.inscriptos }}</span>
+      <span class="cupo-sep">/</span>
+      <span class="cupo-maximo">{{ actividad.cupo_maximo }}</span>
+      <span class="cupo-label">lugares</span>
+    </div>
+  </div>
+
+  {% if inscriptos %}
+    <ul class="lista-admin">
+      {% for u in inscriptos %}
+        <li class="fila-admin">
+          <div class="fila-admin-datos">
+            <div class="fila-admin-titulo">{{ u.nombre }} {{ u.apellido }}</div>
+            <p class="fila-admin-detalle">
+              {{ u.email }}
+              {% if u.carrera_nombre %} · {{ u.carrera_nombre }}{% endif %}
+              · Inscripto/a el {{ u.fecha_inscripcion[:10] }}
+            </p>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio">
+      <h2>Todavía no hay inscriptos</h2>
+      <p>Cuando alguien se inscriba, va a aparecer acá.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
