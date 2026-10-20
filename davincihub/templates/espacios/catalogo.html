@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block titulo %}Reservas — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="cabecera-reservas fondo-oscuro">
+  <img class="cabecera-reservas-imagen" src="{{ url_for('static', filename='img/reservas.png') }}" alt="">
+  <div class="contenedor cabecera-reservas-contenido">
+    <h1>Espacios para reservar</h1>
+    <p>Aulas, laboratorios y estudios de la escuela, con los horarios en que se pueden usar.</p>
+    <ul class="cifras-reservas">
+      <li><strong>{{ espacios | length }}</strong> {{ "espacio" if espacios | length == 1 else "espacios" }}</li>
+      <li class="cifra-hoy">
+        {% if abiertos_hoy %}
+          <span class="punto-vivo" aria-hidden="true"></span><strong>{{ abiertos_hoy }}</strong> {{ "abierto hoy" if abiertos_hoy == 1 else "abiertos hoy" }}
+        {% else %}
+          Hoy no abre ninguno
+        {% endif %}
+      </li>
+    </ul>
+    {% if g.usuario and g.usuario.rol == "admin" %}
+      <a class="enlace-admin" href="{{ url_for('espacios.admin_lista') }}">Administrar espacios</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="contenedor pagina-espacios">
+  {% if espacios %}
+    <div class="grilla-espacios">
+      {% for espacio in espacios %}
+        <a class="tarjeta-espacio" href="{{ url_for('espacios.detalle', espacio_id=espacio.id) }}"
+           style="--orden: {{ loop.index0 }}">
+          <div class="tarjeta-espacio-cabecera">
+            <h2>{{ espacio.nombre }}</h2>
+            {% if espacio.capacidad %}
+              <span class="chip-capacidad">{{ espacio.capacidad | personas }}</span>
+            {% endif %}
+          </div>
+          {% if espacio.descripcion %}<p class="tarjeta-espacio-descripcion">{{ espacio.descripcion }}</p>{% endif %}
+          {% include "espacios/_semana.html" %}
+          {% set resumen = espacio.horarios | resumen_horarios %}
+          {% if resumen %}
+            <ul class="resumen-horarios">
+              {% for dias_txt, rango in resumen %}
+                <li><span class="resumen-dias">{{ dias_txt }}</span><span class="resumen-rangos">{% for r in rango.split(", ") %}<span class="rango">{{ r }}</span>{% endfor %}</span></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="sin-horarios">Todavía no tiene horarios cargados.</p>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="estado-vacio">
+      <h2>Todavía no hay espacios disponibles</h2>
+      <p>Cuando la escuela habilite aulas o estudios para reservar, van a aparecer acá.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

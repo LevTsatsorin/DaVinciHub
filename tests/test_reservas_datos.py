@@ -343,3 +343,20 @@ def test_catalogo_sin_consulta_por_espacio(app, monkeypatch):
     assert len(espacios) > 2
     assert len(llamadas) == 4
     assert any(e["horarios"] for e in espacios)
+
+
+def test_nombre_demasiado_largo(app):
+    with app.app_context(), pytest.raises(ErrorEspacio, match="80"):
+        crear_espacio("A" * 81)
+
+
+def test_descripcion_demasiado_larga(app):
+    with app.app_context(), pytest.raises(ErrorEspacio, match="300"):
+        crear_espacio("Sala", "x" * 301)
+
+
+def test_actualizar_respeta_limites(app):
+    with app.app_context():
+        espacio_id = crear_espacio("Sala Limite")
+        with pytest.raises(ErrorEspacio, match="80"):
+            actualizar_espacio(espacio_id, "B" * 81)

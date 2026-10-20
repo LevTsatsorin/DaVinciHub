@@ -12,6 +12,9 @@ DIAS_SEMANA = {
     6: "Domingo",
 }
 
+LARGO_NOMBRE = 80
+LARGO_DESCRIPCION = 300
+
 _FORMATO_HORA = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
 
@@ -132,8 +135,12 @@ def crear_espacio(
     nom = (nombre or "").strip()
     if not nom:
         raise ErrorEspacio("El nombre del espacio es obligatorio.")
+    if len(nom) > LARGO_NOMBRE:
+        raise ErrorEspacio(f"El nombre puede tener hasta {LARGO_NOMBRE} caracteres.")
 
     desc = descripcion.strip() if descripcion else None
+    if desc and len(desc) > LARGO_DESCRIPCION:
+        raise ErrorEspacio(f"La descripción puede tener hasta {LARGO_DESCRIPCION} caracteres.")
 
     capacidad = _capacidad(capacidad)
 
@@ -166,8 +173,12 @@ def actualizar_espacio(
     nom = (nombre or "").strip()
     if not nom:
         raise ErrorEspacio("El nombre del espacio es obligatorio.")
+    if len(nom) > LARGO_NOMBRE:
+        raise ErrorEspacio(f"El nombre puede tener hasta {LARGO_NOMBRE} caracteres.")
 
     desc = descripcion.strip() if descripcion else None
+    if desc and len(desc) > LARGO_DESCRIPCION:
+        raise ErrorEspacio(f"La descripción puede tener hasta {LARGO_DESCRIPCION} caracteres.")
 
     capacidad = _capacidad(capacidad)
 
