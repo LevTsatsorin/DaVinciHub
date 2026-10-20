@@ -18,14 +18,18 @@
           <div class="reserva-datos">
             <h2>{{ reserva.usuario_nombre }} {{ reserva.usuario_apellido }}</h2>
             <p>{{ reserva.usuario_email }}</p>
-            <p>{{ reserva.inicio[:10] }} · {{ reserva.inicio[11:16] }}–{{ reserva.fin[11:16] }}</p>
+            {% include "espacios/_reserva_detalles.html" %}
           </div>
           <span class="reserva-estado reserva-estado-{{ reserva.estado }}">{{ reserva.estado | capitalize }}</span>
         </li>
       {% endfor %}
     </ul>
   {% else %}
-    <div class="estado-vacio"><h2>Sin reservas</h2><p>Este espacio todavía no tiene reservas registradas.</p></div>
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+      <h2>Sin reservas</h2>
+      <p>Este espacio todavía no tiene reservas registradas.</p>
+    </div>
   {% endif %}
 </section>
 {% endblock %}

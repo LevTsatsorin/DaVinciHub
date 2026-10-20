@@ -51,7 +51,7 @@ def test_reservar_ver_mis_reservas_y_cancelar_desde_la_web(app, client):
 
     respuesta = client.post(
         f"/espacios/{espacio_id}/reservar",
-        data={"fecha": fecha, "inicio": "10:00", "fin": "12:00"},
+        data={"fecha": fecha, "inicio": "10:00", "fin": "12:00", "motivo": "Estudio", "personas": "3"},
     )
     assert respuesta.status_code == 302
     assert "/reservas/mis-reservas/" in respuesta.headers["Location"]
@@ -107,8 +107,7 @@ def test_admin_accede_a_todas_las_reservas_desde_el_catalogo(client, app):
     contenido = todas.get_data(as_text=True)
     assert "Espacio web D2" in contenido
     assert "mica@davinci.edu.ar" in contenido
-    assert "Espacio sin reservas" in contenido
-    assert "Deshabilitado" in contenido
+    assert "Espacio sin reservas" not in contenido
 
 
 def test_no_admin_no_puede_ver_reservas_admin(client, app):

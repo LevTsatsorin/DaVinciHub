@@ -1,14 +1,23 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
-from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
 
 from davincihub import db, seguridad
 from davincihub.reservas import datos
-from davincihub.utiles import ZONA_LOCAL
+from davincihub.utiles import ZONA_LOCAL, ahora_local, hoy_local
 
 bp = Blueprint("espacios", __name__)
 
+MINUTOS_TURNO = 30
+DIAS_PANEL = 7
+LIMITE_HISTORIAL = 10
 DIAS_CORTOS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+
+@bp.app_template_filter("dia_y_fecha")
+def dia_y_fecha(iso: str) -> str:
+    momento = datetime.fromisoformat(iso)
+    return f"{DIAS_CORTOS[momento.weekday()]} {momento:%d/%m}"
 
 
 @bp.app_template_filter("personas")
@@ -70,31 +79,48 @@ def _hora(minutos: int) -> str:
     return f"{minutos // 60:02d}:{minutos % 60:02d}"
 
 
-def _segmentos_disponibilidad(disponibilidad: dict) -> list[dict]:
-    segmentos = []
-    reservas = disponibilidad["reservas_ocupadas"]
-
-    for horario in disponibilidad["horarios_habilitados"]:
-        abre = _minutos(horario["abre"])
+def turnos_del_dia(disponibilidad: dict, ahora: str) -> list[dict]:
+    fecha = disponibilidad["fecha"]
+    ocupadas = [(r["inicio"][11:16], r["fin"][11:16]) for r in disponibilidad["reservas_ocupadas"]]
+    bloques = []
+    for horario in sorted(disponibilidad["horarios_habilitados"], key=lambda h: h["abre"]):
         cierra = _minutos(horario["cierra"])
-        ocupadas = []
-        for reserva in reservas:
-            inicio_reserva = _minutos(reserva["inicio"][11:16])
-            fin_reserva = _minutos(reserva["fin"][11:16])
-            if inicio_reserva < cierra and fin_reserva > abre:
-                ocupadas.append((max(abre, inicio_reserva), min(cierra, fin_reserva)))
+        turnos = []
+        for minuto in range(_minutos(horario["abre"]), cierra, MINUTOS_TURNO):
+            inicio, fin = _hora(minuto), _hora(min(minuto + MINUTOS_TURNO, cierra))
+            if f"{fecha}T{inicio}" < ahora[:16]:
+                estado = "pasado"
+            elif any(inicio < o_fin and fin > o_ini for o_ini, o_fin in ocupadas):
+                estado = "ocupado"
+            else:
+                estado = "libre"
+            turnos.append({"inicio": inicio, "fin": fin, "estado": estado})
+        bloques.append({"abre": horario["abre"], "cierra": horario["cierra"], "turnos": turnos})
+    return bloques
 
-        cursor = abre
-        for inicio, fin in sorted(ocupadas):
-            if inicio > cursor:
-                segmentos.append({"tipo": "libre", "inicio": _hora(cursor), "fin": _hora(inicio)})
-            if fin > cursor:
-                segmentos.append({"tipo": "ocupado", "inicio": _hora(max(cursor, inicio)), "fin": _hora(fin)})
-                cursor = fin
-        if cursor < cierra:
-            segmentos.append({"tipo": "libre", "inicio": _hora(cursor), "fin": _hora(cierra)})
 
-    return segmentos
+def proximos_dias(desde: str, horarios: list[dict], cantidad: int = DIAS_PANEL) -> list[dict]:
+    abiertos = {h["dia_semana"] for h in horarios}
+    inicio = date.fromisoformat(desde)
+    dias = []
+    for salto in range(cantidad):
+        dia = inicio + timedelta(days=salto)
+        dias.append({
+            "fecha": dia.isoformat(),
+            "etiqueta": DIAS_CORTOS[dia.weekday()],
+            "numero": f"{dia.day:02d}",
+            "abierto": dia.weekday() in abiertos,
+        })
+    return dias
+
+
+def _ayer(fecha: str) -> str:
+    return (date.fromisoformat(fecha) - timedelta(days=1)).isoformat()
+
+
+def _siguiente_dia_abierto(desde: str, horarios: list[dict]) -> str | None:
+    siguiente = (date.fromisoformat(desde) + timedelta(days=1)).isoformat()
+    return next((d["fecha"] for d in proximos_dias(siguiente, horarios, 7) if d["abierto"]), None)
 
 
 @bp.route("/espacios/<int:espacio_id>")
@@ -104,23 +130,31 @@ def detalle(espacio_id: int):
     if espacio is None or (not espacio["activo"] and g.usuario["rol"] != "admin"):
         abort(404)
 
-    fecha = request.args.get("fecha", date.today().isoformat())
+    fecha = request.args.get("fecha", hoy_local())
     try:
-        datetime.strptime(fecha, "%Y-%m-%d")
+        fecha = datetime.strptime(fecha, "%Y-%m-%d").date().isoformat()
     except ValueError:
         flash("Elegí una fecha válida para consultar la disponibilidad.", "error")
-        fecha = date.today().isoformat()
+        fecha = hoy_local()
 
-    disponibilidad = datos.obtener_disponibilidad_dia(espacio_id, fecha)
+    hoy = hoy_local()
+    disponibilidad = datos.obtener_disponibilidad_dia(espacio_id, fecha, espacio)
+    bloques = turnos_del_dia(disponibilidad, ahora_local())
     return render_template(
         "espacios/detalle.html",
         espacio=espacio,
         fecha=fecha,
-        hoy=date.today().isoformat(),
+        hoy=hoy,
         disponibilidad=disponibilidad,
-        segmentos=_segmentos_disponibilidad(disponibilidad),
+        bloques=bloques,
+        hay_libres=any(t["estado"] == "libre" for b in bloques for t in b["turnos"]),
+        proximos=proximos_dias(hoy, espacio["horarios"]),
+        siguiente_abierto=_siguiente_dia_abierto(max(fecha, _ayer(hoy)), espacio["horarios"]),
+        es_pasado=fecha < hoy,
+        formulario=session.pop("reserva_form", {}),
         es_admin=g.usuario["rol"] == "admin",
         dias=datos.DIAS_SEMANA,
+        limite_motivo=datos.LIMITE_MOTIVO,
     )
 
 
@@ -247,19 +281,27 @@ def reservar(espacio_id: int):
     fecha = request.form.get("fecha", "")
     inicio = request.form.get("inicio", "")
     fin = request.form.get("fin", "")
+    motivo = request.form.get("motivo", "").strip()
+    personas = request.form.get("personas", "").strip()
     try:
         if not fecha or not inicio or not fin:
-            raise datos.ErrorHorarioInvalido("Completá la fecha, el inicio y el fin de la reserva.")
+            raise datos.ErrorHorarioInvalido("Elegí en la grilla el horario que querés reservar.")
+        if not motivo:
+            raise datos.ErrorReserva("Contá para qué vas a usar el espacio.")
+        if not personas.isdecimal() or int(personas) < 1:
+            raise datos.ErrorReserva("Indicá cuántas personas van a usar el espacio.")
         reserva_id = datos.crear_reserva(
             espacio_id=espacio_id,
             usuario_id=g.usuario["id"],
             inicio=f"{fecha}T{inicio}",
             fin=f"{fecha}T{fin}",
+            motivo=motivo,
+            personas=int(personas),
         )
-        flash("La reserva quedó confirmada.")
         return redirect(url_for("espacios.mis_reservas", reserva=reserva_id))
     except (datos.ErrorEspacio, datos.ErrorReserva) as error:
         flash(str(error), "error")
+        session["reserva_form"] = {"inicio": inicio, "fin": fin, "motivo": motivo, "personas": personas}
         return redirect(url_for("espacios.detalle", espacio_id=espacio_id, fecha=fecha or None))
 
 
@@ -267,7 +309,9 @@ def reservar(espacio_id: int):
 @seguridad.requiere_login
 def mis_reservas():
     reservas = datos.listar_reservas_usuario(g.usuario["id"], solo_futuras=True)
-    return render_template("reservas/mis_reservas.html", reservas=reservas)
+    historial = datos.listar_historial_usuario(g.usuario["id"], LIMITE_HISTORIAL)
+    nueva = request.args.get("reserva", type=int)
+    return render_template("reservas/mis_reservas.html", reservas=reservas, historial=historial, nueva=nueva)
 
 
 @bp.route("/reservas/<int:reserva_id>/cancelar", methods=("POST",))
@@ -295,11 +339,11 @@ def reservas_admin(espacio_id: int):
 @seguridad.requiere_admin
 def reservas_admin_todas():
     espacios = datos.listar_espacios_admin()
-    reservas_por_espacio: dict[int, list[dict]] = {espacio["id"]: [] for espacio in espacios}
+    reservas_por_espacio: dict[int, list[dict]] = {}
     for reserva in datos.listar_todas_las_reservas():
         reservas_por_espacio.setdefault(reserva["espacio_id"], []).append(reserva)
     return render_template(
         "reservas/admin_todas.html",
-        espacios=espacios,
+        con_reservas=[e for e in espacios if e["id"] in reservas_por_espacio],
         reservas_por_espacio=reservas_por_espacio,
     )

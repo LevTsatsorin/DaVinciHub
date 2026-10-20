@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 
 from davincihub import db
-from davincihub.utiles import ahora, fecha_corta
+from davincihub.utiles import a_hora_local, ahora, ahora_local, fecha_corta
 
 DIAS_SEMANA = {
     0: "Lunes",
@@ -16,6 +16,7 @@ DIAS_SEMANA = {
 
 LARGO_NOMBRE = 80
 LARGO_DESCRIPCION = 300
+LIMITE_MOTIVO = 120
 
 _FORMATO_HORA = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
@@ -418,6 +419,9 @@ def _validar_fechas_reserva(inicio: str, fin: str) -> tuple[datetime, datetime]:
     except (ValueError, TypeError) as error:
         raise ErrorHorarioInvalido("Formato de fecha u hora inválido. Usá ISO (YYYY-MM-DDTHH:MM).") from error
 
+    dt_ini, dt_fin = a_hora_local(dt_ini), a_hora_local(dt_fin)
+    if dt_ini.second or dt_ini.microsecond or dt_fin.second or dt_fin.microsecond:
+        raise ErrorHorarioInvalido("Indicá la hora en horas y minutos, sin segundos.")
     if dt_ini >= dt_fin:
         raise ErrorHorarioInvalido("La hora de finalización debe ser posterior a la de inicio.")
 
@@ -456,6 +460,8 @@ def crear_reserva(
     usuario_id: int,
     inicio: str,
     fin: str,
+    motivo: str = "",
+    personas: int | None = None,
 ) -> int:
     """Crea y confirma una reserva para un usuario si el espacio está disponible.
 
@@ -464,28 +470,30 @@ def crear_reserva(
     - No se reserva en el pasado ni fuera del horario del espacio.
     - No puede haber dos reservas confirmadas que se superpongan en el mismo espacio,
       incluso con intentos concurrentes (atómico con with db.transaccion()).
-    - Emite una notificación al estudiante si el servicio de notificaciones está disponible.
+    - Avisa al estudiante dentro de la misma transacción: si el aviso falla, no queda la reserva.
     """
     dt_ini, dt_fin = _validar_fechas_reserva(inicio, fin)
+    motivo = (motivo or "").strip()
+    if len(motivo) > LIMITE_MOTIVO:
+        raise ErrorReserva(f"El motivo admite hasta {LIMITE_MOTIVO} caracteres.")
+    if personas is not None and personas < 1:
+        raise ErrorReserva("Indicá cuántas personas van a usar el espacio.")
 
-    momento_actual = datetime.fromisoformat(ahora())
-    # Normalizar zonas horarias si alguna tiene tzinfo y la otra no
-    if dt_ini.tzinfo is not None and momento_actual.tzinfo is None:
-        momento_actual = momento_actual.replace(tzinfo=dt_ini.tzinfo)
-    elif dt_ini.tzinfo is None and momento_actual.tzinfo is not None:
-        dt_ini_cmp = dt_ini.replace(tzinfo=momento_actual.tzinfo)
-    else:
-        dt_ini_cmp = dt_ini
-
-    if dt_ini_cmp < momento_actual:
+    if dt_ini < datetime.fromisoformat(ahora_local()):
         raise ErrorHorarioInvalido("No se puede reservar en el pasado.")
 
     with db.transaccion():
-        espacio = db.query_one("SELECT id, nombre, activo FROM espacios WHERE id = :id", id=espacio_id)
-        if not espacio:
+        if not db.bloquear_fila("espacios", espacio_id):
             raise ErrorEspacio(f"No existe el espacio con id {espacio_id}.")
+        espacio = db.query_one(
+            "SELECT id, nombre, activo, capacidad FROM espacios WHERE id = :id", id=espacio_id
+        )
         if not espacio["activo"]:
             raise ErrorEspacio("El espacio está deshabilitado y no admite nuevas reservas.")
+        if personas is not None and espacio["capacidad"] and personas > espacio["capacidad"]:
+            raise ErrorReserva(
+                f"Son demasiadas personas: la capacidad de {espacio['nombre']} es {espacio['capacidad']}."
+            )
 
         # Verificar que encaje en los horarios del espacio
         verificar_horario_espacio(espacio_id, dt_ini, dt_fin)
@@ -509,25 +517,27 @@ def crear_reserva(
             )
 
         fila = db.query_one(
-            "INSERT INTO reservas (espacio_id, usuario_id, inicio, fin, estado, creado)"
-            " VALUES (:espacio_id, :usuario_id, :inicio, :fin, 'confirmada', :creado)"
+            "INSERT INTO reservas (espacio_id, usuario_id, inicio, fin, motivo, personas, estado, creado)"
+            " VALUES (:espacio_id, :usuario_id, :inicio, :fin, :motivo, :personas, 'confirmada', :creado)"
             " RETURNING id",
             espacio_id=espacio_id,
             usuario_id=usuario_id,
             inicio=iso_ini,
             fin=iso_fin,
+            motivo=motivo,
+            personas=personas,
             creado=ahora(),
         )
         reserva_id = fila["id"]
 
-    from davincihub.notificaciones import notificar
+        from davincihub import notificaciones
 
-    notificar(
-        usuario_id,
-        "reservas",
-        f"Tu reserva de '{espacio['nombre']}' ({fecha_corta(iso_ini)}) quedó confirmada.",
-        f"/reservas/{reserva_id}",
-    )
+        notificaciones.notificar(
+            usuario_id,
+            "reservas",
+            f"Tu reserva de '{espacio['nombre']}' ({fecha_corta(iso_ini)}) quedó confirmada.",
+            "/reservas/mis-reservas/",
+        )
 
     return reserva_id
 
@@ -541,6 +551,8 @@ def cancelar_reserva(reserva_id: int, usuario_id: int) -> bool:
     - Notifica al estudiante sobre la cancelación.
     """
     with db.transaccion():
+        if not db.bloquear_fila("reservas", reserva_id):
+            raise ErrorReserva(f"No existe la reserva #{reserva_id}.")
         reserva = db.query_one(
             "SELECT r.*, e.nombre AS espacio_nombre FROM reservas r"
             " JOIN espacios e ON e.id = r.espacio_id"
@@ -556,14 +568,7 @@ def cancelar_reserva(reserva_id: int, usuario_id: int) -> bool:
         if reserva["estado"] == "cancelada":
             raise ErrorCancelacionInvalida("La reserva ya se encuentra cancelada.")
 
-        dt_inicio = datetime.fromisoformat(reserva["inicio"])
-        momento_actual = datetime.fromisoformat(ahora())
-        if dt_inicio.tzinfo is not None and momento_actual.tzinfo is None:
-            momento_actual = momento_actual.replace(tzinfo=dt_inicio.tzinfo)
-        elif dt_inicio.tzinfo is None and momento_actual.tzinfo is not None:
-            dt_inicio = dt_inicio.replace(tzinfo=momento_actual.tzinfo)
-
-        if dt_inicio <= momento_actual:
+        if reserva["inicio"] <= ahora_local():
             raise ErrorCancelacionInvalida("No podés cancelar una reserva que ya comenzó o finalizó.")
 
         db.execute(
@@ -571,14 +576,14 @@ def cancelar_reserva(reserva_id: int, usuario_id: int) -> bool:
             id=reserva_id,
         )
 
-    from davincihub.notificaciones import notificar
+        from davincihub import notificaciones
 
-    notificar(
-        usuario_id,
-        "reservas",
-        f"Tu reserva de '{reserva['espacio_nombre']}' ({fecha_corta(reserva['inicio'])}) fue cancelada.",
-        "/reservas/mis-reservas",
-    )
+        notificaciones.notificar(
+            usuario_id,
+            "reservas",
+            f"Tu reserva de '{reserva['espacio_nombre']}' ({fecha_corta(reserva['inicio'])}) fue cancelada.",
+            "/reservas/mis-reservas/",
+        )
 
     return True
 
@@ -607,15 +612,28 @@ def listar_reservas_usuario(usuario_id: int, solo_futuras: bool = False) -> list
     params = {"usuario": usuario_id}
     if solo_futuras:
         sql += " AND r.fin >= :ahora AND r.estado = 'confirmada' ORDER BY r.inicio ASC"
-        params["ahora"] = ahora()
+        params["ahora"] = ahora_local()
     else:
         sql += " ORDER BY r.inicio DESC"
 
     reservas = db.query(sql, **params)
-    momento_actual = ahora()
+    momento_actual = ahora_local()
     for r in reservas:
         r["puede_cancelar"] = bool(r["estado"] == "confirmada" and r["inicio"] > momento_actual)
     return reservas
+
+
+def listar_historial_usuario(usuario_id: int, limite: int = 10) -> list[dict]:
+    """Reservas canceladas o ya terminadas del usuario, de la más reciente a la más vieja."""
+    return db.query(
+        "SELECT r.*, e.nombre AS espacio_nombre FROM reservas r"
+        " JOIN espacios e ON e.id = r.espacio_id"
+        " WHERE r.usuario_id = :usuario AND (r.estado = 'cancelada' OR r.fin < :ahora)"
+        " ORDER BY r.inicio DESC LIMIT :limite",
+        usuario=usuario_id,
+        ahora=ahora_local(),
+        limite=limite,
+    )
 
 
 def listar_todas_las_reservas(espacio_id: int | None = None) -> list[dict]:
@@ -635,7 +653,7 @@ def listar_todas_las_reservas(espacio_id: int | None = None) -> list[dict]:
     return db.query(sql, **params)
 
 
-def obtener_disponibilidad_dia(espacio_id: int, fecha_str: str) -> dict:
+def obtener_disponibilidad_dia(espacio_id: int, fecha_str: str, espacio: dict | None = None) -> dict:
     """Dado un espacio y una fecha (YYYY-MM-DD), retorna los horarios de apertura y las reservas confirmadas del día.
 
     Permite que el estudiante vea fácilmente qué franjas están libres u ocupadas.
@@ -645,8 +663,9 @@ def obtener_disponibilidad_dia(espacio_id: int, fecha_str: str) -> dict:
     except (ValueError, TypeError) as error:
         raise ErrorHorarioInvalido("Fecha inválida. Usá formato YYYY-MM-DD.") from error
 
+    fecha_str = fecha_obj.isoformat()
     dia_semana = fecha_obj.weekday()
-    espacio = obtener_espacio(espacio_id)
+    espacio = espacio or obtener_espacio(espacio_id)
     if not espacio:
         raise ErrorEspacio(f"No existe el espacio con id {espacio_id}.")
 

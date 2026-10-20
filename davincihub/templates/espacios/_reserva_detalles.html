@@ -1,0 +1,6 @@
+<ul class="reserva-chips">
+  <li class="chip-fecha">{{ reserva.inicio | dia_y_fecha }}</li>
+  <li class="chip-hora">{{ reserva.inicio[11:16] }}–{{ reserva.fin[11:16] }}</li>
+  {% if reserva.personas %}<li class="chip-personas">{{ reserva.personas | personas }}</li>{% endif %}
+</ul>
+{% if reserva.motivo %}<p class="reserva-motivo">{{ reserva.motivo }}</p>{% endif %}

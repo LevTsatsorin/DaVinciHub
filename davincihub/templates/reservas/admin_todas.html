@@ -11,36 +11,36 @@
     </div>
   </div>
 
-  {% if espacios %}
+  {% if con_reservas %}
     <div class="reservas-por-espacio">
-      {% for espacio in espacios %}
+      {% for espacio in con_reservas %}
         <section class="grupo-reservas-espacio">
           <header class="grupo-reservas-cabecera">
             <h2><a href="{{ url_for('espacios.reservas_admin', espacio_id=espacio.id) }}">{{ espacio.nombre }}</a></h2>
-            {% if not espacio.activo %}<span class="estado-inactivo">Deshabilitado</span>{% endif %}
+            {% if not espacio.activo %}<span class="estado estado-inactivo">Deshabilitado</span>{% endif %}
           </header>
-          {% set reservas = reservas_por_espacio.get(espacio.id, []) %}
-          {% if reservas %}
-            <ul class="lista-reservas">
-              {% for reserva in reservas %}
-                <li class="reserva-fila">
-                  <div class="reserva-datos">
-                    <h3>{{ reserva.usuario_nombre }} {{ reserva.usuario_apellido }}</h3>
-                    <p>{{ reserva.usuario_email }}</p>
-                    <p>{{ reserva.inicio[:10] }} · {{ reserva.inicio[11:16] }}–{{ reserva.fin[11:16] }}</p>
-                  </div>
-                  <span class="reserva-estado reserva-estado-{{ reserva.estado }}">{{ reserva.estado | capitalize }}</span>
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="sin-reservas">Este espacio todavía no tiene reservas.</p>
-          {% endif %}
+          <ul class="lista-reservas">
+            {% for reserva in reservas_por_espacio[espacio.id] %}
+              <li class="reserva-fila">
+                <div class="reserva-datos">
+                  <h3>{{ reserva.usuario_nombre }} {{ reserva.usuario_apellido }}</h3>
+                  <p>{{ reserva.usuario_email }}</p>
+                  {% include "espacios/_reserva_detalles.html" %}
+                </div>
+                <span class="reserva-estado reserva-estado-{{ reserva.estado }}">{{ reserva.estado | capitalize }}</span>
+              </li>
+            {% endfor %}
+          </ul>
         </section>
       {% endfor %}
     </div>
   {% else %}
-    <div class="estado-vacio"><h2>No hay espacios cargados</h2></div>
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+      <h2>Todavía no hay reservas</h2>
+      <p>Cuando los estudiantes reserven espacios, las vas a ver acá agrupadas por espacio.</p>
+    </div>
   {% endif %}
+
 </section>
 {% endblock %}
