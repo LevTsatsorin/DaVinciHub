@@ -6,7 +6,7 @@
 <section class="contenedor pagina-reservas-usuario">
   <div class="cabecera-modulo">
     <div>
-      <a class="enlace-volver" href="{{ url_for('reservas.catalogo') }}">← Espacios</a>
+      <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
       <h1>Todas las reservas</h1>
     </div>
   </div>
@@ -16,7 +16,7 @@
       {% for espacio in espacios %}
         <section class="grupo-reservas-espacio">
           <header class="grupo-reservas-cabecera">
-            <h2><a href="{{ url_for('reservas.reservas_admin', espacio_id=espacio.id) }}">{{ espacio.nombre }}</a></h2>
+            <h2><a href="{{ url_for('espacios.reservas_admin', espacio_id=espacio.id) }}">{{ espacio.nombre }}</a></h2>
             {% if not espacio.activo %}<span class="estado-inactivo">Deshabilitado</span>{% endif %}
           </header>
           {% set reservas = reservas_por_espacio.get(espacio.id, []) %}

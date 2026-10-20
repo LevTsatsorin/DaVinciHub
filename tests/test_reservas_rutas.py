@@ -96,7 +96,7 @@ def test_admin_accede_a_todas_las_reservas_desde_el_catalogo(client, app):
         datos.crear_reserva(
             espacio_id, usuario_id, f"{fecha}T10:00", f"{fecha}T12:00"
         )
-        otro_espacio = datos.crear_espacio(nombre="Espacio sin reservas", activo=0)
+        datos.crear_espacio(nombre="Espacio sin reservas", activo=0)
 
     iniciar_sesion(client, email="admin@davinci.edu.ar")
     catalogo = client.get("/espacios/")

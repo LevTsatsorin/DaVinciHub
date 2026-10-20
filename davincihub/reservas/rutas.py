@@ -2,12 +2,19 @@ from datetime import date, datetime
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
-from davincihub import seguridad
+from davincihub import db, seguridad
 from davincihub.reservas import datos
 from davincihub.utiles import ZONA_LOCAL
 
-bp = Blueprint("reservas", __name__)
-DIAS_CORTOS = ("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
+bp = Blueprint("espacios", __name__)
+
+DIAS_CORTOS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+
+@bp.app_template_filter("personas")
+def personas(cantidad: int) -> str:
+    numero = f"{cantidad:,}".replace(",", ".")
+    return f"{numero} persona" if cantidad == 1 else f"{numero} personas"
 
 
 def _etiqueta_dias(dias: list[int]) -> str:
@@ -17,13 +24,12 @@ def _etiqueta_dias(dias: list[int]) -> str:
             tramos[-1].append(dia)
         else:
             tramos.append([dia])
-
     partes = []
     for tramo in tramos:
         if len(tramo) >= 3:
             partes.append(f"{DIAS_CORTOS[tramo[0]]}–{DIAS_CORTOS[tramo[-1]]}")
         else:
-            partes.extend(DIAS_CORTOS[dia] for dia in tramo)
+            partes.extend(DIAS_CORTOS[d] for d in tramo)
     if len(partes) == 1:
         return partes[0]
     return ", ".join(partes[:-1]) + " y " + partes[-1]
@@ -31,12 +37,10 @@ def _etiqueta_dias(dias: list[int]) -> str:
 
 @bp.app_template_filter("resumen_horarios")
 def resumen_horarios(horarios: list[dict]) -> list[tuple[str, str]]:
+    """Agrupa los días que comparten franjas: [("Lun–Vie", "09:00–21:00"), ...]."""
     por_dia: dict[int, list[str]] = {}
-    for horario in horarios:
-        por_dia.setdefault(horario["dia_semana"], []).append(
-            f"{horario['abre']}–{horario['cierra']}"
-        )
-
+    for h in horarios:
+        por_dia.setdefault(h["dia_semana"], []).append(f"{h['abre']}–{h['cierra']}")
     por_rango: dict[str, list[int]] = {}
     for dia in sorted(por_dia):
         por_rango.setdefault(", ".join(por_dia[dia]), []).append(dia)
@@ -47,10 +51,14 @@ def dia_actual() -> int:
     return datetime.now(ZONA_LOCAL).weekday()
 
 
-@bp.app_template_filter("personas")
-def personas(cantidad: int) -> str:
-    numero = f"{cantidad:,}".replace(",", ".")
-    return f"{numero} persona" if cantidad == 1 else f"{numero} personas"
+@bp.route("/espacios/")
+@seguridad.requiere_login
+def catalogo():
+    espacios = datos.listar_espacios_catalogo()
+    hoy = dia_actual()
+    abiertos_hoy = sum(1 for e in espacios if any(h["dia_semana"] == hoy for h in e["horarios"]))
+    return render_template("espacios/catalogo.html", espacios=espacios, abiertos_hoy=abiertos_hoy,
+                           dias=datos.DIAS_SEMANA)
 
 
 def _minutos(hora: str) -> int:
@@ -89,24 +97,6 @@ def _segmentos_disponibilidad(disponibilidad: dict) -> list[dict]:
     return segmentos
 
 
-@bp.route("/espacios/")
-@seguridad.requiere_login
-def catalogo():
-    es_admin = g.usuario["rol"] == "admin"
-    espacios = datos.listar_espacios_admin() if es_admin else datos.listar_espacios_catalogo()
-    hoy = dia_actual()
-    abiertos_hoy = sum(
-        1 for espacio in espacios if any(horario["dia_semana"] == hoy for horario in espacio["horarios"])
-    )
-    return render_template(
-        "espacios/catalogo.html",
-        espacios=espacios,
-        abiertos_hoy=abiertos_hoy,
-        dias=datos.DIAS_SEMANA,
-        es_admin=es_admin,
-    )
-
-
 @bp.route("/espacios/<int:espacio_id>")
 @seguridad.requiere_login
 def detalle(espacio_id: int):
@@ -130,7 +120,125 @@ def detalle(espacio_id: int):
         disponibilidad=disponibilidad,
         segmentos=_segmentos_disponibilidad(disponibilidad),
         es_admin=g.usuario["rol"] == "admin",
+        dias=datos.DIAS_SEMANA,
     )
+
+
+def _espacio_o_404(espacio_id: int) -> dict:
+    espacio = datos.obtener_espacio(espacio_id)
+    if espacio is None:
+        abort(404)
+    return espacio
+
+
+def _franjas_del_formulario(form) -> list[dict]:
+    dias, aperturas, cierres = form.getlist("dia_semana"), form.getlist("abre"), form.getlist("cierra")
+    if not len(dias) == len(aperturas) == len(cierres):
+        raise datos.ErrorFranjaHoraria("Las franjas enviadas están incompletas. Recargá la página.")
+    franjas = []
+    for dia, abre, cierra in zip(dias, aperturas, cierres, strict=True):
+        abre, cierra = abre.strip(), cierra.strip()
+        if not abre and not cierra:
+            continue
+        if not abre or not cierra:
+            raise datos.ErrorFranjaHoraria(
+                "Completá la hora de apertura y de cierre de cada franja."
+            )
+        franjas.append({"dia_semana": dia, "abre": abre, "cierra": cierra})
+    return franjas
+
+
+def _destino_interno(destino: str | None) -> str | None:
+    if destino and destino.startswith("/") and not destino.startswith("//"):
+        return destino
+    return None
+
+
+def _guardar(espacio_id: int | None, form) -> int:
+    franjas = datos.validar_lista_franjas(_franjas_del_formulario(form))
+    with db.transaccion():
+        if espacio_id is None:
+            espacio_id = datos.crear_espacio(
+                form.get("nombre", ""), form.get("descripcion"), form.get("capacidad")
+            )
+        else:
+            datos.actualizar_espacio(
+                espacio_id, form.get("nombre", ""), form.get("descripcion"), form.get("capacidad")
+            )
+        datos.reemplazar_horarios_espacio(espacio_id, franjas)
+    return espacio_id
+
+
+def _franjas_para_mostrar(espacio: dict | None, form) -> list[dict]:
+    if form:
+        return [{"dia_semana": int(d) if d.isdecimal() else d, "abre": a, "cierra": c}
+                for d, a, c in zip(form.getlist("dia_semana"), form.getlist("abre"),
+                                   form.getlist("cierra"))]
+    return espacio["horarios"] if espacio else []
+
+
+def _formulario(espacio: dict | None):
+    error = None
+    if request.method == "POST":
+        try:
+            espacio_id = _guardar(espacio["id"] if espacio else None, request.form)
+        except datos.ErrorEspacio as e:
+            error = str(e)
+        else:
+            flash("Cambios guardados." if espacio else "Espacio creado.")
+            return redirect(_destino_interno(request.form.get("siguiente"))
+                            or url_for("espacios.admin_editar", espacio_id=espacio_id))
+    return render_template(
+        "espacios/admin_form.html",
+        espacio=espacio,
+        datos_form=request.form if request.method == "POST" else (espacio or {}),
+        franjas=_franjas_para_mostrar(espacio, request.form if request.method == "POST" else None),
+        error=error,
+        dias=datos.DIAS_SEMANA,
+    )
+
+
+@bp.route("/admin/espacios/")
+@seguridad.requiere_admin
+def admin_lista():
+    estado = "deshabilitados" if request.args.get("estado") == "deshabilitados" else "activos"
+    todos = datos.listar_espacios_admin()
+    activos = [e for e in todos if e["activo"]]
+    apagados = [e for e in todos if not e["activo"]]
+    return render_template(
+        "espacios/admin_lista.html",
+        estado=estado,
+        espacios=apagados if estado == "deshabilitados" else activos,
+        total_activos=len(activos),
+        total_apagados=len(apagados),
+        dias=datos.DIAS_SEMANA,
+    )
+
+
+@bp.route("/admin/espacios/nuevo", methods=("GET", "POST"))
+@seguridad.requiere_admin
+def admin_nuevo():
+    return _formulario(None)
+
+
+@bp.route("/admin/espacios/<int:espacio_id>/editar", methods=("GET", "POST"))
+@seguridad.requiere_admin
+def admin_editar(espacio_id: int):
+    return _formulario(_espacio_o_404(espacio_id))
+
+
+@bp.route("/admin/espacios/<int:espacio_id>/estado", methods=("POST",))
+@seguridad.requiere_admin
+def admin_estado(espacio_id: int):
+    _espacio_o_404(espacio_id)
+    activo = request.form.get("activo") == "1"
+    datos.cambiar_estado_espacio(espacio_id, 1 if activo else 0)
+    flash("Espacio habilitado." if activo else "Espacio deshabilitado: no admite reservas nuevas.")
+    if request.form.get("volver") == "editar":
+        return redirect(url_for("espacios.admin_editar", espacio_id=espacio_id))
+    if activo:
+        return redirect(url_for("espacios.admin_lista", estado="deshabilitados"))
+    return redirect(url_for("espacios.admin_lista"))
 
 
 @bp.route("/espacios/<int:espacio_id>/reservar", methods=("POST",))
@@ -149,10 +257,10 @@ def reservar(espacio_id: int):
             fin=f"{fecha}T{fin}",
         )
         flash("La reserva quedó confirmada.")
-        return redirect(url_for("reservas.mis_reservas", reserva=reserva_id))
+        return redirect(url_for("espacios.mis_reservas", reserva=reserva_id))
     except (datos.ErrorEspacio, datos.ErrorReserva) as error:
         flash(str(error), "error")
-        return redirect(url_for("reservas.detalle", espacio_id=espacio_id, fecha=fecha or None))
+        return redirect(url_for("espacios.detalle", espacio_id=espacio_id, fecha=fecha or None))
 
 
 @bp.route("/reservas/mis-reservas/")
@@ -170,7 +278,7 @@ def cancelar(reserva_id: int):
         flash("La reserva fue cancelada y el horario quedó liberado.")
     except datos.ErrorReserva as error:
         flash(str(error), "error")
-    return redirect(url_for("reservas.mis_reservas"))
+    return redirect(url_for("espacios.mis_reservas"))
 
 
 @bp.route("/admin/espacios/<int:espacio_id>/reservas/")

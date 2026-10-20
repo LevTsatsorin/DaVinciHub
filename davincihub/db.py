@@ -113,6 +113,19 @@ def transaccion():
         g.en_transaccion = False
 
 
+_NOMBRE_TABLA = re.compile(r"^[a-z_]+$")
+
+
+def bloquear_fila(tabla: str, fila_id: int) -> bool:
+    if not _NOMBRE_TABLA.match(tabla):
+        raise ValueError(f"Nombre de tabla inválido: {tabla!r}")
+    if not g.get("en_transaccion"):
+        raise RuntimeError("bloquear_fila sólo funciona dentro de db.transaccion().")
+    bloqueo = " FOR UPDATE" if g.db_es_pg else ""
+    fila = query_one(f"SELECT id FROM {tabla} WHERE id = :id{bloqueo}", id=fila_id)
+    return fila is not None
+
+
 def _leer_sql(nombre: str) -> str:
     with current_app.open_resource(nombre) as archivo:
         return archivo.read().decode("utf8")

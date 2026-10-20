@@ -5,15 +5,15 @@
 {% block contenido %}
 <section class="cabecera-reservas fondo-oscuro">
   <div class="contenedor cabecera-reservas-contenido">
-    <a class="enlace-volver" href="{{ url_for('reservas.catalogo') }}">← Espacios</a>
+    <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
     <h1>{{ espacio.nombre }}</h1>
     {% if espacio.descripcion %}<p>{{ espacio.descripcion }}</p>{% endif %}
     <ul class="cifras-reservas">
-      {% if espacio.capacidad %}<li><strong>{{ espacio.capacidad }}</strong> personas</li>{% endif %}
+      {% if espacio.capacidad %}<li>{{ espacio.capacidad | personas }}</li>{% endif %}
       {% if not espacio.activo %}<li>Espacio deshabilitado</li>{% endif %}
     </ul>
     {% if es_admin %}
-      <a class="enlace-admin" href="{{ url_for('reservas.reservas_admin', espacio_id=espacio.id) }}">Ver todas las reservas</a>
+      <a class="enlace-admin" href="{{ url_for('espacios.reservas_admin', espacio_id=espacio.id) }}">Ver todas las reservas</a>
     {% endif %}
   </div>
 </section>
@@ -42,7 +42,7 @@
                 <strong>{{ segmento.inicio }}–{{ segmento.fin }}</strong>
               </div>
               {% if espacio.activo %}
-                <form class="form-reserva-rapida" method="post" action="{{ url_for('reservas.reservar', espacio_id=espacio.id) }}">
+                <form class="form-reserva-rapida" method="post" action="{{ url_for('espacios.reservar', espacio_id=espacio.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="fecha" value="{{ fecha }}">
                   <label>Desde <input type="time" name="inicio" min="{{ segmento.inicio }}" max="{{ segmento.fin }}" value="{{ segmento.inicio }}" required></label>
@@ -67,5 +67,18 @@
   {% else %}
     <p class="aviso">{{ espacio.nombre }} no tiene horario habilitado los {{ disponibilidad.dia_nombre }}.</p>
   {% endif %}
+
+  <h2 class="subtitulo">Horarios de la semana</h2>
+  <ul class="horario-semanal">
+    {% for dia, nombre in dias.items() %}
+      {% set franjas = espacio.horarios_por_dia[dia] %}
+      <li class="{% if not franjas %}dia-cerrado{% endif %}">
+        <span class="horario-dia">{{ nombre }}</span>
+        <span class="horario-franjas">
+          {% for f in franjas %}<span class="franja">{{ f.abre }}–{{ f.cierra }}</span>{% else %}Cerrado{% endfor %}
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
 </section>
 {% endblock %}

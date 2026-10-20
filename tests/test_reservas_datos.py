@@ -303,3 +303,60 @@ def test_dias_semana_mapeo():
     assert DIAS_SEMANA[0] == "Lunes"
     assert DIAS_SEMANA[6] == "Domingo"
     assert len(DIAS_SEMANA) == 7
+
+
+def test_dia_booleano_rechazado():
+    with pytest.raises(ErrorFranjaHoraria):
+        validar_lista_franjas([{"dia_semana": True, "abre": "09:00", "cierra": "12:00"}])
+
+
+def test_dia_como_texto_de_formulario(app):
+    with app.app_context():
+        espacio_id = crear_espacio(nombre="Sala Texto")
+        agregar_franja_horaria(espacio_id, "2", "09:00", "12:00")
+        assert obtener_horarios_espacio(espacio_id)[0]["dia_semana"] == 2
+
+
+def test_capacidad_como_texto_de_formulario(app):
+    with app.app_context():
+        espacio_id = crear_espacio(nombre="Sala Form", capacidad="20")
+        assert obtener_espacio(espacio_id)["capacidad"] == 20
+
+
+def test_capacidad_booleana_rechazada(app):
+    with app.app_context(), pytest.raises(ErrorEspacio):
+        crear_espacio(nombre="Sala Bool", capacidad=True)
+
+
+def test_catalogo_sin_consulta_por_espacio(app, monkeypatch):
+    llamadas = []
+    original = db.query
+
+    def contar(sql, **params):
+        llamadas.append(sql)
+        return original(sql, **params)
+
+    monkeypatch.setattr(db, "query", contar)
+    with app.app_context():
+        espacios = listar_espacios_catalogo()
+        listar_espacios_admin()
+    assert len(espacios) > 2
+    assert len(llamadas) == 4
+    assert any(e["horarios"] for e in espacios)
+
+
+def test_nombre_demasiado_largo(app):
+    with app.app_context(), pytest.raises(ErrorEspacio, match="80"):
+        crear_espacio("A" * 81)
+
+
+def test_descripcion_demasiado_larga(app):
+    with app.app_context(), pytest.raises(ErrorEspacio, match="300"):
+        crear_espacio("Sala", "x" * 301)
+
+
+def test_actualizar_respeta_limites(app):
+    with app.app_context():
+        espacio_id = crear_espacio("Sala Limite")
+        with pytest.raises(ErrorEspacio, match="80"):
+            actualizar_espacio(espacio_id, "B" * 81)

@@ -32,6 +32,7 @@ Ojo: la base PostgreSQL free de Render se elimina unos 30 días después de crea
 
 - SQL con placeholders `:nombre`; se traducen solos a Postgres y el `%` literal se escapa automáticamente.
 - Nunca insertar `id` explícitos (en Postgres las columnas son `GENERATED ALWAYS`).
+- Para leer y después escribir sin que otro se meta en el medio (reservas, cupos, franjas): dentro de `db.transaccion()`, primero `db.bloquear_fila("espacios", espacio_id)`; en Postgres bloquea la fila hasta terminar la transacción.
 - Inserciones que necesitan el id: `... RETURNING id` con `db.query_one`.
 - Operaciones atómicas (ej. control de solapamiento de reservas): `with db.transaccion(): ...`.
 

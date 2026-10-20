@@ -14,6 +14,9 @@ DIAS_SEMANA = {
     6: "Domingo",
 }
 
+LARGO_NOMBRE = 80
+LARGO_DESCRIPCION = 300
+
 _FORMATO_HORA = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
 
@@ -43,6 +46,33 @@ class ErrorHorarioInvalido(ErrorReserva):
 
 class ErrorCancelacionInvalida(ErrorReserva):
     """Indica que la reserva no puede cancelarse (ej. ya inició o no pertenece al usuario)."""
+
+
+def _entero(valor, mensaje: str, error: type[ErrorEspacio] = ErrorEspacio) -> int:
+    if isinstance(valor, bool):
+        raise error(mensaje)
+    if isinstance(valor, int):
+        return valor
+    if isinstance(valor, str) and valor.strip().isdecimal():
+        return int(valor.strip())
+    raise error(mensaje)
+
+
+def _dia_semana(valor) -> int:
+    mensaje = f"Día de la semana inválido: {valor}. Debe ser un entero entre 0 (Lunes) y 6 (Domingo)."
+    dia = _entero(valor, mensaje, ErrorFranjaHoraria)
+    if dia not in DIAS_SEMANA:
+        raise ErrorFranjaHoraria(mensaje)
+    return dia
+
+
+def _capacidad(valor) -> int | None:
+    if valor is None or (isinstance(valor, str) and not valor.strip()):
+        return None
+    capacidad = _entero(valor, "La capacidad debe ser un número entero mayor a 0.")
+    if capacidad <= 0:
+        raise ErrorEspacio("La capacidad debe ser un número entero mayor a 0.")
+    return capacidad
 
 
 def validar_formato_hora(hora: str) -> str:
@@ -82,11 +112,7 @@ def validar_lista_franjas(franjas: list[dict]) -> list[dict]:
     por_dia: dict[int, list[tuple[str, str]]] = {}
 
     for item in franjas:
-        dia = item.get("dia_semana")
-        if dia is None or not isinstance(dia, int) or dia not in DIAS_SEMANA:
-            raise ErrorFranjaHoraria(
-                f"Día de la semana inválido: {dia}. Debe ser un entero entre 0 (Lunes) y 6 (Domingo)."
-            )
+        dia = _dia_semana(item.get("dia_semana"))
         abre, cierra = validar_franja(item.get("abre", ""), item.get("cierra", ""))
 
         # Verificar contra franjas ya acumuladas para este mismo día
@@ -127,11 +153,14 @@ def crear_espacio(
     nom = (nombre or "").strip()
     if not nom:
         raise ErrorEspacio("El nombre del espacio es obligatorio.")
+    if len(nom) > LARGO_NOMBRE:
+        raise ErrorEspacio(f"El nombre puede tener hasta {LARGO_NOMBRE} caracteres.")
 
     desc = descripcion.strip() if descripcion else None
+    if desc and len(desc) > LARGO_DESCRIPCION:
+        raise ErrorEspacio(f"La descripción puede tener hasta {LARGO_DESCRIPCION} caracteres.")
 
-    if capacidad is not None and (not isinstance(capacidad, int) or capacidad <= 0):
-        raise ErrorEspacio("La capacidad debe ser un número entero mayor a 0.")
+    capacidad = _capacidad(capacidad)
 
     if activo not in (0, 1):
         raise ErrorEspacio("El estado 'activo' debe ser 0 o 1.")
@@ -162,11 +191,14 @@ def actualizar_espacio(
     nom = (nombre or "").strip()
     if not nom:
         raise ErrorEspacio("El nombre del espacio es obligatorio.")
+    if len(nom) > LARGO_NOMBRE:
+        raise ErrorEspacio(f"El nombre puede tener hasta {LARGO_NOMBRE} caracteres.")
 
     desc = descripcion.strip() if descripcion else None
+    if desc and len(desc) > LARGO_DESCRIPCION:
+        raise ErrorEspacio(f"La descripción puede tener hasta {LARGO_DESCRIPCION} caracteres.")
 
-    if capacidad is not None and (not isinstance(capacidad, int) or capacidad <= 0):
-        raise ErrorEspacio("La capacidad debe ser un número entero mayor a 0.")
+    capacidad = _capacidad(capacidad)
 
     actual = db.query_one("SELECT id, activo FROM espacios WHERE id = :id", id=espacio_id)
     if not actual:
@@ -250,17 +282,30 @@ def _agrupar_horarios_por_dia(horarios: list[dict]) -> dict[int, list[dict]]:
     return agrupados
 
 
+def _con_horarios(espacios: list[dict]) -> list[dict]:
+    """Agrega los horarios a cada espacio con una sola consulta."""
+    por_espacio: dict[int, list[dict]] = {}
+    if espacios:
+        todos = db.query(
+            "SELECT id, espacio_id, dia_semana, abre, cierra FROM horarios_espacios"
+            " ORDER BY dia_semana ASC, abre ASC"
+        )
+        for h in todos:
+            h["dia_nombre"] = DIAS_SEMANA.get(h["dia_semana"], "")
+            por_espacio.setdefault(h["espacio_id"], []).append(h)
+    for esp in espacios:
+        esp["horarios"] = por_espacio.get(esp["id"], [])
+        esp["horarios_por_dia"] = _agrupar_horarios_por_dia(esp["horarios"])
+    return espacios
+
+
 def listar_espacios_catalogo() -> list[dict]:
     """Catálogo para estudiantes: solo espacios activos con sus horarios por día."""
     espacios = db.query(
         "SELECT id, nombre, descripcion, capacidad, activo"
         " FROM espacios WHERE activo = 1 ORDER BY nombre"
     )
-    for esp in espacios:
-        horarios = obtener_horarios_espacio(esp["id"])
-        esp["horarios"] = horarios
-        esp["horarios_por_dia"] = _agrupar_horarios_por_dia(horarios)
-    return espacios
+    return _con_horarios(espacios)
 
 
 def listar_espacios_admin() -> list[dict]:
@@ -269,11 +314,7 @@ def listar_espacios_admin() -> list[dict]:
         "SELECT id, nombre, descripcion, capacidad, activo"
         " FROM espacios ORDER BY activo DESC, nombre"
     )
-    for esp in espacios:
-        horarios = obtener_horarios_espacio(esp["id"])
-        esp["horarios"] = horarios
-        esp["horarios_por_dia"] = _agrupar_horarios_por_dia(horarios)
-    return espacios
+    return _con_horarios(espacios)
 
 
 # --- Operaciones sobre Horarios de Espacios ---
@@ -300,15 +341,11 @@ def agregar_franja_horaria(espacio_id: int, dia_semana: int, abre: str, cierra: 
     - Las franjas de un mismo día no se superponen.
     - Se ejecuta dentro de with db.transaccion() para evitar condiciones de carrera.
     """
-    if dia_semana not in DIAS_SEMANA:
-        raise ErrorFranjaHoraria(
-            f"Día de la semana inválido: {dia_semana}. Debe ser entre 0 y 6."
-        )
+    dia_semana = _dia_semana(dia_semana)
     abre_val, cierra_val = validar_franja(abre, cierra)
 
     with db.transaccion():
-        espacio = db.query_one("SELECT id FROM espacios WHERE id = :id", id=espacio_id)
-        if not espacio:
+        if not db.bloquear_fila("espacios", espacio_id):
             raise ErrorEspacio(f"No existe el espacio con id {espacio_id}.")
 
         # Chequeo de superposición en base de datos para el mismo espacio y día:
@@ -354,8 +391,7 @@ def reemplazar_horarios_espacio(espacio_id: int, franjas: list[dict]) -> None:
     franjas_validadas = validar_lista_franjas(franjas)
 
     with db.transaccion():
-        espacio = db.query_one("SELECT id FROM espacios WHERE id = :id", id=espacio_id)
-        if not espacio:
+        if not db.bloquear_fila("espacios", espacio_id):
             raise ErrorEspacio(f"No existe el espacio con id {espacio_id}.")
 
         db.execute("DELETE FROM horarios_espacios WHERE espacio_id = :espacio_id", espacio_id=espacio_id)
