@@ -3,7 +3,7 @@ import os
 from flask import Flask, render_template
 from flask_wtf.csrf import CSRFProtect
 
-from davincihub import auth, db, seguridad
+from davincihub import auth, db, notificaciones, seguridad
 
 csrf = CSRFProtect()
 
@@ -24,6 +24,7 @@ def create_app(config: dict | None = None) -> Flask:
     csrf.init_app(app)
     db.registrar(app)
     app.register_blueprint(auth.bp)
+    app.register_blueprint(notificaciones.bp)
     app.before_request(seguridad.cargar_usuario)
 
     @app.route("/")
