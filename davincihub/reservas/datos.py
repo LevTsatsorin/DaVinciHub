@@ -1,6 +1,8 @@
 import re
+from datetime import datetime
 
 from davincihub import db
+from davincihub.utiles import ahora, fecha_corta
 
 DIAS_SEMANA = {
     0: "Lunes",
@@ -25,6 +27,22 @@ class ErrorFranjaHoraria(ErrorEspacio):
 
 class ErrorSuperposicionHoraria(ErrorFranjaHoraria):
     """Indica que una franja horaria se superpone con otra existente."""
+
+
+class ErrorReserva(ValueError):
+    """Error base para reservas de espacios."""
+
+
+class ErrorSuperposicionReserva(ErrorReserva):
+    """Indica que la reserva solicitada se superpone con otra ya confirmada."""
+
+
+class ErrorHorarioInvalido(ErrorReserva):
+    """Indica que la reserva está fuera del horario habilitado del espacio o en el pasado."""
+
+
+class ErrorCancelacionInvalida(ErrorReserva):
+    """Indica que la reserva no puede cancelarse (ej. ya inició o no pertenece al usuario)."""
 
 
 def validar_formato_hora(hora: str) -> str:
@@ -351,3 +369,271 @@ def reemplazar_horarios_espacio(espacio_id: int, franjas: list[dict]) -> None:
                 abre=f["abre"],
                 cierra=f["cierra"],
             )
+
+
+# --- Operaciones de Reservas (RF-29 / D2) ---
+
+
+def _validar_fechas_reserva(inicio: str, fin: str) -> tuple[datetime, datetime]:
+    """Parsea y valida los timestamps ISO de una reserva."""
+    try:
+        dt_ini = datetime.fromisoformat(inicio)
+        dt_fin = datetime.fromisoformat(fin)
+    except (ValueError, TypeError) as error:
+        raise ErrorHorarioInvalido("Formato de fecha u hora inválido. Usá ISO (YYYY-MM-DDTHH:MM).") from error
+
+    if dt_ini >= dt_fin:
+        raise ErrorHorarioInvalido("La hora de finalización debe ser posterior a la de inicio.")
+
+    if dt_ini.date() != dt_fin.date():
+        raise ErrorHorarioInvalido("La reserva debe iniciar y terminar en el mismo día.")
+
+    return dt_ini, dt_fin
+
+
+def verificar_horario_espacio(espacio_id: int, dt_ini: datetime, dt_fin: datetime) -> None:
+    """Verifica que la reserva esté completamente dentro de al menos una franja habilitada del espacio para ese día."""
+    dia_semana = dt_ini.weekday()  # 0 = lunes, 6 = domingo
+    hora_ini = dt_ini.strftime("%H:%M")
+    hora_fin = dt_fin.strftime("%H:%M")
+
+    # Debe existir al menos una franja habilitada donde abre <= hora_ini AND cierra >= hora_fin
+    franja = db.query_one(
+        "SELECT id, abre, cierra FROM horarios_espacios"
+        " WHERE espacio_id = :espacio_id AND dia_semana = :dia"
+        "   AND abre <= :ini AND cierra >= :fin",
+        espacio_id=espacio_id,
+        dia=dia_semana,
+        ini=hora_ini,
+        fin=hora_fin,
+    )
+    if not franja:
+        dia_nombre = DIAS_SEMANA.get(dia_semana, "")
+        raise ErrorHorarioInvalido(
+            f"El horario solicitado ({hora_ini} - {hora_fin}) está fuera de las franjas "
+            f"habilitadas del espacio los {dia_nombre}."
+        )
+
+
+def crear_reserva(
+    espacio_id: int,
+    usuario_id: int,
+    inicio: str,
+    fin: str,
+) -> int:
+    """Crea y confirma una reserva para un usuario si el espacio está disponible.
+
+    Reglas de negocio aplicadas:
+    - Un espacio deshabilitado no admite reservas nuevas.
+    - No se reserva en el pasado ni fuera del horario del espacio.
+    - No puede haber dos reservas confirmadas que se superpongan en el mismo espacio,
+      incluso con intentos concurrentes (atómico con with db.transaccion()).
+    - Emite una notificación al estudiante si el servicio de notificaciones está disponible.
+    """
+    dt_ini, dt_fin = _validar_fechas_reserva(inicio, fin)
+
+    momento_actual = datetime.fromisoformat(ahora())
+    # Normalizar zonas horarias si alguna tiene tzinfo y la otra no
+    if dt_ini.tzinfo is not None and momento_actual.tzinfo is None:
+        momento_actual = momento_actual.replace(tzinfo=dt_ini.tzinfo)
+    elif dt_ini.tzinfo is None and momento_actual.tzinfo is not None:
+        dt_ini_cmp = dt_ini.replace(tzinfo=momento_actual.tzinfo)
+    else:
+        dt_ini_cmp = dt_ini
+
+    if dt_ini_cmp < momento_actual:
+        raise ErrorHorarioInvalido("No se puede reservar en el pasado.")
+
+    with db.transaccion():
+        espacio = db.query_one("SELECT id, nombre, activo FROM espacios WHERE id = :id", id=espacio_id)
+        if not espacio:
+            raise ErrorEspacio(f"No existe el espacio con id {espacio_id}.")
+        if not espacio["activo"]:
+            raise ErrorEspacio("El espacio está deshabilitado y no admite nuevas reservas.")
+
+        # Verificar que encaje en los horarios del espacio
+        verificar_horario_espacio(espacio_id, dt_ini, dt_fin)
+
+        # Control de superposición con reservas confirmadas existentes:
+        # Dos intervalos [I1, F1) e [I2, F2) se superponen si inicio < fin_existente AND fin > inicio_existente
+        iso_ini = dt_ini.isoformat(timespec="seconds")
+        iso_fin = dt_fin.isoformat(timespec="seconds")
+
+        solapada = db.query_one(
+            "SELECT id, inicio, fin FROM reservas"
+            " WHERE espacio_id = :espacio_id AND estado = 'confirmada'"
+            "   AND inicio < :fin AND fin > :ini",
+            espacio_id=espacio_id,
+            fin=iso_fin,
+            ini=iso_ini,
+        )
+        if solapada:
+            raise ErrorSuperposicionReserva(
+                f"El espacio ya está reservado en ese horario ({solapada['inicio']} - {solapada['fin']})."
+            )
+
+        fila = db.query_one(
+            "INSERT INTO reservas (espacio_id, usuario_id, inicio, fin, estado, creado)"
+            " VALUES (:espacio_id, :usuario_id, :inicio, :fin, 'confirmada', :creado)"
+            " RETURNING id",
+            espacio_id=espacio_id,
+            usuario_id=usuario_id,
+            inicio=iso_ini,
+            fin=iso_fin,
+            creado=ahora(),
+        )
+        reserva_id = fila["id"]
+
+    from davincihub.notificaciones import notificar
+
+    notificar(
+        usuario_id,
+        "reservas",
+        f"Tu reserva de '{espacio['nombre']}' ({fecha_corta(iso_ini)}) quedó confirmada.",
+        f"/reservas/{reserva_id}",
+    )
+
+    return reserva_id
+
+
+def cancelar_reserva(reserva_id: int, usuario_id: int) -> bool:
+    """Cancela una reserva propia que aún no haya comenzado.
+
+    Reglas de negocio:
+    - Sólo se cancela una reserva propia que no comenzó.
+    - Queda registrada como cancelada (RF-21, RN-10).
+    - Notifica al estudiante sobre la cancelación.
+    """
+    with db.transaccion():
+        reserva = db.query_one(
+            "SELECT r.*, e.nombre AS espacio_nombre FROM reservas r"
+            " JOIN espacios e ON e.id = r.espacio_id"
+            " WHERE r.id = :id",
+            id=reserva_id,
+        )
+        if not reserva:
+            raise ErrorReserva(f"No existe la reserva #{reserva_id}.")
+
+        if reserva["usuario_id"] != usuario_id:
+            raise ErrorCancelacionInvalida("No podés cancelar una reserva que no es tuya.")
+
+        if reserva["estado"] == "cancelada":
+            raise ErrorCancelacionInvalida("La reserva ya se encuentra cancelada.")
+
+        dt_inicio = datetime.fromisoformat(reserva["inicio"])
+        momento_actual = datetime.fromisoformat(ahora())
+        if dt_inicio.tzinfo is not None and momento_actual.tzinfo is None:
+            momento_actual = momento_actual.replace(tzinfo=dt_inicio.tzinfo)
+        elif dt_inicio.tzinfo is None and momento_actual.tzinfo is not None:
+            dt_inicio = dt_inicio.replace(tzinfo=momento_actual.tzinfo)
+
+        if dt_inicio <= momento_actual:
+            raise ErrorCancelacionInvalida("No podés cancelar una reserva que ya comenzó o finalizó.")
+
+        db.execute(
+            "UPDATE reservas SET estado = 'cancelada' WHERE id = :id",
+            id=reserva_id,
+        )
+
+    from davincihub.notificaciones import notificar
+
+    notificar(
+        usuario_id,
+        "reservas",
+        f"Tu reserva de '{reserva['espacio_nombre']}' ({fecha_corta(reserva['inicio'])}) fue cancelada.",
+        "/reservas/mis-reservas",
+    )
+
+    return True
+
+
+def obtener_reserva(reserva_id: int) -> dict | None:
+    """Obtiene una reserva con los datos del espacio y del usuario."""
+    return db.query_one(
+        "SELECT r.*, e.nombre AS espacio_nombre, e.capacidad AS espacio_capacidad,"
+        "       u.nombre AS usuario_nombre, u.apellido AS usuario_apellido, u.email AS usuario_email"
+        " FROM reservas r"
+        " JOIN espacios e ON e.id = r.espacio_id"
+        " JOIN usuarios u ON u.id = r.usuario_id"
+        " WHERE r.id = :id",
+        id=reserva_id,
+    )
+
+
+def listar_reservas_usuario(usuario_id: int, solo_futuras: bool = False) -> list[dict]:
+    """Lista las reservas de un usuario, con opción de filtrar solo las futuras/vigentes."""
+    sql = (
+        "SELECT r.*, e.nombre AS espacio_nombre, e.capacidad AS espacio_capacidad"
+        " FROM reservas r"
+        " JOIN espacios e ON e.id = r.espacio_id"
+        " WHERE r.usuario_id = :usuario"
+    )
+    params = {"usuario": usuario_id}
+    if solo_futuras:
+        sql += " AND r.fin >= :ahora AND r.estado = 'confirmada' ORDER BY r.inicio ASC"
+        params["ahora"] = ahora()
+    else:
+        sql += " ORDER BY r.inicio DESC"
+
+    reservas = db.query(sql, **params)
+    momento_actual = ahora()
+    for r in reservas:
+        r["puede_cancelar"] = bool(r["estado"] == "confirmada" and r["inicio"] > momento_actual)
+    return reservas
+
+
+def listar_todas_las_reservas(espacio_id: int | None = None) -> list[dict]:
+    """Lista todas las reservas para administración (de un espacio o de todos)."""
+    sql = (
+        "SELECT r.*, e.nombre AS espacio_nombre, u.nombre AS usuario_nombre,"
+        "       u.apellido AS usuario_apellido, u.email AS usuario_email"
+        " FROM reservas r"
+        " JOIN espacios e ON e.id = r.espacio_id"
+        " JOIN usuarios u ON u.id = r.usuario_id"
+    )
+    params = {}
+    if espacio_id is not None:
+        sql += " WHERE r.espacio_id = :espacio"
+        params["espacio"] = espacio_id
+    sql += " ORDER BY r.inicio DESC"
+    return db.query(sql, **params)
+
+
+def obtener_disponibilidad_dia(espacio_id: int, fecha_str: str) -> dict:
+    """Dado un espacio y una fecha (YYYY-MM-DD), retorna los horarios de apertura y las reservas confirmadas del día.
+
+    Permite que el estudiante vea fácilmente qué franjas están libres u ocupadas.
+    """
+    try:
+        fecha_obj = datetime.strptime(fecha_str.strip(), "%Y-%m-%d").date()
+    except (ValueError, TypeError) as error:
+        raise ErrorHorarioInvalido("Fecha inválida. Usá formato YYYY-MM-DD.") from error
+
+    dia_semana = fecha_obj.weekday()
+    espacio = obtener_espacio(espacio_id)
+    if not espacio:
+        raise ErrorEspacio(f"No existe el espacio con id {espacio_id}.")
+
+    horarios_dia = [h for h in espacio.get("horarios", []) if h["dia_semana"] == dia_semana]
+
+    inicio_dia = f"{fecha_str}T00:00:00"
+    fin_dia = f"{fecha_str}T23:59:59"
+
+    reservas = db.query(
+        "SELECT id, inicio, fin, estado FROM reservas"
+        " WHERE espacio_id = :espacio_id AND estado = 'confirmada'"
+        "   AND inicio <= :fin_dia AND fin >= :inicio_dia"
+        " ORDER BY inicio ASC",
+        espacio_id=espacio_id,
+        inicio_dia=inicio_dia,
+        fin_dia=fin_dia,
+    )
+
+    return {
+        "espacio": espacio,
+        "fecha": fecha_str,
+        "dia_nombre": DIAS_SEMANA[dia_semana],
+        "horarios_habilitados": horarios_dia,
+        "reservas_ocupadas": reservas,
+        "abierto": len(horarios_dia) > 0,
+    }
