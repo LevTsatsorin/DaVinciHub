@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block titulo %}Reservas de {{ espacio.nombre }} — Administración{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-reservas-usuario">
+  <div class="cabecera-modulo">
+    <div>
+      <a class="enlace-volver" href="{{ url_for('reservas.detalle', espacio_id=espacio.id) }}">← {{ espacio.nombre }}</a>
+      <h1>Reservas del espacio</h1>
+    </div>
+  </div>
+
+  {% if reservas %}
+    <ul class="lista-reservas">
+      {% for reserva in reservas %}
+        <li class="reserva-fila">
+          <div class="reserva-datos">
+            <h2>{{ reserva.usuario_nombre }} {{ reserva.usuario_apellido }}</h2>
+            <p>{{ reserva.usuario_email }}</p>
+            <p>{{ reserva.inicio[:10] }} · {{ reserva.inicio[11:16] }}–{{ reserva.fin[11:16] }}</p>
+          </div>
+          <span class="reserva-estado reserva-estado-{{ reserva.estado }}">{{ reserva.estado | capitalize }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio"><h2>Sin reservas</h2><p>Este espacio todavía no tiene reservas registradas.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

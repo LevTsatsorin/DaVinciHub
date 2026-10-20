@@ -1,0 +1,9 @@
+{% set abiertos = espacio.horarios | map(attribute="dia_semana") | list %}
+<ol class="semana" aria-label="Días con horario">
+  {% for dia, nombre in dias.items() %}
+    <li class="{% if dia in abiertos %}semana-abierto{% endif %}"
+        title="{{ nombre }}{% if dia not in abiertos %} · cerrado{% endif %}">
+      {{ nombre[0] if dia != 2 else "X" }}
+    </li>
+  {% endfor %}
+</ol>

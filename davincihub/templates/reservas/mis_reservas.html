@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block titulo %}Mis reservas — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-reservas-usuario">
+  <div class="cabecera-modulo">
+    <div>
+      <a class="enlace-volver" href="{{ url_for('reservas.catalogo') }}">← Espacios</a>
+      <h1>Mis próximas reservas</h1>
+    </div>
+    <a class="boton boton-primario" href="{{ url_for('reservas.catalogo') }}">Buscar un espacio</a>
+  </div>
+
+  {% if reservas %}
+    <ul class="lista-reservas">
+      {% for reserva in reservas %}
+        <li class="reserva-fila">
+          <div class="reserva-datos">
+            <h2><a href="{{ url_for('reservas.detalle', espacio_id=reserva.espacio_id, fecha=reserva.inicio[:10]) }}">{{ reserva.espacio_nombre }}</a></h2>
+            <p>{{ reserva.inicio[:10] }} · {{ reserva.inicio[11:16] }}–{{ reserva.fin[11:16] }}</p>
+            <span class="reserva-estado">Confirmada</span>
+          </div>
+          {% if reserva.puede_cancelar %}
+            <form method="post" action="{{ url_for('reservas.cancelar', reserva_id=reserva.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="boton boton-suave" type="submit">Cancelar reserva</button>
+            </form>
+          {% else %}
+            <span class="nota">Ya comenzó; no se puede cancelar.</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio">
+      <h2>No tenés próximas reservas</h2>
+      <p>Elegí un espacio y un día para consultar los horarios disponibles.</p>
+      <a class="boton boton-primario" href="{{ url_for('reservas.catalogo') }}">Ver espacios</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

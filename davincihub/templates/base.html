@@ -17,7 +17,7 @@
     <div class="barra-enlaces">
       <a href="#">Foro</a>
       <a href="#">Objetos</a>
-      <a href="#">Reservas</a>
+      <a href="{{ url_for('reservas.catalogo') }}">Reservas</a>
       <a href="#">Actividades</a>
     </div>
     <div class="barra-acciones">
@@ -59,7 +59,7 @@
   <nav class="menu-enlaces">
     <a class="menu-enlace modulo-foro" href="#">Foro académico</a>
     <a class="menu-enlace modulo-objetos" href="#">Objetos</a>
-    <a class="menu-enlace modulo-reservas" href="#">Reservas</a>
+    <a class="menu-enlace modulo-reservas" href="{{ url_for('reservas.catalogo') }}">Reservas</a>
     <a class="menu-enlace modulo-actividades" href="#">Actividades</a>
     {% if g.usuario %}
       <a class="menu-enlace menu-avisos" href="{{ url_for('notificaciones.bandeja') }}">
@@ -110,7 +110,7 @@
       <h3>Módulos</h3>
       <a href="#">Foro académico</a>
       <a href="#">Objetos</a>
-      <a href="#">Reservas</a>
+      <a href="{{ url_for('reservas.catalogo') }}">Reservas</a>
       <a href="#">Actividades</a>
     </nav>
     <nav class="pie-columna pie-col-cian">
