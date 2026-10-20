@@ -97,3 +97,17 @@ def test_marcar_todo_leido_solo_afecta_lo_propio(client, app):
     assert 'data-avisos="0"' in client.get("/").get_data(as_text=True)
     with app.app_context():
         assert db.query_one("SELECT leida FROM notificaciones WHERE id = :id", id=ajeno)["leida"] == 0
+
+
+def test_abrir_ignora_enlace_externo_guardado_en_la_base(client, app):
+    with app.app_context():
+        fila = db.query_one(
+            "INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, creado)"
+            " VALUES (:usuario, 'x', 'aviso', '//otro-sitio.com', '2026-10-20T00:00:00+00:00')"
+            " RETURNING id",
+            usuario=id_de(app, "mica@davinci.edu.ar"),
+        )
+    login(client)
+    respuesta = client.get(f"/notificaciones/{fila['id']}")
+    assert respuesta.status_code == 302
+    assert respuesta.headers["Location"].endswith("/notificaciones/")

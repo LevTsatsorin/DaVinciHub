@@ -6,8 +6,12 @@ from davincihub.utiles import ahora, fecha_corta
 bp = Blueprint("notificaciones", __name__, url_prefix="/notificaciones")
 
 
+def _es_interno(enlace: str) -> bool:
+    return enlace.startswith("/") and not enlace.startswith("//")
+
+
 def notificar(usuario_id: int, tipo: str, cuerpo: str, enlace: str | None = None) -> int:
-    if enlace and (not enlace.startswith("/") or enlace.startswith("//")):
+    if enlace and not _es_interno(enlace):
         raise ValueError("El enlace de un aviso tiene que ser una ruta interna del sitio.")
     fila = db.query_one(
         "INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, creado)"
@@ -61,7 +65,10 @@ def abrir(aviso_id: int):
     if aviso is None:
         abort(404)
     db.execute("UPDATE notificaciones SET leida = 1 WHERE id = :id", id=aviso_id)
-    return redirect(aviso["enlace"] or url_for("notificaciones.bandeja"))
+    enlace = aviso["enlace"]
+    if not enlace or not _es_interno(enlace):
+        enlace = url_for("notificaciones.bandeja")
+    return redirect(enlace)
 
 
 @bp.route("/leer-todas", methods=("POST",))
