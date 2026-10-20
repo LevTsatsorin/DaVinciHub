@@ -319,3 +319,8 @@ INSERT INTO horarios_espacios (espacio_id, dia_semana, abre, cierra) VALUES
     (9, 2, '12:00', '20:00'),
     (9, 3, '12:00', '20:00'),
     (9, 4, '12:00', '20:00');
+
+INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, leida, creado) VALUES
+    (2, 'bienvenida', '¡Bienvenida a Da Vinci Hub! Completá tu perfil para que tus compañeros te encuentren.', '/', 1, '2026-10-18T12:00:00+00:00'),
+    (2, 'catedra', 'Lucía Paz respondió tu pregunta de Lógica de la Programación.', '/', 0, '2026-10-19T15:20:00+00:00'),
+    (2, 'reservas', 'Tu reserva del Laboratorio de Sonido quedó confirmada.', '/', 0, '2026-10-20T13:05:00+00:00');

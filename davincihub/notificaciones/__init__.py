@@ -1,0 +1,74 @@
+from flask import Blueprint, abort, g, redirect, render_template, url_for
+
+from davincihub import db, seguridad
+from davincihub.utiles import ahora, fecha_corta
+
+bp = Blueprint("notificaciones", __name__, url_prefix="/notificaciones")
+
+
+def notificar(usuario_id: int, tipo: str, cuerpo: str, enlace: str | None = None) -> int:
+    if enlace and (not enlace.startswith("/") or enlace.startswith("//")):
+        raise ValueError("El enlace de un aviso tiene que ser una ruta interna del sitio.")
+    fila = db.query_one(
+        "INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, creado)"
+        " VALUES (:usuario, :tipo, :cuerpo, :enlace, :creado) RETURNING id",
+        usuario=usuario_id,
+        tipo=tipo,
+        cuerpo=cuerpo,
+        enlace=enlace,
+        creado=ahora(),
+    )
+    return fila["id"]
+
+
+def sin_leer(usuario_id: int) -> int:
+    fila = db.query_one(
+        "SELECT count(*) AS n FROM notificaciones WHERE usuario_id = :usuario AND leida = 0",
+        usuario=usuario_id,
+    )
+    return fila["n"]
+
+
+@bp.app_context_processor
+def contador_de_avisos():
+    usuario = g.get("usuario")
+    return {"avisos_sin_leer": sin_leer(usuario["id"]) if usuario else 0}
+
+
+@bp.app_template_filter("fecha_corta")
+def filtro_fecha_corta(iso: str) -> str:
+    return fecha_corta(iso)
+
+
+@bp.route("/")
+@seguridad.requiere_login
+def bandeja():
+    avisos = db.query(
+        "SELECT * FROM notificaciones WHERE usuario_id = :usuario ORDER BY creado DESC, id DESC",
+        usuario=g.usuario["id"],
+    )
+    return render_template("notificaciones/bandeja.html", avisos=avisos)
+
+
+@bp.route("/<int:aviso_id>")
+@seguridad.requiere_login
+def abrir(aviso_id: int):
+    aviso = db.query_one(
+        "SELECT * FROM notificaciones WHERE id = :id AND usuario_id = :usuario",
+        id=aviso_id,
+        usuario=g.usuario["id"],
+    )
+    if aviso is None:
+        abort(404)
+    db.execute("UPDATE notificaciones SET leida = 1 WHERE id = :id", id=aviso_id)
+    return redirect(aviso["enlace"] or url_for("notificaciones.bandeja"))
+
+
+@bp.route("/leer-todas", methods=("POST",))
+@seguridad.requiere_login
+def leer_todas():
+    db.execute(
+        "UPDATE notificaciones SET leida = 1 WHERE usuario_id = :usuario AND leida = 0",
+        usuario=g.usuario["id"],
+    )
+    return redirect(url_for("notificaciones.bandeja"))

@@ -872,3 +872,129 @@ a { color: inherit; }
 
   .portada-acciones .boton { width: 100%; text-align: center; }
 }
+
+/* --- notificaciones --- */
+
+.campana {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: #ffffff;
+  transition: background 0.15s ease;
+}
+
+.campana:hover { background: rgba(255, 255, 255, 0.08); }
+
+.campana svg { width: 21px; height: 21px; }
+
+.campana-cantidad {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--magenta);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.menu-avisos { --acento-modulo: #ffffff; }
+
+.menu-avisos .campana-cantidad { position: static; margin-left: auto; }
+
+.pagina-modulo {
+  padding-top: 36px;
+  padding-bottom: 56px;
+  max-width: 760px;
+}
+
+.cabecera-modulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.cabecera-modulo h1 { margin: 0; font-size: 28px; }
+
+.lista-avisos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.lista-avisos li + li { border-top: 1px solid var(--borde); }
+
+.aviso-fila {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  text-decoration: none;
+  color: var(--gris-texto);
+  transition: background 0.15s ease;
+}
+
+.aviso-fila:hover { background: var(--fondo-suave); }
+
+.aviso-punto {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.aviso-nuevo { color: var(--tinta); font-weight: 500; }
+
+.aviso-nuevo .aviso-punto { background: var(--magenta); }
+
+.aviso-texto { flex: 1; }
+
+.aviso-fecha {
+  flex: none;
+  font-size: 13px;
+  color: var(--gris-texto);
+}
+
+.estado-vacio {
+  text-align: center;
+  padding: 24px 16px 8px;
+}
+
+.estado-vacio img {
+  width: min(260px, 70vw);
+  border-radius: 16px;
+}
+
+.estado-vacio h2 { margin: 18px 0 6px; font-size: 20px; }
+
+.estado-vacio p {
+  max-width: 420px;
+  margin: 0 auto;
+  color: var(--gris-texto);
+}
+
+@media (max-width: 720px) {
+  .campana { margin-left: auto; }
+  .campana + .burger { margin-left: 0; }
+}
+
+.campana { order: 1; }
+.barra-acciones { order: 2; }
+.burger { order: 3; }
