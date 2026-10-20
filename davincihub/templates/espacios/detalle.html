@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ espacio.nombre }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo">
+  <a class="volver" href="{{ url_for('espacios.catalogo') }}">← Todos los espacios</a>
+  <div class="cabecera-modulo">
+    <h1>{{ espacio.nombre }}</h1>
+    {% if espacio.capacidad %}<span class="chip-capacidad">{{ espacio.capacidad | personas }}</span>{% endif %}
+  </div>
+  {% if espacio.descripcion %}<p class="descripcion-espacio">{{ espacio.descripcion }}</p>{% endif %}
+
+  <h2 class="subtitulo">Horarios de la semana</h2>
+  <ul class="horario-semanal">
+    {% for dia, nombre in dias.items() %}
+      {% set franjas = espacio.horarios_por_dia[dia] %}
+      <li class="{% if not franjas %}dia-cerrado{% endif %}">
+        <span class="horario-dia">{{ nombre }}</span>
+        <span class="horario-franjas">
+          {% for f in franjas %}<span class="franja">{{ f.abre }}–{{ f.cierra }}</span>{% else %}Cerrado{% endfor %}
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
