@@ -4,7 +4,7 @@
 
 {% block contenido %}
 <section class="formulario-pagina">
-  <div class="tarjeta-acceso" style="max-width: 800px;">
+  <div class="tarjeta-acceso">
     <img class="acceso-ilustracion" src="{{ url_for('static', filename='img/actividades.png') }}" alt="Actividades Da Vinci">
     <form class="formulario" method="post" style="padding: 32px;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
