@@ -142,25 +142,6 @@ def ver(usuario_id: int):
         " WHERE i.usuario_id = :id AND a.estado = 'aprobada'",
         id=usuario_id,
     )["total"]
-    conexiones = db.query(
-        "SELECT u.id, u.nombre, u.apellido, c.nombre AS carrera FROM conexiones x"
-        " JOIN usuarios u ON u.id = CASE WHEN x.solicitante_id = :id"
-        " THEN x.receptor_id ELSE x.solicitante_id END"
-        " LEFT JOIN carreras c ON c.id = u.carrera_id"
-        " WHERE (x.solicitante_id = :id OR x.receptor_id = :id)"
-        " AND x.estado = 'aceptada' AND u.bloqueado = 0 ORDER BY u.nombre, u.apellido",
-        id=usuario_id,
-    )
-    solicitudes_recibidas = []
-    if g.usuario and g.usuario["id"] == usuario_id:
-        solicitudes_recibidas = db.query(
-            "SELECT u.id, u.nombre, u.apellido, c.nombre AS carrera FROM conexiones x"
-            " JOIN usuarios u ON u.id = x.solicitante_id"
-            " LEFT JOIN carreras c ON c.id = u.carrera_id"
-            " WHERE x.receptor_id = :id AND x.estado = 'pendiente' AND u.bloqueado = 0"
-            " ORDER BY x.creado, u.nombre",
-            id=usuario_id,
-        )
     conexion = _estado_conexion(usuario_id) if g.usuario and g.usuario["id"] != usuario_id else None
     return render_template(
         "perfil/perfil.html",
@@ -172,8 +153,6 @@ def ver(usuario_id: int):
         actividades=actividades,
         actividades_total=actividades_total,
         conexion=conexion,
-        conexiones=conexiones,
-        solicitudes_recibidas=solicitudes_recibidas,
     )
 
 
@@ -200,10 +179,10 @@ def editar(usuario_id: int):
     if request.method == "POST":
         datos = request.form
         errores = validacion.validar_datos_estudiante(datos)
-        for campo in ("nombre", "apellido", "email"):
+        for campo in ("nombre", "apellido"):
             if not (datos.get(campo) or "").strip():
                 errores[campo] = "Campo obligatorio."
-        email = (datos.get("email") or "").strip().lower()
+        email = (datos.get("email") or estudiante["email"]).strip().lower()
         if email and ("@" not in email or "." not in email.rsplit("@", 1)[-1]):
             errores.setdefault("email", "Email inválido.")
         if email and db.query_one(
@@ -359,6 +338,50 @@ def rechazar_conexion(usuario_id: int, solicitante_id: int):
     return _resolver_solicitud(usuario_id, solicitante_id, "rechazada")
 
 
+@bp.get("/<int:usuario_id>/conexiones")
+@seguridad.requiere_login
+def conexiones(usuario_id: int):
+    if g.usuario["id"] != usuario_id:
+        abort(403)
+    solicitudes_recibidas = db.query(
+        "SELECT u.id, u.nombre, u.apellido, c.nombre AS carrera,"
+        " CASE WHEN f.usuario_id IS NULL THEN 0 ELSE 1 END AS tiene_foto"
+        " FROM conexiones x JOIN usuarios u ON u.id = x.solicitante_id"
+        " LEFT JOIN carreras c ON c.id = u.carrera_id"
+        " LEFT JOIN fotos_perfil f ON f.usuario_id = u.id"
+        " WHERE x.receptor_id = :id AND x.estado = 'pendiente'"
+        " AND u.rol = 'estudiante' AND u.bloqueado = 0 ORDER BY x.creado, u.nombre",
+        id=usuario_id,
+    )
+    enviadas = db.query(
+        "SELECT u.id, u.nombre, u.apellido, c.nombre AS carrera"
+        " FROM conexiones x JOIN usuarios u ON u.id = x.receptor_id"
+        " LEFT JOIN carreras c ON c.id = u.carrera_id"
+        " WHERE x.solicitante_id = :id AND x.estado = 'pendiente'"
+        " AND u.rol = 'estudiante' AND u.bloqueado = 0 ORDER BY x.creado DESC",
+        id=usuario_id,
+    )
+    aceptadas = db.query(
+        "SELECT u.id, u.nombre, u.apellido, c.nombre AS carrera,"
+        " CASE WHEN f.usuario_id IS NULL THEN 0 ELSE 1 END AS tiene_foto"
+        " FROM conexiones x JOIN usuarios u ON u.id = CASE WHEN x.solicitante_id = :id"
+        " THEN x.receptor_id ELSE x.solicitante_id END"
+        " LEFT JOIN carreras c ON c.id = u.carrera_id"
+        " LEFT JOIN fotos_perfil f ON f.usuario_id = u.id"
+        " WHERE (x.solicitante_id = :id OR x.receptor_id = :id)"
+        " AND x.estado = 'aceptada' AND u.rol = 'estudiante' AND u.bloqueado = 0"
+        " ORDER BY u.nombre, u.apellido",
+        id=usuario_id,
+    )
+    return render_template(
+        "perfil/conexiones.html",
+        estudiante=g.usuario,
+        solicitudes_recibidas=solicitudes_recibidas,
+        enviadas=enviadas,
+        conexiones=aceptadas,
+    )
+
+
 @bp.route("/<int:usuario_id>/chat", methods=("GET", "POST"))
 @seguridad.requiere_login
 def chat(usuario_id: int):
@@ -380,9 +403,11 @@ def chat(usuario_id: int):
             )
             return redirect(url_for("perfil.chat", usuario_id=usuario_id))
     mensajes = db.query(
-        "SELECT emisor_id, receptor_id, cuerpo, creado FROM mensajes"
-        " WHERE (emisor_id = :yo AND receptor_id = :otro)"
-        " OR (emisor_id = :otro AND receptor_id = :yo) ORDER BY creado, id",
+        "SELECT m.emisor_id, m.receptor_id, m.cuerpo, m.creado,"
+        " emisor.nombre AS emisor_nombre, emisor.apellido AS emisor_apellido"
+        " FROM mensajes m JOIN usuarios emisor ON emisor.id = m.emisor_id"
+        " WHERE (m.emisor_id = :yo AND m.receptor_id = :otro)"
+        " OR (m.emisor_id = :otro AND m.receptor_id = :yo) ORDER BY m.creado, m.id",
         yo=g.usuario["id"],
         otro=usuario_id,
     )

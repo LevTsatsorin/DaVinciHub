@@ -170,6 +170,15 @@ def test_solicitud_conexion_y_chat(client, app):
     assert respuesta.status_code == 302
     conversacion = client.get("/estudiantes/3/chat").get_data(as_text=True)
     assert "¡Hola, Tomás!" in conversacion
+    assert '<span class="chat-mensaje-autor">Mica Suárez</span>' in conversacion
+    assert 'class="chat-mensaje chat-mensaje-propio"' in conversacion
+
+    tomas = app.test_client()
+    ingresar(tomas, email="tomas@davinci.edu.ar")
+    tomas.post("/estudiantes/2/chat", data={"cuerpo": "Hola, Mica"})
+    conversacion = client.get("/estudiantes/3/chat").get_data(as_text=True)
+    assert '<span class="chat-mensaje-autor">Tomás Vega</span>' in conversacion
+    assert 'class="chat-mensaje chat-mensaje-ajeno"' in conversacion
     with app.app_context():
         conexion = db.query_one(
             "SELECT estado FROM conexiones WHERE solicitante_id = :yo AND receptor_id = :otro",
@@ -185,16 +194,21 @@ def test_destinatario_acepta_o_rechaza_solicitudes(client, app):
     ingresar(client)
     client.post("/estudiantes/3/conexiones")
     assert client.post("/estudiantes/3/conexiones/2/aceptar").status_code == 403
+    perfil_publico = client.get("/estudiantes/3").get_data(as_text=True)
+    assert "Solicitudes recibidas" not in perfil_publico
+    assert "Abrir chat" not in perfil_publico
+    assert client.get("/estudiantes/3/conexiones").status_code == 403
 
     tomas = app.test_client()
     ingresar(tomas, email="tomas@davinci.edu.ar")
-    contenido = tomas.get("/estudiantes/3").get_data(as_text=True)
+    contenido = tomas.get("/estudiantes/3/conexiones").get_data(as_text=True)
     assert "Solicitudes recibidas" in contenido
     assert "Mica Suárez" in contenido
     assert tomas.post("/estudiantes/3/conexiones/2/aceptar").status_code == 302
-    conexiones = tomas.get("/estudiantes/3").get_data(as_text=True)
+    conexiones = tomas.get("/estudiantes/3/conexiones").get_data(as_text=True)
     assert "Conexiones" in conexiones
     assert "Mica Suárez" in conexiones
+    assert "Abrir chat" in conexiones
 
     client.post("/estudiantes/4/conexiones")
     lucia = app.test_client()
@@ -207,6 +221,15 @@ def test_destinatario_acepta_o_rechaza_solicitudes(client, app):
             otro=4,
         )
     assert rechazado["estado"] == "rechazada"
+
+
+def test_menu_de_usuario_muestra_avatar_y_opciones(client):
+    ingresar(client)
+    contenido = client.get("/").get_data(as_text=True)
+    assert 'class="menu-perfil-avatar"' in contenido
+    assert "Abrir menú de perfil" in contenido
+    assert "Mi perfil" in contenido
+    assert "Conexiones" in contenido
 
 
 def test_cambio_contrasena_exige_la_actual(client, app):

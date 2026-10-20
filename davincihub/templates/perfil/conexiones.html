@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block titulo %}Conexiones — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="perfil-pagina">
+  <div class="contenedor perfil-editor">
+    <p class="perfil-etiqueta">Comunidad</p>
+    <h1 class="pagina-conexiones-titulo">Conexiones</h1>
+
+    <section class="perfil-seccion">
+      <h2>Solicitudes recibidas <span class="contador-conexiones">{{ solicitudes_recibidas|length }}</span></h2>
+      {% if solicitudes_recibidas %}
+        <ul class="perfil-conexiones">
+          {% for persona in solicitudes_recibidas %}
+            <li>
+              <a class="perfil-persona perfil-persona-avatar" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
+                {% if persona.tiene_foto %}
+                  <img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
+                {% else %}
+                  <span class="conexion-avatar conexion-avatar-iniciales" aria-hidden="true">{{ persona.nombre[0] }}{{ persona.apellido[0] }}</span>
+                {% endif %}
+                <span class="conexion-persona-datos"><strong>{{ persona.nombre }} {{ persona.apellido }}</strong>{% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}</span>
+              </a>
+              <div class="perfil-decision">
+                <form method="post" action="{{ url_for('perfil.aceptar_conexion', usuario_id=estudiante.id, solicitante_id=persona.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="boton boton-aceptar" type="submit">Aceptar</button>
+                </form>
+                <form method="post" action="{{ url_for('perfil.rechazar_conexion', usuario_id=estudiante.id, solicitante_id=persona.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="boton boton-rechazar" type="submit">Rechazar</button>
+                </form>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="perfil-vacio">No tenés solicitudes nuevas.</p>
+      {% endif %}
+    </section>
+
+    <section class="perfil-seccion">
+      <h2>Mis conexiones <span class="contador-conexiones">{{ conexiones|length }}</span></h2>
+      {% if conexiones %}
+        <ul class="perfil-conexiones">
+          {% for persona in conexiones %}
+            <li>
+              <a class="perfil-persona perfil-persona-avatar" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
+                {% if persona.tiene_foto %}
+                  <img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
+                {% else %}
+                  <span class="conexion-avatar conexion-avatar-iniciales" aria-hidden="true">{{ persona.nombre[0] }}{{ persona.apellido[0] }}</span>
+                {% endif %}
+                <span class="conexion-persona-datos"><strong>{{ persona.nombre }} {{ persona.apellido }}</strong>{% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}</span>
+              </a>
+              <a class="boton boton-chat-pequeno" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Abrir chat</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="perfil-vacio">Todavía no tenés conexiones aceptadas.</p>
+      {% endif %}
+    </section>
+
+    <section class="perfil-seccion">
+      <h2>Solicitudes enviadas <span class="contador-conexiones">{{ enviadas|length }}</span></h2>
+      {% if enviadas %}
+        <ul class="perfil-conexiones">
+          {% for persona in enviadas %}
+            <li>
+              <a class="perfil-persona" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
+                <strong>{{ persona.nombre }} {{ persona.apellido }}</strong>
+                {% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}
+              </a>
+              <span class="estado-solicitud">Pendiente</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="perfil-vacio">No tenés solicitudes pendientes.</p>
+      {% endif %}
+    </section>
+  </div>
+</section>
+{% endblock %}

@@ -30,50 +30,6 @@
       </section>
     {% endif %}
 
-    <section class="perfil-seccion perfil-red">
-      <h2>Conexiones</h2>
-      {% if solicitudes_recibidas %}
-        <h3>Solicitudes recibidas</h3>
-        <ul class="perfil-conexiones">
-          {% for solicitud in solicitudes_recibidas %}
-            <li>
-              <a class="perfil-persona" href="{{ url_for('perfil.ver', usuario_id=solicitud.id) }}">
-                <strong>{{ solicitud.nombre }} {{ solicitud.apellido }}</strong>
-                {% if solicitud.carrera %}<span>{{ solicitud.carrera }}</span>{% endif %}
-              </a>
-              <div class="perfil-decision">
-                <form method="post" action="{{ url_for('perfil.aceptar_conexion', usuario_id=estudiante.id, solicitante_id=solicitud.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="boton boton-aceptar" type="submit">Aceptar</button>
-                </form>
-                <form method="post" action="{{ url_for('perfil.rechazar_conexion', usuario_id=estudiante.id, solicitante_id=solicitud.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="boton boton-rechazar" type="submit">Rechazar</button>
-                </form>
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-      {% if conexiones %}
-        <ul class="perfil-conexiones">
-          {% for persona in conexiones %}
-            <li>
-              <a class="perfil-persona" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
-                <strong>{{ persona.nombre }} {{ persona.apellido }}</strong>
-                {% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}
-              </a>
-              {% if g.usuario and g.usuario.id == estudiante.id %}
-                <a class="boton boton-chat-pequeno" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Abrir chat</a>
-              {% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      {% elif not solicitudes_recibidas %}
-        <p class="perfil-vacio">Todavía no hay conexiones.</p>
-      {% endif %}
-    </section>
-
     <section class="perfil-seccion">
       <h2>Actividad y reputación</h2>
       <dl class="perfil-metricas">
@@ -111,7 +67,6 @@
               <button class="boton boton-conexion" type="submit">Pedir conexión</button>
             </form>
           {% endif %}
-          <a class="boton boton-primario" href="{{ url_for('perfil.chat', usuario_id=estudiante.id) }}">Abrir chat</a>
         </div>
       </section>
     {% elif not g.usuario %}

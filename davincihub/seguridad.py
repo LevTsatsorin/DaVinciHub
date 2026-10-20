@@ -10,7 +10,12 @@ def cargar_usuario():
     usuario_id = session.get("usuario_id")
     if usuario_id is None:
         return
-    usuario = db.query_one("SELECT * FROM usuarios WHERE id = :id", id=usuario_id)
+    usuario = db.query_one(
+        "SELECT u.*, CASE WHEN EXISTS (SELECT 1 FROM fotos_perfil f"
+        " WHERE f.usuario_id = u.id) THEN 1 ELSE 0 END AS tiene_foto"
+        " FROM usuarios u WHERE u.id = :id",
+        id=usuario_id,
+    )
     if usuario is None:
         session.clear()
         return

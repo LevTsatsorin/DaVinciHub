@@ -9,7 +9,8 @@
     <h1>Chat con {{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
     <ol class="chat-mensajes" aria-label="Conversación">
       {% for mensaje in mensajes %}
-        <li class="chat-mensaje {% if mensaje.emisor_id == g.usuario.id %}chat-mensaje-propio{% endif %}">
+        <li class="chat-mensaje {% if mensaje.emisor_id == g.usuario.id %}chat-mensaje-propio{% else %}chat-mensaje-ajeno{% endif %}">
+          <span class="chat-mensaje-autor">{{ mensaje.emisor_nombre }} {{ mensaje.emisor_apellido }}</span>
           <p>{{ mensaje.cuerpo }}</p>
           <time>{{ mensaje.creado }}</time>
         </li>

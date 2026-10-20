@@ -120,22 +120,15 @@ a { color: inherit; }
 .barra .boton:hover { border-color: #ffffff; }
 .barra .boton-primario { border-color: var(--magenta); }
 
-.usuario-nombre {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 15px;
-  border: 1px solid #f145a1;
-  border-radius: 999px;
-  background: linear-gradient(110deg, var(--magenta), #f145a1);
-  box-shadow: 0 5px 16px rgba(229, 9, 127, 0.28);
-  color: #ffffff;
-  font-weight: 600;
-  text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.usuario-nombre:hover,
-.usuario-nombre:focus-visible { transform: translateY(-1px); box-shadow: 0 7px 20px rgba(229, 9, 127, 0.4); }
+.menu-perfil { position: relative; }
+.menu-perfil-avatar { display: grid; place-items: center; width: 42px; aspect-ratio: 1; overflow: hidden; border: 2px solid var(--magenta); border-radius: 50%; background: #25202b; color: #ffffff; cursor: pointer; list-style: none; }
+.menu-perfil-avatar::-webkit-details-marker { display: none; }
+.menu-perfil-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.menu-perfil-avatar svg { width: 24px; height: 24px; }
+.menu-perfil[open] .menu-perfil-avatar { box-shadow: 0 0 0 3px rgba(229, 9, 127, 0.2); }
+.menu-perfil-opciones { position: absolute; top: calc(100% + 10px); right: 0; z-index: 15; display: grid; min-width: 176px; padding: 6px; border: 1px solid var(--borde); border-radius: 8px; background: #ffffff; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2); }
+.menu-perfil-opciones a { padding: 9px 11px; border-radius: 5px; color: var(--tinta); font-weight: 600; text-decoration: none; }
+.menu-perfil-opciones a:hover, .menu-perfil-opciones a:focus-visible { background: #fff0f7; color: var(--magenta-oscuro); }
 
 /* --- botones --- */
 
@@ -590,6 +583,13 @@ a { color: inherit; }
 .perfil-mensaje .boton { justify-self: start; }
 .perfil-editor { margin: 0 auto; }
 .perfil-editor > h1 { margin: 10px 0 24px; font-size: 28px; }
+.pagina-conexiones-titulo { margin: 4px 0 24px; font-size: 30px; }
+.contador-conexiones { display: inline-grid; place-items: center; min-width: 26px; height: 26px; margin-left: 5px; padding: 0 6px; border-radius: 999px; background: rgba(229, 9, 127, 0.1); color: var(--magenta-oscuro); font: 600 13px "Inter", sans-serif; vertical-align: 2px; }
+.perfil-persona-avatar { display: flex; align-items: center; gap: 12px; }
+.conexion-avatar { display: grid; flex: none; place-items: center; width: 44px; aspect-ratio: 1; border: 1px solid var(--borde); border-radius: 50%; object-fit: cover; }
+.conexion-avatar-iniciales { background: var(--fondo-suave); color: var(--magenta-oscuro); font-weight: 700; }
+.conexion-persona-datos { display: grid; min-width: 0; }
+.estado-solicitud { flex: none; color: var(--gris-texto); font-size: 13px; }
 .perfil-formulario { max-width: 680px; }
 .chat-componer { width: 100%; max-width: none; }
 .chat-componer textarea { min-height: 170px; }
@@ -610,6 +610,9 @@ a { color: inherit; }
 .chat-mensajes { display: flex; flex-direction: column; gap: 10px; min-height: 160px; max-height: 480px; overflow-y: auto; margin: 20px 0; padding: 16px; border: 1px solid var(--borde); border-radius: 8px; background: #ffffff; list-style: none; }
 .chat-mensaje { align-self: flex-start; max-width: min(78%, 560px); padding: 9px 12px; border-radius: 8px; background: #f0eef5; overflow-wrap: anywhere; }
 .chat-mensaje-propio { align-self: flex-end; background: rgba(0, 201, 167, 0.15); }
+.chat-mensaje-ajeno { align-self: flex-start; background: #f0eef5; }
+.chat-mensaje-autor { display: block; margin-bottom: 4px; color: #5c5265; font-size: 13px; font-weight: 700; }
+.chat-mensaje-propio .chat-mensaje-autor { color: #087764; }
 .chat-mensaje p { margin: 0; white-space: pre-wrap; }
 .chat-mensaje time { display: block; margin-top: 4px; color: var(--gris-texto); font-size: 12px; }
 
@@ -1045,8 +1048,10 @@ a { color: inherit; }
 /* --- móvil --- */
 
 @media (max-width: 720px) {
-  .barra-enlaces,
+  .barra-enlaces { display: none; }
   .barra-acciones { display: none; }
+  .barra-acciones-perfil { display: flex; margin-left: auto; }
+  .barra-acciones-perfil > form { display: none; }
 
   .burger { display: flex; }
 
