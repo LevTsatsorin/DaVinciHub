@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ actividad.nombre }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo">
+  <div style="margin-bottom: 20px;">
+    <a href="{{ url_for('actividades.index') }}" style="color: var(--gris-texto); text-decoration: none; font-size: 14px;">
+      ← Volver al listado de actividades
+    </a>
+  </div>
+
+  <article class="tarjeta-detalle-actividad">
+    <div class="actividad-cabecera">
+      {% if actividad.estado == 'aprobada' %}
+        <span class="badge badge-aprobada">Aprobada</span>
+      {% elif actividad.estado == 'pendiente' %}
+        <span class="badge badge-pendiente">Pendiente de moderación</span>
+      {% elif actividad.estado == 'rechazada' %}
+        <span class="badge badge-rechazada">Rechazada</span>
+      {% endif %}
+      <span class="actividad-cupo">{{ actividad.inscriptos }}/{{ actividad.cupo_maximo }} cupos ocupados</span>
+    </div>
+
+    <h1>{{ actividad.nombre }}</h1>
+    <p class="meta-creador">Organizado por <strong>{{ actividad.creador_nombre }} {{ actividad.creador_apellido }}</strong></p>
+
+    {% if actividad.estado == 'rechazada' and actividad.motivo_rechazo %}
+      <div class="aviso-alerta">
+        <strong>Motivo de rechazo:</strong> {{ actividad.motivo_rechazo }}
+      </div>
+    {% endif %}
+
+    <div class="bloque-informacion">
+      <div class="item-info">
+        <strong>Fecha y horario:</strong>
+        <span>{{ actividad.inicio_formato }}{% if actividad.fin_formato %} hasta {{ actividad.fin_formato }}{% endif %}</span>
+      </div>
+      <div class="item-info">
+        <strong>Ubicación:</strong>
+        <span>{{ actividad.ubicacion }}</span>
+      </div>
+      <div class="item-info">
+        <strong>Cupo máximo:</strong>
+        <span>{{ actividad.cupo_maximo }} personas</span>
+      </div>
+    </div>
+
+    <div class="actividad-cuerpo-completo">
+      <h3>Sobre esta actividad</h3>
+      <p style="white-space: pre-line;">{{ actividad.descripcion }}</p>
+    </div>
+
+    {% if g.usuario and g.usuario.rol == 'admin' and actividad.estado == 'pendiente' %}
+      <div class="panel-acciones-moderacion">
+        <h3>Acciones de moderación</h3>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <form method="post" action="{{ url_for('actividades.aprobar', actividad_id=actividad.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="boton boton-primario" type="submit">Aprobar actividad</button>
+          </form>
+          <form method="post" action="{{ url_for('actividades.rechazar', actividad_id=actividad.id) }}" style="display: flex; gap: 8px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input name="motivo" placeholder="Motivo de rechazo..." required style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--borde);">
+            <button class="boton" type="submit" style="color: var(--error); border-color: var(--error);">Rechazar</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}

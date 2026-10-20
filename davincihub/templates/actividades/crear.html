@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block titulo %}Proponer actividad — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="formulario-pagina">
+  <div class="tarjeta-acceso" style="max-width: 800px;">
+    <img class="acceso-ilustracion" src="{{ url_for('static', filename='img/actividades.png') }}" alt="Actividades Da Vinci">
+    <form class="formulario" method="post" style="padding: 32px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h1>Proponer actividad</h1>
+      <p style="color: var(--gris-texto); font-size: 14px; margin-bottom: 20px;">
+        Tu propuesta será revisada por el equipo de la escuela antes de ser publicada.
+      </p>
+
+      <div class="campo">
+        <label for="nombre">Nombre de la actividad</label>
+        <input id="nombre" name="nombre" value="{{ datos.get('nombre', '') }}" placeholder="Ej: Torneo de Street Fighter / Grupo de estudio 3D" required>
+        {% if errores.nombre %}<p class="error-texto">{{ errores.nombre }}</p>{% endif %}
+      </div>
+
+      <div class="campo">
+        <label for="descripcion">Descripción y temática</label>
+        <textarea id="descripcion" name="descripcion" rows="4" style="width: 100%; padding: 9px 12px; border: 1px solid var(--borde); border-radius: 8px; font: inherit;" placeholder="Contanos de qué trata, qué van a hacer y qué materiales se necesitan..." required>{{ datos.get('descripcion', '') }}</textarea>
+        {% if errores.descripcion %}<p class="error-texto">{{ errores.descripcion }}</p>{% endif %}
+      </div>
+
+      <div class="campo-doble">
+        <div class="campo">
+          <label for="inicio">Fecha y hora de inicio</label>
+          <input id="inicio" name="inicio" type="datetime-local" value="{{ datos.get('inicio', '') }}" required>
+          {% if errores.inicio %}<p class="error-texto">{{ errores.inicio }}</p>{% endif %}
+        </div>
+        <div class="campo">
+          <label for="fin">Fecha y hora de fin (opcional)</label>
+          <input id="fin" name="fin" type="datetime-local" value="{{ datos.get('fin', '') }}">
+          {% if errores.fin %}<p class="error-texto">{{ errores.fin }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="campo-doble">
+        <div class="campo">
+          <label for="ubicacion">Ubicación / Aula / Espacio</label>
+          <input id="ubicacion" name="ubicacion" value="{{ datos.get('ubicacion', '') }}" placeholder="Ej: Aula 302 / Discord" required>
+          {% if errores.ubicacion %}<p class="error-texto">{{ errores.ubicacion }}</p>{% endif %}
+        </div>
+        <div class="campo">
+          <label for="cupo_maximo">Cupo máximo de personas</label>
+          <input id="cupo_maximo" name="cupo_maximo" type="number" min="1" value="{{ datos.get('cupo_maximo', '20') }}" required>
+          {% if errores.cupo_maximo %}<p class="error-texto">{{ errores.cupo_maximo }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 14px;">
+        <button class="boton boton-primario" type="submit">Enviar propuesta</button>
+        <a class="boton boton-fantasma" href="{{ url_for('actividades.index') }}" style="color: var(--tinta); border-color: var(--borde);">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

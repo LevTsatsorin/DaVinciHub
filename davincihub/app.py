@@ -1,9 +1,12 @@
 import os
 
+# pyrefly: ignore[missing-import]
 from flask import Flask, render_template
+
+# pyrefly: ignore[missing-import]
 from flask_wtf.csrf import CSRFProtect
 
-from davincihub import auth, db, notificaciones, seguridad
+from davincihub import actividades, auth, db, notificaciones, seguridad
 
 csrf = CSRFProtect()
 
@@ -25,6 +28,7 @@ def create_app(config: dict | None = None) -> Flask:
     db.registrar(app)
     app.register_blueprint(auth.bp)
     app.register_blueprint(notificaciones.bp)
+    app.register_blueprint(actividades.bp)
     app.before_request(seguridad.cargar_usuario)
 
     @app.route("/")
