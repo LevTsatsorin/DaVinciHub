@@ -113,9 +113,48 @@ def transaccion():
         g.en_transaccion = False
 
 
+_NOMBRE_TABLA = re.compile(r"^[a-z_]+$")
+
+
+def bloquear_fila(tabla: str, fila_id: int) -> bool:
+    if not _NOMBRE_TABLA.match(tabla):
+        raise ValueError(f"Nombre de tabla inválido: {tabla!r}")
+    if not g.get("en_transaccion"):
+        raise RuntimeError("bloquear_fila sólo funciona dentro de db.transaccion().")
+    bloqueo = " FOR UPDATE" if g.db_es_pg else ""
+    fila = query_one(f"SELECT id FROM {tabla} WHERE id = :id{bloqueo}", id=fila_id)
+    return fila is not None
+
+
 def _leer_sql(nombre: str) -> str:
     with current_app.open_resource(nombre) as archivo:
         return archivo.read().decode("utf8")
+
+
+# columnas agregadas después del primer deploy: se crean solas al arrancar
+COLUMNAS_AGREGADAS = [
+    ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
+    ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
+]
+
+
+def _columnas(tabla: str) -> set[str]:
+    get_db()
+    if g.db_es_pg:
+        filas = query(
+            "SELECT column_name AS nombre FROM information_schema.columns WHERE table_name = :tabla",
+            tabla=tabla,
+        )
+        return {f["nombre"] for f in filas}
+    return {f["name"] for f in query(f"PRAGMA table_info({tabla})")}
+
+
+def migrar():
+    for tabla, columna, definicion in COLUMNAS_AGREGADAS:
+        existentes = _columnas(tabla)
+        if existentes and columna not in existentes:
+            si_falta = " IF NOT EXISTS" if g.db_es_pg else ""
+            execute(f"ALTER TABLE {tabla} ADD COLUMN{si_falta} {columna} {definicion}")
 
 
 def init_db(demo: bool = False):
@@ -149,3 +188,5 @@ def comando_init_db(demo: bool):
 def registrar(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(comando_init_db)
+    with app.app_context():
+        migrar()

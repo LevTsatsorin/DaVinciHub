@@ -32,7 +32,9 @@ Ojo: la base PostgreSQL free de Render se elimina unos 30 días después de crea
 
 - SQL con placeholders `:nombre`; se traducen solos a Postgres y el `%` literal se escapa automáticamente.
 - Nunca insertar `id` explícitos (en Postgres las columnas son `GENERATED ALWAYS`).
+- Para leer y después escribir sin que otro se meta en el medio (reservas, cupos, franjas): dentro de `db.transaccion()`, primero `db.bloquear_fila("espacios", espacio_id)`; en Postgres bloquea la fila hasta terminar la transacción.
 - Inserciones que necesitan el id: `... RETURNING id` con `db.query_one`.
+- Columna nueva en una tabla que ya existe: agregarla en `schema.sql` y también en `db.COLUMNAS_AGREGADAS`; al arrancar la app la crea sola en la base de Render, sin borrar datos.
 - Operaciones atómicas (ej. control de solapamiento de reservas): `with db.transaccion(): ...`.
 
 ## Notificaciones (para todos los módulos)
@@ -42,7 +44,7 @@ Para avisarle algo a un usuario, desde cualquier ruta:
 ```python
 from davincihub.notificaciones import notificar
 
-notificar(usuario_id, "reservas", "Tu reserva del Auditorio quedó confirmada.", url_for("reservas.detalle", id=reserva_id))
+notificar(usuario_id, "reservas", "Tu reserva del Auditorio quedó confirmada.", url_for("espacios.mis_reservas"))
 ```
 
 - `tipo`: el módulo que avisa (`foro`, `objetos`, `prestamos`, `reservas`, `actividades`, `chat`…).
