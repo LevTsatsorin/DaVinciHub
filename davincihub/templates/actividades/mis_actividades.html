@@ -4,12 +4,10 @@
 
 {% block contenido %}
 <section class="contenedor pagina-modulo">
+  <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
   <div class="cabecera-modulo">
-    <div>
-      <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
-      <h1>Mis actividades propuestas</h1>
-    </div>
-    <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
+    <h1>Mis actividades propuestas</h1>
+    {% if actividades %}<a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>{% endif %}
   </div>
 
   {% if actividades %}
@@ -18,7 +16,7 @@
         <li class="tarjeta-moderacion">
           {% include "actividades/_estado.html" %}
           <h2><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
-          {% include "actividades/_detalles.html" %}
+          {% with con_cupo = true %}{% include "actividades/_chips.html" %}{% endwith %}
           {% if act.estado == 'pendiente' %}
             <p class="moderacion-descripcion">La escuela todavía no la revisó. Te avisamos cuando la aprueben o la rechacen.</p>
           {% elif act.estado == 'aprobada' %}

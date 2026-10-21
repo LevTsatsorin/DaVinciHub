@@ -462,6 +462,7 @@ def crear_reserva(
     fin: str,
     motivo: str = "",
     personas: int | None = None,
+    avisar: bool = True,
 ) -> int:
     """Crea y confirma una reserva para un usuario si el espacio está disponible.
 
@@ -532,12 +533,13 @@ def crear_reserva(
 
         from davincihub import notificaciones
 
-        notificaciones.notificar(
-            usuario_id,
-            "reservas",
-            f"Tu reserva de '{espacio['nombre']}' ({fecha_corta(iso_ini)}) quedó confirmada.",
-            "/reservas/mis-reservas/",
-        )
+        if avisar:
+            notificaciones.notificar(
+                usuario_id,
+                "reservas",
+                f"Tu reserva de '{espacio['nombre']}' ({fecha_corta(iso_ini)}) quedó confirmada.",
+                "/reservas/mis-reservas/",
+            )
 
     return reserva_id
 
@@ -564,6 +566,15 @@ def cancelar_reserva(reserva_id: int, usuario_id: int) -> bool:
 
         if reserva["usuario_id"] != usuario_id:
             raise ErrorCancelacionInvalida("No podés cancelar una reserva que no es tuya.")
+
+        actividad = db.query_one(
+            "SELECT nombre FROM actividades WHERE reserva_id = :id AND estado IN ('pendiente', 'aprobada')",
+            id=reserva_id,
+        )
+        if actividad:
+            raise ErrorCancelacionInvalida(
+                f"Esta reserva es de la actividad «{actividad['nombre']}»: se libera si la actividad se rechaza."
+            )
 
         if reserva["estado"] == "cancelada":
             raise ErrorCancelacionInvalida("La reserva ya se encuentra cancelada.")
@@ -604,9 +615,11 @@ def obtener_reserva(reserva_id: int) -> dict | None:
 def listar_reservas_usuario(usuario_id: int, solo_futuras: bool = False) -> list[dict]:
     """Lista las reservas de un usuario, con opción de filtrar solo las futuras/vigentes."""
     sql = (
-        "SELECT r.*, e.nombre AS espacio_nombre, e.capacidad AS espacio_capacidad"
+        "SELECT r.*, e.nombre AS espacio_nombre, e.capacidad AS espacio_capacidad,"
+        "       a.id AS actividad_id, a.estado AS actividad_estado"
         " FROM reservas r"
         " JOIN espacios e ON e.id = r.espacio_id"
+        " LEFT JOIN actividades a ON a.reserva_id = r.id AND a.estado IN ('pendiente', 'aprobada')"
         " WHERE r.usuario_id = :usuario"
     )
     params = {"usuario": usuario_id}

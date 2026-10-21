@@ -10,6 +10,7 @@ from davincihub.actividades.datos import (
     obtener_actividad,
     rechazar_actividad,
 )
+from davincihub.reservas import datos as reservas
 
 
 def login(client, email="mica@davinci.edu.ar", password="davinci123"):
@@ -18,6 +19,21 @@ def login(client, email="mica@davinci.edu.ar", password="davinci123"):
 
 def login_admin(client):
     return login(client, email="admin@davinci.edu.ar", password="davinci123")
+
+
+@pytest.fixture(autouse=True)
+def sala_abierta(app):
+    with app.app_context():
+        espacio_id = reservas.crear_espacio("Sala Abierta", capacidad=60)
+        reservas.reemplazar_horarios_espacio(
+            espacio_id, [{"dia_semana": d, "abre": "08:00", "cierra": "23:00"} for d in range(7)])
+
+
+def _sala(app=None):
+    if app is not None:
+        with app.app_context():
+            return _sala()
+    return db.query_one("SELECT id FROM espacios WHERE nombre = 'Sala Abierta'")["id"]
 
 
 def _obtener_ids_estudiantes(app):
@@ -39,7 +55,7 @@ def test_crear_actividad_queda_pendiente(app):
             descripcion="Torneo presencial en el aula magna.",
             inicio="2029-11-20T16:00:00",
             fin="2029-11-20T20:00:00",
-            ubicacion="Aula Magna",
+            espacio_id=_sala(),
             cupo_maximo=32,
         )
         assert act_id >= 1
@@ -53,13 +69,14 @@ def test_crear_actividad_queda_pendiente(app):
 
 def test_no_se_crean_actividades_en_el_pasado(app):
     u1_id, _ = _obtener_ids_estudiantes(app)
-    with app.app_context(), pytest.raises(ErrorActividad, match="pasadas"):
+    with app.app_context(), pytest.raises(ErrorActividad, match="pasado"):
         crear_actividad(
             creador_id=u1_id,
             nombre="Encuentro Pasado",
             descripcion="No debe permitirse.",
             inicio="2020-01-01T10:00:00",
-            ubicacion="Aula 1",
+            fin="2020-01-01T22:00:00",
+            espacio_id=_sala(),
             cupo_maximo=10,
         )
 
@@ -72,7 +89,8 @@ def test_ciclo_aprobacion_notifica_al_creador(app):
             nombre="Taller de Blender 3D",
             descripcion="Modelado orgánico básico.",
             inicio="2029-12-05T14:00:00",
-            ubicacion="Lab 1",
+            fin="2029-12-05T22:00:00",
+            espacio_id=_sala(),
             cupo_maximo=20,
         )
 
@@ -110,7 +128,8 @@ def test_rechazo_exige_motivo_y_notifica_al_creador(app):
             nombre="Fiesta no autorizada",
             descripcion="Encuentro social sin permiso.",
             inicio="2029-12-10T22:00:00",
-            ubicacion="Patio",
+            fin="2029-12-10T23:00:00",
+            espacio_id=_sala(),
             cupo_maximo=50,
         )
 
@@ -146,7 +165,8 @@ def test_creador_ve_el_estado_de_sus_actividades(app):
             nombre="Actividad de Mica",
             descripcion="Desc",
             inicio="2029-10-10T10:00:00",
-            ubicacion="Aula 10",
+            fin="2029-10-10T22:00:00",
+            espacio_id=_sala(),
             cupo_maximo=15,
         )
         a2 = crear_actividad(
@@ -154,7 +174,8 @@ def test_creador_ve_el_estado_de_sus_actividades(app):
             nombre="Actividad de Tomas",
             descripcion="Desc",
             inicio="2029-10-12T10:00:00",
-            ubicacion="Aula 11",
+            fin="2029-10-12T22:00:00",
+            espacio_id=_sala(),
             cupo_maximo=15,
         )
 
@@ -175,7 +196,8 @@ def test_actividad_pendiente_no_aparece_en_listado_publico(client, app):
             nombre="Actividad Oculta Pendiente",
             descripcion="No debe verse en /actividades",
             inicio="2029-10-20T10:00:00",
-            ubicacion="Aula 101",
+            fin="2029-10-20T22:00:00",
+            espacio_id=_sala(),
             cupo_maximo=20,
         )
 
@@ -196,7 +218,8 @@ def test_actividad_pendiente_no_accesible_por_url_directa_para_otros_estudiantes
             nombre="Charla Secreta",
             descripcion="Detalles aún no aprobados",
             inicio="2029-10-20T10:00:00",
-            ubicacion="Aula 102",
+            fin="2029-10-20T22:00:00",
+            espacio_id=_sala(),
             cupo_maximo=20,
         )
 
@@ -234,8 +257,10 @@ def test_flujo_completo_crear_y_aprobar_por_web(client, app):
         data={
             "nombre": "Torneo de Rocket League",
             "descripcion": "Torneo 2v2 en el laboratorio de informática.",
-            "inicio": "2029-11-01T15:00",
-            "ubicacion": "Lab de Informática 1",
+            "espacio_id": str(_sala(app)),
+            "fecha": "2029-11-01",
+            "inicio": "15:00",
+            "fin": "18:00",
             "cupo_maximo": "16",
         },
     )
@@ -260,7 +285,7 @@ def test_flujo_completo_crear_y_aprobar_por_web(client, app):
     client.post("/auth/salir")
 
     # Ahora es pública para cualquiera
-    publico_res = client.get("/actividades/")
+    publico_res = client.get("/actividades/?mes=2029-11")
     assert "Torneo de Rocket League" in publico_res.get_data(as_text=True)
 
 
@@ -272,7 +297,8 @@ def test_rechazo_desde_panel_admin(client, app):
             nombre="Actividad a Rechazar",
             descripcion="Descripción de prueba",
             inicio="2029-11-15T18:00:00",
-            ubicacion="Aula 204",
+            fin="2029-11-15T22:00:00",
+            espacio_id=_sala(),
             cupo_maximo=10,
         )
 

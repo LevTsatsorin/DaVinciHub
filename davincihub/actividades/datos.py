@@ -1,39 +1,15 @@
-from datetime import datetime
-
 from davincihub import db
 from davincihub.notificaciones import notificar
-from davincihub.utiles import a_hora_local, ahora, ahora_local, fecha_corta
+from davincihub.reservas import datos as reservas
+from davincihub.utiles import ahora, ahora_local, fecha_corta
 
 LIMITE_NOMBRE = 120
 LIMITE_DESCRIPCION = 2000
-LIMITE_UBICACION = 120
 LIMITE_MOTIVO = 300
 
 
 class ErrorActividad(ValueError):
     """Error base para operaciones sobre actividades."""
-
-
-def _leer_fecha(valor: str, mensaje: str) -> datetime:
-    try:
-        return a_hora_local(datetime.fromisoformat(str(valor).strip()))
-    except (ValueError, TypeError) as error:
-        raise ErrorActividad(mensaje) from error
-
-
-def _validar_fechas_actividad(inicio: str, fin: str | None = None) -> tuple[datetime, datetime | None]:
-    """Parsea las fechas en hora de Buenos Aires y valida que el fin sea posterior al inicio."""
-    if not inicio or not str(inicio).strip():
-        raise ErrorActividad("La fecha y horario de inicio son obligatorios.")
-    dt_ini = _leer_fecha(inicio, "Formato de fecha u hora de inicio inválido.")
-
-    dt_fin = None
-    if fin and str(fin).strip():
-        dt_fin = _leer_fecha(fin, "Formato de fecha u hora de finalización inválido.")
-        if dt_ini >= dt_fin:
-            raise ErrorActividad("La hora de finalización debe ser posterior a la de inicio.")
-
-    return dt_ini, dt_fin
 
 
 def _texto(valor: str, campo: str, limite: int) -> str:
@@ -49,16 +25,25 @@ def crear_actividad(
     creador_id: int,
     nombre: str,
     descripcion: str,
+    espacio_id: int,
     inicio: str,
-    ubicacion: str,
+    fin: str,
     cupo_maximo: int,
-    fin: str | None = None,
+    aprobada: bool = False,
 ) -> int:
-    """Crea una actividad propuesta por un estudiante en estado 'pendiente'."""
+    """Crea una actividad y reserva su espacio en la misma transacción.
+
+    La de un estudiante queda 'pendiente'; la que crea un admin se publica directamente.
+
+    La reserva aplica las reglas de reservas (horario del espacio, sin superposición, capacidad),
+    así el espacio queda tomado mientras la escuela revisa la propuesta.
+    """
     nom = _texto(nombre, "el nombre", LIMITE_NOMBRE)
     desc = _texto(descripcion, "la descripción", LIMITE_DESCRIPCION)
-    ubi = _texto(ubicacion, "la ubicación", LIMITE_UBICACION)
-
+    if not inicio or not str(inicio).strip():
+        raise ErrorActividad("Elegí a qué hora empieza la actividad.")
+    if not fin or not str(fin).strip():
+        raise ErrorActividad("Elegí a qué hora termina la actividad.")
     try:
         cupo = int(cupo_maximo)
         if cupo <= 0:
@@ -66,27 +51,30 @@ def crear_actividad(
     except (ValueError, TypeError) as error:
         raise ErrorActividad("El cupo máximo debe ser un número entero mayor a 0.") from error
 
-    dt_ini, dt_fin = _validar_fechas_actividad(inicio, fin)
-
-    if dt_ini < datetime.fromisoformat(ahora_local()):
-        raise ErrorActividad("No se pueden crear actividades en fechas pasadas.")
-
-    iso_ini = dt_ini.isoformat(timespec="seconds")
-    iso_fin = dt_fin.isoformat(timespec="seconds") if dt_fin else None
-
-    fila = db.query_one(
-        "INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion, cupo_maximo, estado, creado)"
-        " VALUES (:creador, :nombre, :descripcion, :inicio, :fin, :ubicacion, :cupo, 'pendiente', :creado)"
-        " RETURNING id",
-        creador=creador_id,
-        nombre=nom,
-        descripcion=desc,
-        inicio=iso_ini,
-        fin=iso_fin,
-        ubicacion=ubi,
-        cupo=cupo,
-        creado=ahora(),
-    )
+    try:
+        with db.transaccion():
+            reserva_id = reservas.crear_reserva(
+                espacio_id, creador_id, inicio, fin, motivo=nom, personas=cupo, avisar=False
+            )
+            reserva = reservas.obtener_reserva(reserva_id)
+            fila = db.query_one(
+                "INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion, cupo_maximo,"
+                " estado, reserva_id, creado)"
+                " VALUES (:creador, :nombre, :descripcion, :inicio, :fin, :ubicacion, :cupo, :estado,"
+                " :reserva, :creado) RETURNING id",
+                creador=creador_id,
+                nombre=nom,
+                descripcion=desc,
+                inicio=reserva["inicio"],
+                fin=reserva["fin"],
+                ubicacion=reserva["espacio_nombre"],
+                cupo=cupo,
+                reserva=reserva_id,
+                estado="aprobada" if aprobada else "pendiente",
+                creado=ahora(),
+            )
+    except (reservas.ErrorEspacio, reservas.ErrorReserva) as error:
+        raise ErrorActividad(str(error)) from error
     return fila["id"]
 
 
@@ -131,6 +119,11 @@ def rechazar_actividad(actividad_id: int, motivo: str) -> bool:
             motivo=mot,
             id=actividad_id,
         )
+        db.execute(
+            "UPDATE reservas SET estado = 'cancelada'"
+            " WHERE id = (SELECT reserva_id FROM actividades WHERE id = :id)",
+            id=actividad_id,
+        )
         notificar(
             act["creador_id"],
             "actividades",
@@ -144,9 +137,11 @@ def obtener_actividad(actividad_id: int) -> dict | None:
     """Obtiene una actividad por su id con los datos de su creador y el conteo de inscriptos."""
     act = db.query_one(
         "SELECT a.*, u.nombre AS creador_nombre, u.apellido AS creador_apellido, u.email AS creador_email,"
-        "       (SELECT count(*) FROM inscripciones i WHERE i.actividad_id = a.id) AS inscriptos"
+        "       (SELECT count(*) FROM inscripciones i WHERE i.actividad_id = a.id) AS inscriptos,"
+        "       r.espacio_id"
         " FROM actividades a"
         " JOIN usuarios u ON u.id = a.creador_id"
+        " LEFT JOIN reservas r ON r.id = a.reserva_id"
         " WHERE a.id = :id",
         id=actividad_id,
     )
@@ -156,21 +151,62 @@ def obtener_actividad(actividad_id: int) -> dict | None:
     return act
 
 
-def listar_actividades_publicas() -> list[dict]:
-    """Lista las actividades aprobadas visibles para todos (RN-11)."""
-    filas = db.query(
+def _filtro_publicas(desde: str | None, hasta: str | None, excluir: int | None) -> tuple[str, dict]:
+    sql = " WHERE a.estado = 'aprobada' AND COALESCE(a.fin, a.inicio) >= :ahora"
+    params: dict = {"ahora": ahora_local()}
+    if desde:
+        sql += " AND a.inicio >= :desde"
+        params["desde"] = desde
+    if hasta:
+        sql += " AND a.inicio < :hasta"
+        params["hasta"] = hasta
+    if excluir:
+        sql += " AND a.id <> :excluir"
+        params["excluir"] = excluir
+    return sql, params
+
+
+def listar_actividades_publicas(
+    desde: str | None = None,
+    hasta: str | None = None,
+    limite: int | None = None,
+    salto: int = 0,
+    excluir: int | None = None,
+) -> list[dict]:
+    """Actividades aprobadas que todavía no terminaron (RN-11), opcionalmente de un período y paginadas."""
+    filtro, params = _filtro_publicas(desde, hasta, excluir)
+    sql = (
         "SELECT a.*, u.nombre AS creador_nombre, u.apellido AS creador_apellido,"
         "       (SELECT count(*) FROM inscripciones i WHERE i.actividad_id = a.id) AS inscriptos"
         " FROM actividades a"
-        " JOIN usuarios u ON u.id = a.creador_id"
-        " WHERE a.estado = 'aprobada' AND COALESCE(a.fin, a.inicio) >= :ahora"
-        " ORDER BY a.inicio ASC",
-        ahora=ahora_local(),
+        " JOIN usuarios u ON u.id = a.creador_id" + filtro + " ORDER BY a.inicio ASC, a.id ASC"
     )
+    if limite:
+        sql += " LIMIT :limite OFFSET :salto"
+        params |= {"limite": limite, "salto": salto}
+    filas = db.query(sql, **params)
     for act in filas:
         act["inicio_formato"] = fecha_corta(act["inicio"])
         act["fin_formato"] = fecha_corta(act["fin"]) if act["fin"] else None
     return filas
+
+
+def contar_actividades_publicas(desde: str | None = None, hasta: str | None = None,
+                                excluir: int | None = None) -> int:
+    filtro, params = _filtro_publicas(desde, hasta, excluir)
+    return db.query_one("SELECT count(*) AS n FROM actividades a" + filtro, **params)["n"]
+
+
+def dias_con_actividades(desde: str, hasta: str) -> dict[str, int]:
+    """Cantidad de actividades aprobadas por día en un período, para el calendario."""
+    filas = db.query(
+        "SELECT substr(inicio, 1, 10) AS dia, count(*) AS n FROM actividades"
+        " WHERE estado = 'aprobada' AND inicio >= :desde AND inicio < :hasta"
+        " GROUP BY substr(inicio, 1, 10)",
+        desde=desde,
+        hasta=hasta,
+    )
+    return {fila["dia"]: fila["n"] for fila in filas}
 
 
 def listar_actividades_creador(creador_id: int) -> list[dict]:

@@ -68,15 +68,15 @@ if (panel) {
   };
 
   const actualizarConfirmacion = () => {
-    const personas = panel.elements.personas.value;
-    const motivo = panel.elements.motivo.value.trim();
+    const personas = (panel.elements.personas || panel.elements.cupo_maximo).value;
+    const motivo = (panel.elements.motivo || panel.elements.nombre).value.trim();
     const quienes = [personas && (personas === "1" ? "1 persona" : `${personas} personas`), motivo];
     panel.dataset.confirmarTexto = [
       panel.dataset.espacio,
       resumen.textContent,
       quienes.filter(Boolean).join(" · "),
       "",
-      "Podés cancelarla desde Mis reservas hasta que empiece.",
+      panel.dataset.confirmarNota || "Podés cancelarla desde Mis reservas hasta que empiece.",
     ].join("\n");
   };
 

@@ -342,9 +342,33 @@ INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, leida, creado) VAL
     (2, 'catedra', 'Lucía Paz respondió tu pregunta de Lógica de la Programación.', '/', 0, '2026-10-19T15:20:00+00:00'),
     (2, 'reservas', 'Tu reserva del Estudio de Sonido 1 quedó confirmada.', '/reservas/mis-reservas/', 0, '2026-10-20T13:05:00+00:00');
 
-INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion, cupo_maximo, estado, motivo_rechazo, creado) VALUES
-    (2, 'Grupo de estudio de Lógica', 'Repasamos ejercicios de la guía antes del parcial. Traé tus dudas y la notebook.', '2026-11-04T18:00:00', '2026-11-04T20:00:00', 'Aula de Informática 1', 12, 'aprobada', NULL, '2026-10-18T10:00:00+00:00'),
-    (3, 'Torneo de Street Fighter 6', 'Torneo de eliminación directa, 1 vs 1. Los joysticks los pone el centro de estudiantes.', '2026-11-07T15:00:00', '2026-11-07T19:00:00', 'Auditorio', 32, 'aprobada', NULL, '2026-10-18T11:00:00+00:00'),
-    (4, 'Charla: portfolio para la primera entrevista', 'Egresados cuentan qué mirar al armar el portfolio y cómo presentarlo.', '2026-11-12T19:00:00', NULL, 'Sala de Exposiciones', 40, 'aprobada', NULL, '2026-10-18T12:00:00+00:00'),
-    (3, 'Jam de videojuegos de 48 horas', 'Equipos de hasta cuatro personas, tema sorpresa el viernes a la tarde.', '2026-11-20T18:00:00', '2026-11-22T18:00:00', 'Aula de Informática 2', 24, 'pendiente', NULL, '2026-10-19T09:00:00+00:00'),
-    (2, 'Maratón de películas de terror', 'Proyección de tres películas con debate al final.', '2026-11-14T20:00:00', NULL, 'Auditorio', 50, 'rechazada', 'El auditorio no está disponible de noche ese fin de semana. Proponé otra fecha.', '2026-10-19T10:00:00+00:00');
+-- cada actividad tiene su reserva: el espacio queda tomado desde que se propone
+INSERT INTO reservas (espacio_id, usuario_id, inicio, fin, motivo, personas, estado, creado) VALUES
+    (1, 2, '2026-11-04T18:00:00', '2026-11-04T20:00:00', 'Grupo de estudio de Lógica', 12, 'confirmada', '2026-10-19T10:00:00+00:00'),
+    (11, 3, '2026-11-06T15:00:00', '2026-11-06T19:00:00', 'Torneo de Street Fighter 6', 32, 'confirmada', '2026-10-19T11:00:00+00:00'),
+    (12, 4, '2026-11-12T18:00:00', '2026-11-12T20:00:00', 'Charla: portfolio para la primera entrevista', 40, 'confirmada', '2026-10-19T12:00:00+00:00'),
+    (3, 2, '2026-11-09T14:00:00', '2026-11-09T17:00:00', 'Taller de ilustración digital', 20, 'confirmada', '2026-10-19T13:00:00+00:00'),
+    (12, 3, '2026-11-10T17:00:00', '2026-11-10T20:00:00', 'Noche de juegos de mesa', 30, 'confirmada', '2026-10-19T14:00:00+00:00'),
+    (2, 4, '2026-11-11T18:00:00', '2026-11-11T21:00:00', 'Primeros pasos en Unreal Engine', 25, 'confirmada', '2026-10-19T15:00:00+00:00'),
+    (11, 2, '2026-11-13T18:00:00', '2026-11-13T21:00:00', 'Muestra de cortos de primer año', 100, 'confirmada', '2026-10-19T16:00:00+00:00'),
+    (12, 3, '2026-11-17T18:00:00', '2026-11-17T19:30:00', 'Club de lectura de cómics', 15, 'confirmada', '2026-10-19T17:00:00+00:00'),
+    (9, 4, '2026-11-19T16:00:00', '2026-11-19T19:00:00', 'Clínica de mezcla de audio', 6, 'confirmada', '2026-10-19T18:00:00+00:00'),
+    (1, 2, '2026-11-23T10:00:00', '2026-11-23T18:00:00', 'Hackatón de accesibilidad web', 30, 'confirmada', '2026-10-19T19:00:00+00:00'),
+    (5, 3, '2026-11-25T15:00:00', '2026-11-25T18:00:00', 'Rodaje express en 3 horas', 15, 'confirmada', '2026-10-19T20:00:00+00:00'),
+    (2, 3, '2026-11-20T15:00:00', '2026-11-20T21:00:00', 'Jam de videojuegos', 24, 'confirmada', '2026-10-19T21:00:00+00:00'),
+    (11, 2, '2026-11-27T19:00:00', '2026-11-27T22:00:00', 'Maratón de películas de terror', 50, 'cancelada', '2026-10-19T22:00:00+00:00');
+
+INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion, cupo_maximo, estado, motivo_rechazo, reserva_id, creado) VALUES
+    (2, 'Grupo de estudio de Lógica', 'Repasamos ejercicios de la guía antes del parcial. Traé tus dudas y la notebook.', '2026-11-04T18:00:00', '2026-11-04T20:00:00', 'Aula de Informática 1', 12, 'aprobada', NULL, 1, '2026-10-19T10:00:00+00:00'),
+    (3, 'Torneo de Street Fighter 6', 'Torneo de eliminación directa, 1 vs 1. Los joysticks los pone el centro de estudiantes.', '2026-11-06T15:00:00', '2026-11-06T19:00:00', 'Auditorio', 32, 'aprobada', NULL, 2, '2026-10-19T11:00:00+00:00'),
+    (4, 'Charla: portfolio para la primera entrevista', 'Egresados cuentan qué mirar al armar el portfolio y cómo presentarlo.', '2026-11-12T18:00:00', '2026-11-12T20:00:00', 'Sala de Exposiciones', 40, 'aprobada', NULL, 3, '2026-10-19T12:00:00+00:00'),
+    (2, 'Taller de ilustración digital', 'Pinceles, capas y color en Procreate y Krita. Hay tabletas para quien no tenga.', '2026-11-09T14:00:00', '2026-11-09T17:00:00', 'Aula de Arte y Diseño', 20, 'aprobada', NULL, 4, '2026-10-19T13:00:00+00:00'),
+    (3, 'Noche de juegos de mesa', 'Catan, Dixit y Codenames. Si tenés un juego que te guste, traelo.', '2026-11-10T17:00:00', '2026-11-10T20:00:00', 'Sala de Exposiciones', 30, 'aprobada', NULL, 5, '2026-10-19T14:00:00+00:00'),
+    (4, 'Primeros pasos en Unreal Engine', 'Armamos una escena desde cero y la iluminamos. No hace falta experiencia.', '2026-11-11T18:00:00', '2026-11-11T21:00:00', 'Aula de Informática 2', 25, 'aprobada', NULL, 6, '2026-10-19T15:00:00+00:00'),
+    (2, 'Muestra de cortos de primer año', 'Proyectamos los cortos del cuatrimestre y charlamos con los directores.', '2026-11-13T18:00:00', '2026-11-13T21:00:00', 'Auditorio', 100, 'aprobada', NULL, 7, '2026-10-19T16:00:00+00:00'),
+    (3, 'Club de lectura de cómics', 'Este mes: Maus, de Art Spiegelman. Leé lo que puedas, nadie controla.', '2026-11-17T18:00:00', '2026-11-17T19:30:00', 'Sala de Exposiciones', 15, 'aprobada', NULL, 8, '2026-10-19T17:00:00+00:00'),
+    (4, 'Clínica de mezcla de audio', 'Traé una sesión y la mezclamos en grupo, paso a paso.', '2026-11-19T16:00:00', '2026-11-19T19:00:00', 'Estudio de Sonido 2', 6, 'aprobada', NULL, 9, '2026-10-19T18:00:00+00:00'),
+    (2, 'Hackatón de accesibilidad web', 'Equipos de tres para mejorar sitios de ONGs. Hay premios del centro de estudiantes.', '2026-11-23T10:00:00', '2026-11-23T18:00:00', 'Aula de Informática 1', 30, 'aprobada', NULL, 10, '2026-10-19T19:00:00+00:00'),
+    (3, 'Rodaje express en 3 horas', 'Guion, rodaje y edición de un corto en una tarde, en grupos de cinco.', '2026-11-25T15:00:00', '2026-11-25T18:00:00', 'Set de Filmación', 15, 'aprobada', NULL, 11, '2026-10-19T20:00:00+00:00'),
+    (3, 'Jam de videojuegos', 'Equipos de hasta cuatro personas, tema sorpresa al empezar.', '2026-11-20T15:00:00', '2026-11-20T21:00:00', 'Aula de Informática 2', 24, 'pendiente', NULL, 12, '2026-10-19T21:00:00+00:00'),
+    (2, 'Maratón de películas de terror', 'Proyección de tres películas con debate al final.', '2026-11-27T19:00:00', '2026-11-27T22:00:00', 'Auditorio', 50, 'rechazada', 'Ese viernes el auditorio se usa para la muestra de fin de año. Proponé otra fecha.', 13, '2026-10-19T22:00:00+00:00');

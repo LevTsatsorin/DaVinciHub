@@ -135,6 +135,7 @@ def _leer_sql(nombre: str) -> str:
 COLUMNAS_AGREGADAS = [
     ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
     ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
+    ("actividades", "reserva_id", "INTEGER REFERENCES reservas (id)"),
 ]
 
 

@@ -1,0 +1,33 @@
+<a class="tarjeta-espacio"
+   href="{{ url_for('espacios.detalle', espacio_id=espacio.id, fecha=filtros.fecha or None) }}"
+   style="--orden: {{ orden }}">
+  <div class="tarjeta-espacio-cabecera">
+    <h2 title="{{ espacio.nombre }}">{{ espacio.nombre }}</h2>
+    {% if espacio.capacidad %}
+      <span class="chip-capacidad">{{ espacio.capacidad | personas }}</span>
+    {% endif %}
+  </div>
+  <p class="tarjeta-espacio-descripcion"{% if espacio.descripcion %} title="{{ espacio.descripcion }}"{% endif %}>{{ espacio.descripcion }}</p>
+  {% include "espacios/_semana.html" %}
+  {% if filtros.fecha and espacio.libres %}
+    <div class="libres-del-dia">
+      <span>Libre</span>
+      <ul class="reserva-chips">{% for inicio, fin in espacio.libres %}<li class="chip-libre">{{ inicio }}–{{ fin }}</li>{% endfor %}</ul>
+    </div>
+  {% else %}
+    {% set resumen = espacio.horarios | resumen_horarios %}
+    {% if resumen %}
+      <ul class="resumen-horarios">
+        {% for dias_txt, rango in resumen %}
+          <li><span class="resumen-dias">{{ dias_txt }}</span><span class="resumen-rangos">{% for r in rango.split(", ") %}<span class="rango">{{ r }}</span>{% endfor %}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="sin-horarios">Todavía no tiene horarios cargados.</p>
+    {% endif %}
+  {% endif %}
+  <span class="tarjeta-espacio-accion">
+    Ver disponibilidad
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </span>
+</a>

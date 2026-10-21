@@ -214,6 +214,7 @@ CREATE TABLE actividades (
     estado TEXT NOT NULL DEFAULT 'pendiente'
         CHECK (estado IN ('pendiente', 'aprobada', 'rechazada', 'cancelada')),
     motivo_rechazo TEXT,
+    reserva_id INTEGER REFERENCES reservas (id),
     creado TEXT NOT NULL
 );
 

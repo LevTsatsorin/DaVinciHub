@@ -37,8 +37,9 @@ def test_se_puede_cancelar_hasta_la_hora_local_de_inicio(app, sala, martes_22_30
     with app.app_context():
         reserva = datos.crear_reserva(sala, 2, "2026-10-20T23:00", "2026-10-20T23:30")
         proximas = datos.listar_reservas_usuario(2, solo_futuras=True)
-        assert [r["id"] for r in proximas] == [reserva]
-        assert proximas[0]["puede_cancelar"] is True
+        de_la_sala = [r for r in proximas if r["espacio_id"] == sala]
+        assert [r["id"] for r in de_la_sala] == [reserva]
+        assert de_la_sala[0]["puede_cancelar"] is True
         assert datos.cancelar_reserva(reserva, 2) is True
 
 

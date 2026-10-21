@@ -297,6 +297,8 @@ def test_cabecera_cuenta_espacios_abiertos_hoy(client, app, monkeypatch):
     from davincihub.reservas import rutas
 
     with app.app_context():
+        db.execute("DELETE FROM actividades")
+        db.execute("DELETE FROM reservas")
         db.execute("DELETE FROM horarios_espacios")
         db.execute("DELETE FROM espacios")
         lunes = crear_espacio("Abre Lunes")

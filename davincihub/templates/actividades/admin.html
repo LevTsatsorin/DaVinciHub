@@ -4,11 +4,9 @@
 
 {% block contenido %}
 <section class="contenedor pagina-modulo pagina-admin">
+  <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
   <div class="cabecera-modulo">
-    <div>
-      <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
-      <h1>Moderación de actividades</h1>
-    </div>
+    <h1>Moderación de actividades</h1>
   </div>
 
   <nav class="pestanas" aria-label="Estado de las actividades">
@@ -31,7 +29,7 @@
             <span class="moderacion-autor">{{ act.creador_nombre }} {{ act.creador_apellido }} · {{ act.creador_email }}</span>
           </div>
           <h2><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
-          {% include "actividades/_detalles.html" %}
+          {% with con_cupo = true %}{% include "actividades/_chips.html" %}{% endwith %}
           <p class="moderacion-descripcion">{{ act.descripcion | truncate(220) }}</p>
 
           {% if act.estado == 'rechazada' and act.motivo_rechazo %}
