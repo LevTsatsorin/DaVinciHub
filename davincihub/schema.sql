@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS bloqueos;
 DROP TABLE IF EXISTS reportes;
 DROP TABLE IF EXISTS notificaciones;
 DROP TABLE IF EXISTS mensajes;
@@ -50,6 +51,7 @@ CREATE TABLE usuarios (
     anio INTEGER,
     comision TEXT,
     bloqueado INTEGER NOT NULL DEFAULT 0 CHECK (bloqueado IN (0, 1)),
+    catedra INTEGER NOT NULL DEFAULT 0 CHECK (catedra IN (0, 1)),
     creado TEXT NOT NULL
 );
 
@@ -61,11 +63,16 @@ CREATE TABLE fotos_perfil (
 );
 
 CREATE TABLE catedras (
+CREATE TABLE bloqueos (
     id {{PK}},
     usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
-    materia_id INTEGER NOT NULL REFERENCES materias (id),
-    UNIQUE (usuario_id, materia_id)
+    admin_id INTEGER NOT NULL REFERENCES usuarios (id),
+    accion TEXT NOT NULL CHECK (accion IN ('bloqueo', 'desbloqueo')),
+    motivo TEXT NOT NULL,
+    creado TEXT NOT NULL
 );
+
+CREATE INDEX idx_bloqueos_usuario ON bloqueos (usuario_id, creado);
 
 CREATE TABLE conexiones (
     id {{PK}},
@@ -191,7 +198,8 @@ CREATE TABLE horarios_espacios (
     espacio_id INTEGER NOT NULL REFERENCES espacios (id),
     dia_semana INTEGER NOT NULL CHECK (dia_semana BETWEEN 0 AND 6),
     abre TEXT NOT NULL,
-    cierra TEXT NOT NULL
+    cierra TEXT NOT NULL,
+    CHECK (abre < cierra)
 );
 
 CREATE TABLE reservas (
@@ -200,6 +208,8 @@ CREATE TABLE reservas (
     usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
     inicio TEXT NOT NULL,
     fin TEXT NOT NULL,
+    motivo TEXT NOT NULL DEFAULT '',
+    personas INTEGER CHECK (personas IS NULL OR personas > 0),
     estado TEXT NOT NULL DEFAULT 'confirmada' CHECK (estado IN ('confirmada', 'cancelada')),
     creado TEXT NOT NULL,
     CHECK (inicio < fin)
@@ -219,6 +229,7 @@ CREATE TABLE actividades (
     estado TEXT NOT NULL DEFAULT 'pendiente'
         CHECK (estado IN ('pendiente', 'aprobada', 'rechazada', 'cancelada')),
     motivo_rechazo TEXT,
+    reserva_id INTEGER REFERENCES reservas (id),
     creado TEXT NOT NULL
 );
 
@@ -248,6 +259,8 @@ CREATE TABLE notificaciones (
     leida INTEGER NOT NULL DEFAULT 0 CHECK (leida IN (0, 1)),
     creado TEXT NOT NULL
 );
+
+CREATE INDEX idx_notificaciones_usuario ON notificaciones (usuario_id, leida);
 
 CREATE TABLE reportes (
     id {{PK}},

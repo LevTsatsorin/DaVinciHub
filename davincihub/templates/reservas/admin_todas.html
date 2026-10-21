@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block titulo %}Todas las reservas — Administración{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-reservas-usuario">
+  <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
+  <div class="cabecera-modulo">
+    <h1>Todas las reservas</h1>
+  </div>
+
+  {% if con_reservas %}
+    <div class="reservas-por-espacio">
+      {% for espacio in con_reservas %}
+        <section class="grupo-reservas-espacio">
+          <header class="grupo-reservas-cabecera">
+            <h2><a href="{{ url_for('espacios.reservas_admin', espacio_id=espacio.id) }}">{{ espacio.nombre }}</a></h2>
+            {% if not espacio.activo %}<span class="estado estado-inactivo">Deshabilitado</span>{% endif %}
+          </header>
+          <ul class="lista-reservas">
+            {% for reserva in reservas_por_espacio[espacio.id] %}
+              <li class="reserva-fila">
+                <div class="reserva-datos">
+                  <h3>{{ reserva.usuario_nombre }} {{ reserva.usuario_apellido }}</h3>
+                  <p>{{ reserva.usuario_email }}</p>
+                  {% include "espacios/_reserva_detalles.html" %}
+                </div>
+                <span class="reserva-estado reserva-estado-{{ reserva.estado }}">{{ reserva.estado | capitalize }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+      <h2>Todavía no hay reservas</h2>
+      <p>Cuando los estudiantes reserven espacios, las vas a ver acá agrupadas por espacio.</p>
+    </div>
+  {% endif %}
+
+</section>
+{% endblock %}

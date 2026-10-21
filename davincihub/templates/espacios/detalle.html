@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ espacio.nombre }} — Reservas{% endblock %}
+
+{% block contenido %}
+<section class="cabecera-seccion fondo-oscuro">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/reservas.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
+    <h1>{{ espacio.nombre }}</h1>
+    {% if espacio.descripcion %}<p>{{ espacio.descripcion }}</p>{% endif %}
+    <ul class="cifras-cabecera">
+      {% if espacio.capacidad %}<li>{{ espacio.capacidad | personas }}</li>{% endif %}
+      {% if not espacio.activo %}<li>Espacio deshabilitado</li>{% endif %}
+    </ul>
+    {% if es_admin %}
+      <a class="enlace-admin" href="{{ url_for('espacios.reservas_admin', espacio_id=espacio.id) }}">Ver todas las reservas</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="contenedor pagina-reserva-detalle">
+  <div class="reserva-fecha-cabecera">
+    <h2>Disponibilidad</h2>
+    <p>Elegí un día y marcá en la línea de tiempo desde qué hora hasta qué hora lo necesitás.</p>
+  </div>
+
+  <div class="selector-dia">
+    {% include "espacios/_tira_dias.html" %}
+    <form class="filtro-fecha" method="get">
+      <label>Otra fecha
+        <input id="fecha" name="fecha" type="date" value="{{ fecha }}" min="{{ hoy }}" required>
+      </label>
+      <button class="boton boton-suave" type="submit">Consultar</button>
+    </form>
+  </div>
+
+  {% include "espacios/_linea_tiempo.html" %}
+  {% if not es_pasado and disponibilidad.abierto and espacio.activo %}
+    {% if hay_libres %}
+      <form class="panel-reserva" method="post" action="{{ url_for('espacios.reservar', espacio_id=espacio.id) }}" data-panel-reserva
+            data-espacio="{{ espacio.nombre }}" data-confirmar="¿Confirmás la reserva?" data-confirmar-tono="positivo"
+            data-confirmar-boton="Sí, reservar" data-confirmar-volver="Revisar">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="fecha" value="{{ fecha }}">
+        <div class="panel-cabecera">
+          <h3>Tu reserva</h3>
+          <p class="panel-resumen" data-resumen data-dia="{{ fecha | dia_y_fecha }}">Elegí un horario en la línea de tiempo</p>
+        </div>
+        <div class="panel-campos">
+          <label>Desde
+            <select name="inicio" required data-desde>
+              <option value="">—</option>
+              {% for bloque in bloques %}{% for turno in bloque.turnos if turno.estado == "libre" %}
+                <option value="{{ turno.inicio }}" {% if formulario.inicio == turno.inicio %}selected{% endif %}>{{ turno.inicio }}</option>
+              {% endfor %}{% endfor %}
+            </select>
+          </label>
+          <label>Hasta
+            <select name="fin" required data-hasta>
+              <option value="">—</option>
+              {% for bloque in bloques %}{% for turno in bloque.turnos if turno.estado == "libre" %}
+                <option value="{{ turno.fin }}" {% if formulario.fin == turno.fin %}selected{% endif %}>{{ turno.fin }}</option>
+              {% endfor %}{% endfor %}
+            </select>
+          </label>
+          <label class="campo-motivo">¿Para qué lo usás?
+            <input name="motivo" maxlength="{{ limite_motivo }}" required value="{{ formulario.motivo or '' }}"
+                   placeholder="Ej.: grupo de estudio de Programación II">
+          </label>
+          <label>Personas
+            <input name="personas" type="number" min="1" {% if espacio.capacidad %}max="{{ espacio.capacidad }}" placeholder="Máx. {{ espacio.capacidad }}"{% else %}max="10000"{% endif %}
+                   required inputmode="numeric" value="{{ formulario.personas or '' }}">
+          </label>
+          <button class="boton boton-primario" type="submit" data-confirmar-reserva>Confirmar reserva</button>
+        </div>
+        <p class="panel-error" data-error hidden></p>
+      </form>
+    {% endif %}
+  {% endif %}
+
+  <h2 class="subtitulo">Horarios de la semana</h2>
+  <ul class="horario-semanal">
+    {% for dia, nombre in dias.items() %}
+      {% set franjas = espacio.horarios_por_dia[dia] %}
+      <li class="{% if not franjas %}dia-cerrado{% endif %}">
+        <span class="horario-dia">{{ nombre }}</span>
+        <span class="horario-franjas">
+          {% for f in franjas %}<span class="franja">{{ f.abre }}–{{ f.cierra }}</span>{% else %}Cerrado{% endfor %}
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% include "espacios/_dialogo.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='reservas.js') }}" defer></script>
+<script src="{{ url_for('static', filename='admin.js') }}" defer></script>
+{% endblock %}

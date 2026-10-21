@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block titulo %}Reservas — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="cabecera-seccion fondo-oscuro">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/reservas.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    <h1>Espacios para reservar</h1>
+    <p>Aulas, laboratorios y estudios de la escuela, con los horarios en que se pueden usar.</p>
+    <ul class="cifras-cabecera">
+      <li><strong>{{ total }}</strong> {{ "espacio" if total == 1 else "espacios" }}</li>
+      <li class="cifra-hoy">
+        {% if abiertos_hoy %}
+          <span class="punto-vivo" aria-hidden="true"></span><strong>{{ abiertos_hoy }}</strong> {{ "abierto hoy" if abiertos_hoy == 1 else "abiertos hoy" }}
+        {% else %}
+          Hoy no abre ninguno
+        {% endif %}
+      </li>
+    </ul>
+    <div class="acciones-cabecera">
+      <a class="boton boton-primario" href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
+      {% if g.usuario and g.usuario.rol == "admin" %}
+        <div class="enlaces-admin">
+          <a class="enlace-admin" href="{{ url_for('espacios.reservas_admin_todas') }}">Todas las reservas</a>
+          <a class="enlace-admin" href="{{ url_for('espacios.admin_lista') }}">Administrar espacios</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="contenedor pagina-espacios">
+  {% set filtrando = filtros.q or filtros.fecha or filtros.personas %}
+  <form class="filtros-espacios" method="get" role="search">
+    <label class="filtro-buscar">Buscar
+      <input type="search" name="q" value="{{ filtros.q }}" placeholder="Nombre del espacio">
+    </label>
+    <label>Día
+      <input type="date" name="fecha" value="{{ filtros.fecha }}" min="{{ hoy }}">
+    </label>
+    <label>Personas
+      <input type="number" name="personas" min="1" inputmode="numeric" value="{{ filtros.personas or '' }}" placeholder="Cuántas">
+    </label>
+    <button class="boton boton-primario" type="submit">Filtrar</button>
+    {% if filtrando %}<a class="enlace-limpiar" href="{{ url_for('espacios.catalogo') }}">Limpiar</a>{% endif %}
+  </form>
+
+  {% if filtrando %}
+    <p class="resultado-filtros">
+      {% if filtros.fecha %}
+        <strong>{{ espacios | length }}</strong> {{ "espacio con lugar" if espacios | length == 1 else "espacios con lugar" }} el {{ filtros.fecha | dia_y_fecha }}
+      {% else %}
+        <strong>{{ espacios | length }}</strong> de {{ total }} espacios
+      {% endif %}
+      {% if filtros.personas %} para {{ filtros.personas | personas }}{% endif %}
+    </p>
+  {% endif %}
+
+  {% if espacios %}
+    <div class="grilla-espacios">
+      {% for espacio in espacios %}
+        {% with orden = loop.index0 %}{% include "espacios/_tarjeta_espacio.html" %}{% endwith %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="estado-vacio">
+      {% if filtrando %}
+        <h2>{{ "No hay espacios con lugar ese día" if filtros.fecha else "Ningún espacio coincide con la búsqueda" }}</h2>
+        <p>Probá con otro día, otro nombre o menos personas.</p>
+        <a class="boton boton-suave" href="{{ url_for('espacios.catalogo') }}">Ver todos los espacios</a>
+      {% else %}
+        <h2>Todavía no hay espacios disponibles</h2>
+        <p>Cuando la escuela habilite aulas o estudios para reservar, van a aparecer acá.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

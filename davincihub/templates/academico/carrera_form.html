@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ "Editar carrera" if carrera else "Nueva carrera" }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <a class="enlace-volver" href="{{ url_for('academico.plan', carrera_id=carrera.id) if carrera else url_for('academico.lista') }}">← {{ carrera.nombre if carrera else "Carreras" }}</a>
+  <div class="cabecera-modulo">
+    <h1>{{ "Editar carrera" if carrera else "Nueva carrera" }}</h1>
+  </div>
+
+  <form class="formulario-espacio" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if error %}<p class="aviso aviso-error" role="alert">{{ error }}</p>{% endif %}
+    <div class="tarjeta">
+      <div class="grilla-datos">
+        <div class="campo">
+          <label for="nombre">Nombre</label>
+          <input id="nombre" name="nombre" value="{{ datos_form.get('nombre') or '' }}" maxlength="120" required>
+        </div>
+        <div class="campo">
+          <label for="duracion_anios">Duración</label>
+          <select id="duracion_anios" name="duracion_anios" required>
+            {% for n in range(1, duracion_maxima + 1) %}
+              <option value="{{ n }}"{% if (datos_form.get('duracion_anios') or 3) | string == n | string %} selected{% endif %}>{{ n }} {{ "año" if n == 1 else "años" }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="campo campo-completo">
+          <label for="titulo">Título que otorga <span class="opcional">(opcional)</span></label>
+          <input id="titulo" name="titulo" value="{{ datos_form.get('titulo') or '' }}" maxlength="160" placeholder="Por ejemplo: Técnico Superior en Diseño y Programación Web">
+        </div>
+      </div>
+    </div>
+    <div class="barra-guardar">
+      <a class="boton" href="{{ url_for('academico.plan', carrera_id=carrera.id) if carrera else url_for('academico.lista') }}">Cancelar</a>
+      <button class="boton boton-primario" type="submit">{{ "Guardar cambios" if carrera else "Crear carrera" }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}">
   <script src="{{ url_for('static', filename='menu.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='formularios.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='avisos.js') }}" defer></script>
 </head>
 <body>
 <header class="barra">
@@ -17,8 +19,12 @@
     <div class="barra-enlaces">
       <a href="#">Foro</a>
       <a href="#">Objetos</a>
-      <a href="#">Reservas</a>
-      <a href="#">Actividades</a>
+      <a href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
+      <a href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
+      {% if g.usuario and g.usuario.rol == 'admin' %}
+        <a href="{{ url_for('usuarios.lista') }}"{% if request.blueprint == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
+        <a href="{{ url_for('academico.lista') }}"{% if request.blueprint == 'academico' %} aria-current="page"{% endif %}>Carreras</a>
+      {% endif %}
     </div>
     <div class="barra-acciones {% if g.usuario and g.usuario.rol == 'estudiante' %}barra-acciones-perfil{% endif %}">
       {% if g.usuario %}
@@ -46,6 +52,13 @@
         <a class="boton boton-primario" href="{{ url_for('auth.registro') }}">Crear cuenta</a>
       {% endif %}
     </div>
+    {% if g.usuario %}
+      <a class="campana" href="{{ url_for('notificaciones.bandeja') }}" data-avisos="{{ avisos_sin_leer }}"
+         aria-label="Notificaciones{% if avisos_sin_leer %}: {{ avisos_sin_leer }} sin leer{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        {% if avisos_sin_leer %}<span class="campana-cantidad">{{ avisos_sin_leer if avisos_sin_leer < 10 else "9+" }}</span>{% endif %}
+      </a>
+    {% endif %}
     <button class="burger" type="button" aria-label="Abrir menú" aria-expanded="false"
             aria-controls="menu-movil" data-menu-abrir>
       <span></span><span></span><span></span>
@@ -70,8 +83,17 @@
     {% endif %}
     <a class="menu-enlace modulo-foro" href="#">Foro académico</a>
     <a class="menu-enlace modulo-objetos" href="#">Objetos</a>
-    <a class="menu-enlace modulo-reservas" href="#">Reservas</a>
-    <a class="menu-enlace modulo-actividades" href="#">Actividades</a>
+    <a class="menu-enlace modulo-reservas" href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
+    <a class="menu-enlace modulo-actividades" href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
+    {% if g.usuario and g.usuario.rol == 'admin' %}
+      <a class="menu-enlace modulo-usuarios" href="{{ url_for('usuarios.lista') }}"{% if request.blueprint == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
+      <a class="menu-enlace modulo-carreras" href="{{ url_for('academico.lista') }}"{% if request.blueprint == 'academico' %} aria-current="page"{% endif %}>Carreras</a>
+    {% endif %}
+    {% if g.usuario %}
+      <a class="menu-enlace menu-avisos" href="{{ url_for('notificaciones.bandeja') }}">
+        Notificaciones{% if avisos_sin_leer %} <span class="campana-cantidad">{{ avisos_sin_leer }}</span>{% endif %}
+      </a>
+    {% endif %}
   </nav>
   <div class="menu-acciones">
     {% if g.usuario %}
@@ -86,17 +108,20 @@
   </div>
 </aside>
 <main>
-  {% with mensajes = get_flashed_messages() %}
+  {% with mensajes = get_flashed_messages(with_categories=true) %}
     {% if mensajes %}
-      <div class="contenedor">
-        {% for mensaje in mensajes %}<p class="aviso">{{ mensaje }}</p>{% endfor %}
+      <div class="avisos-flotantes" data-avisos-flotantes>
+        {% for categoria, mensaje in mensajes %}
+          <p class="aviso{% if categoria == 'error' %} aviso-error{% endif %}" role="{{ 'alert' if categoria == 'error' else 'status' }}">{{ mensaje }}</p>
+        {% endfor %}
       </div>
     {% endif %}
   {% endwith %}
   {% block contenido %}{% endblock %}
 </main>
 <footer class="pie">
-  <div class="contenedor pie-superior">
+  {% set es_admin = g.usuario and g.usuario.rol == 'admin' %}
+  <div class="contenedor pie-superior{% if es_admin %} pie-con-admin{% endif %}">
     <div class="pie-marca">
       <a class="logo" href="{{ url_for('inicio') }}">Da Vinci <span>Hub</span></a>
       <p>La comunidad online de los estudiantes de la Escuela Da Vinci.</p>
@@ -116,21 +141,29 @@
       <h3>Módulos</h3>
       <a href="#">Foro académico</a>
       <a href="#">Objetos</a>
-      <a href="#">Reservas</a>
-      <a href="#">Actividades</a>
+      <a href="{{ url_for('espacios.catalogo') }}">Reservas</a>
+      <a href="{{ url_for('actividades.index') }}">Actividades</a>
     </nav>
     <nav class="pie-columna pie-col-cian">
       <h3>Tu cuenta</h3>
       {% if g.usuario %}
-        <form method="post" action="{{ url_for('auth.salir') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="pie-enlace-boton" type="submit">Salir</button>
-        </form>
+        <a href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
+        <a href="{{ url_for('actividades.mis_actividades') }}">Mis actividades</a>
+        <a href="{{ url_for('notificaciones.bandeja') }}">Notificaciones</a>
       {% else %}
         <a href="{{ url_for('auth.login') }}">Ingresar</a>
         <a href="{{ url_for('auth.registro') }}">Crear cuenta</a>
       {% endif %}
     </nav>
+    {% if es_admin %}
+      <nav class="pie-columna pie-col-ambar">
+        <h3>Administración</h3>
+        <a href="{{ url_for('usuarios.lista') }}">Usuarios</a>
+        <a href="{{ url_for('academico.lista') }}">Carreras</a>
+        <a href="{{ url_for('espacios.admin_lista') }}">Espacios</a>
+        <a href="{{ url_for('actividades.admin_panel') }}">Moderación</a>
+      </nav>
+    {% endif %}
     <nav class="pie-columna pie-col-violeta">
       <h3>La escuela</h3>
       <a href="https://davinci.edu.ar" rel="noopener">Sitio oficial</a>
@@ -143,5 +176,6 @@
   </div>
   <div class="pie-gigante" aria-hidden="true">DA VINCI HUB</div>
 </footer>
+{% block scripts %}{% endblock %}
 </body>
 </html>

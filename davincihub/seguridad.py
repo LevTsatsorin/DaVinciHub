@@ -1,6 +1,6 @@
 from functools import wraps
 
-from flask import abort, g, redirect, request, session, url_for
+from flask import abort, g, redirect, render_template, request, session, url_for
 
 from davincihub import db
 
@@ -21,7 +21,8 @@ def cargar_usuario():
         return
     if usuario["bloqueado"]:
         session.clear()
-        abort(403)
+        mensaje = "Tu cuenta está bloqueada. Si creés que es un error, escribí a la escuela."
+        return render_template("error.html", codigo=403, mensaje=mensaje), 403
     g.usuario = usuario
 
 
@@ -48,8 +49,11 @@ def requiere_admin(vista):
 
 
 def es_catedra(usuario_id: int, materia_id: int) -> bool:
+    """De cátedra en una materia: tiene el rol y ya cursó esa materia de su carrera."""
     fila = db.query_one(
-        "SELECT id FROM catedras WHERE usuario_id = :usuario AND materia_id = :materia",
+        "SELECT u.id FROM usuarios u JOIN materias m ON m.carrera_id = u.carrera_id"
+        " WHERE u.id = :usuario AND m.id = :materia AND u.catedra = 1 AND u.rol = 'estudiante'"
+        " AND m.cuatrimestre <= (coalesce(u.anio, 1) - 1) * 2",
         usuario=usuario_id,
         materia=materia_id,
     )

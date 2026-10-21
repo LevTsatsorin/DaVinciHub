@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block titulo %}Mis reservas — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+{% set recien = reservas | selectattr("id", "equalto", nueva) | first %}
+<section class="contenedor pagina-reservas-usuario">
+  {% if recien %}
+    <section class="reserva-lista-ok reserva-nueva" role="status">
+      <svg class="sello-ok" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="21" />
+        <path d="M14.5 24.5 21 31l12.5-13" />
+      </svg>
+      <div class="reserva-ok-texto">
+        <h1>Reserva confirmada</h1>
+        <p class="reserva-ok-espacio">{{ recien.espacio_nombre }}</p>
+        {% with reserva = recien %}{% include "espacios/_reserva_detalles.html" %}{% endwith %}
+        <p class="reserva-ok-nota">Te llegó un aviso con los datos. Si cambian los planes, cancelala desde la lista de abajo antes de que empiece.</p>
+      </div>
+      <a class="boton boton-primario" href="{{ url_for('espacios.catalogo') }}">Reservar otro espacio</a>
+    </section>
+  {% endif %}
+
+  <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
+  <div class="cabecera-modulo">
+    {% if recien %}<h2 class="titulo-lista">Mis próximas reservas</h2>{% else %}<h1>Mis próximas reservas</h1>{% endif %}
+    {% if not recien and reservas %}<a class="boton boton-primario" href="{{ url_for('espacios.catalogo') }}">Buscar un espacio</a>{% endif %}
+  </div>
+
+  {% if reservas %}
+    <ul class="lista-reservas">
+      {% for reserva in reservas %}
+        <li class="reserva-fila">
+          <div class="reserva-datos">
+            <h2>
+              <a href="{{ url_for('espacios.detalle', espacio_id=reserva.espacio_id, fecha=reserva.inicio[:10]) }}">{{ reserva.espacio_nombre }}</a>
+              {% if reserva.id == nueva %}<span class="etiqueta-nueva">Nueva</span>{% endif %}
+            </h2>
+            {% include "espacios/_reserva_detalles.html" %}
+          </div>
+          {% if reserva.actividad_id %}
+            <a class="boton boton-suave" href="{{ url_for('actividades.detalle', actividad_id=reserva.actividad_id) }}">
+              {{ "Actividad en revisión" if reserva.actividad_estado == 'pendiente' else "Ver actividad" }}
+            </a>
+          {% elif reserva.puede_cancelar %}
+            <form method="post" action="{{ url_for('espacios.cancelar', reserva_id=reserva.id) }}"
+                  data-confirmar="¿Cancelar la reserva de «{{ reserva.espacio_nombre }}»?"
+                  data-confirmar-texto="{{ reserva.inicio | dia_y_fecha }} · {{ reserva.inicio[11:16] }}–{{ reserva.fin[11:16] }}. El horario queda libre para otros estudiantes."
+                  data-confirmar-boton="Cancelar reserva"
+                  data-confirmar-volver="Mantener reserva">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="boton boton-suave" type="submit">Cancelar reserva</button>
+            </form>
+          {% else %}
+            <span class="nota">Ya comenzó; no se puede cancelar.</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/reservas.png') }}" alt="">
+      <h2>No tenés próximas reservas</h2>
+      <p>Elegí un espacio y un día para consultar los horarios disponibles.</p>
+      <a class="boton boton-primario" href="{{ url_for('espacios.catalogo') }}">Ver espacios</a>
+    </div>
+  {% endif %}
+
+  {% if historial %}
+    <h2 class="subtitulo">Historial</h2>
+    <ul class="lista-reservas lista-historial">
+      {% for reserva in historial %}
+        <li class="reserva-fila">
+          <div class="reserva-datos">
+            <h3>{{ reserva.espacio_nombre }}</h3>
+            {% include "espacios/_reserva_detalles.html" %}
+          </div>
+          {% if reserva.estado == "cancelada" %}
+            <span class="reserva-estado reserva-estado-cancelada">Cancelada</span>
+          {% else %}
+            <span class="reserva-estado reserva-estado-finalizada">Finalizada</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+{% include "espacios/_dialogo.html" %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

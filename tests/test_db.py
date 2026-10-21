@@ -8,6 +8,7 @@ TABLAS = {
     "usuarios",
     "fotos_perfil",
     "catedras",
+    "bloqueos",
     "conexiones",
     "preguntas",
     "respuestas",
@@ -150,3 +151,19 @@ def test_transaccion_anidada_revierte_todo(app):
         nombres = {f["nombre"] for f in db.query("SELECT nombre FROM carreras")}
         assert "Externa" not in nombres
         assert "Interna" not in nombres
+
+
+def test_bloquear_fila_exige_transaccion(app):
+    with app.app_context(), pytest.raises(RuntimeError):
+        db.bloquear_fila("espacios", 1)
+
+
+def test_bloquear_fila_indica_si_existe(app):
+    with app.app_context(), db.transaccion():
+        assert db.bloquear_fila("espacios", 1) is True
+        assert db.bloquear_fila("espacios", 999) is False
+
+
+def test_bloquear_fila_rechaza_tabla_invalida(app):
+    with app.app_context(), db.transaccion(), pytest.raises(ValueError):
+        db.bloquear_fila("espacios; DROP TABLE usuarios", 1)

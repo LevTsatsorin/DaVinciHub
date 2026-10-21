@@ -268,20 +268,28 @@ INSERT INTO usuarios (nombre, apellido, email, password_hash, rol, carrera_id, a
     ('Admin', 'Demo', 'admin@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'admin', NULL, NULL, NULL, '2026-10-18T00:00:00'),
     ('Mica', 'Suárez', 'mica@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 2, 'A', '2026-10-18T00:00:00'),
     ('Tomás', 'Vega', 'tomas@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 2, 1, 'B', '2026-10-18T00:00:00'),
-    ('Lucía', 'Paz', 'lucia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 3, 'A', '2026-10-18T00:00:00');
+    ('Lucía', 'Paz', 'lucia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 3, 'A', '2026-10-18T00:00:00'),
+    ('Bruno', 'Ferreyra', 'bruno@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 3, 1, 'C', '2026-10-18T00:00:00'),
+    ('Sofía', 'Ríos', 'sofia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 4, 2, 'A', '2026-10-18T00:00:00');
 
-INSERT INTO catedras (usuario_id, materia_id)
-SELECT 4, id FROM materias WHERE carrera_id = 1 AND nombre = 'Lógica de la Programación';
+UPDATE usuarios SET catedra = 1 WHERE email = 'lucia@davinci.edu.ar';
+UPDATE usuarios SET bloqueado = 1 WHERE email = 'bruno@davinci.edu.ar';
 
--- espacios según la página de infraestructura de la escuela (capacidades estimadas)
+INSERT INTO bloqueos (usuario_id, admin_id, accion, motivo, creado) VALUES
+    (5, 1, 'bloqueo', 'Insultos a otros participantes en el chat de la Jam de videojuegos.', '2026-10-20T15:00:00+00:00');
+
+-- espacios según davinci.edu.ar/infraestructura; capacidades estimadas
 INSERT INTO espacios (nombre, descripcion, capacidad) VALUES
-    ('Aula de Informática 1', 'PCs actualizadas con software de diseño y programación', 30),
+    ('Aula de Informática 1', 'PCs con software de diseño y programación', 30),
     ('Aula de Informática 2', 'PCs para desarrollo, 3D y render', 30),
     ('Aula de Arte y Diseño', 'Mesas de trabajo y tabletas gráficas', 24),
-    ('Sala de Croma y Virtual Set', 'Croma para efectos especiales y set virtual', 12),
-    ('Estudio de Captura de Movimiento', 'Equipo de mocap para animación', 10),
+    ('Sala de Croma', 'Fondo de croma para efectos especiales y virtual set', 12),
+    ('Set de Filmación', 'Set con iluminación y cámaras para rodajes', 15),
+    ('Estudio de Virtual Production', 'Pantalla LED para producción virtual en tiempo real', 10),
     ('Aula de Realidad Virtual', 'Cascos VR para desarrollo y testeo', 16),
-    ('Laboratorio de Sonido', 'Grabación y edición de audio', 8),
+    ('Estudio de Sonido 1', 'Grabación con acústica tratada para cortos y publicidades', 6),
+    ('Estudio de Sonido 2', 'Edición y mezcla de audio', 6),
+    ('Laboratorio de Maquetado y Prototipado 3D', 'Impresoras 3D y herramientas para maquetas', 16),
     ('Auditorio', 'Charlas, muestras y eventos', 120),
     ('Sala de Exposiciones', 'Muestras de trabajos de alumnos', 60);
 
@@ -302,20 +310,94 @@ INSERT INTO horarios_espacios (espacio_id, dia_semana, abre, cierra) VALUES
     (3, 4, '09:00', '18:00'),
     (4, 1, '10:00', '18:00'),
     (4, 3, '10:00', '18:00'),
-    (5, 2, '10:00', '16:00'),
-    (5, 4, '10:00', '16:00'),
-    (6, 0, '12:00', '20:00'),
-    (6, 1, '12:00', '20:00'),
-    (6, 2, '12:00', '20:00'),
-    (6, 3, '12:00', '20:00'),
-    (7, 0, '10:00', '18:00'),
-    (7, 1, '10:00', '18:00'),
-    (7, 2, '10:00', '18:00'),
-    (7, 3, '10:00', '18:00'),
-    (7, 4, '10:00', '18:00'),
-    (8, 4, '10:00', '22:00'),
-    (9, 0, '12:00', '20:00'),
-    (9, 1, '12:00', '20:00'),
-    (9, 2, '12:00', '20:00'),
-    (9, 3, '12:00', '20:00'),
-    (9, 4, '12:00', '20:00');
+    (5, 0, '10:00', '19:00'),
+    (5, 2, '10:00', '19:00'),
+    (5, 4, '10:00', '19:00'),
+    (5, 5, '10:00', '14:00'),
+    (6, 2, '12:00', '18:00'),
+    (6, 4, '12:00', '18:00'),
+    (7, 0, '12:00', '20:00'),
+    (7, 1, '12:00', '20:00'),
+    (7, 2, '12:00', '20:00'),
+    (7, 3, '12:00', '20:00'),
+    (8, 0, '10:00', '18:00'),
+    (8, 1, '10:00', '18:00'),
+    (8, 2, '10:00', '18:00'),
+    (8, 3, '10:00', '18:00'),
+    (8, 4, '10:00', '18:00'),
+    (9, 0, '14:00', '21:00'),
+    (9, 1, '14:00', '21:00'),
+    (9, 3, '14:00', '21:00'),
+    (9, 4, '14:00', '21:00'),
+    (10, 0, '09:00', '13:00'),
+    (10, 0, '14:00', '18:00'),
+    (10, 2, '09:00', '13:00'),
+    (10, 2, '14:00', '18:00'),
+    (10, 4, '09:00', '13:00'),
+    (10, 4, '14:00', '18:00'),
+    (11, 4, '10:00', '22:00'),
+    (12, 0, '12:00', '20:00'),
+    (12, 1, '12:00', '20:00'),
+    (12, 2, '12:00', '20:00'),
+    (12, 3, '12:00', '20:00'),
+    (12, 4, '12:00', '20:00');
+
+INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, leida, creado) VALUES
+    (2, 'bienvenida', '¡Bienvenida a Da Vinci Hub! Completá tu perfil para que tus compañeros te encuentren.', '/', 1, '2026-10-18T12:00:00+00:00'),
+    (2, 'catedra', 'Lucía Paz respondió tu pregunta de Lógica de la Programación.', '/', 0, '2026-10-19T15:20:00+00:00'),
+    (2, 'reservas', 'Tu reserva del Estudio de Sonido 1 quedó confirmada.', '/reservas/mis-reservas/', 0, '2026-10-20T13:05:00+00:00');
+
+-- cada actividad tiene su reserva: el espacio queda tomado desde que se propone
+INSERT INTO reservas (espacio_id, usuario_id, inicio, fin, motivo, personas, estado, creado) VALUES
+    (1, 2, '2026-11-04T18:00:00', '2026-11-04T20:00:00', 'Grupo de estudio de Lógica', 12, 'confirmada', '2026-10-19T10:00:00+00:00'),
+    (11, 3, '2026-11-06T15:00:00', '2026-11-06T19:00:00', 'Torneo de Street Fighter 6', 32, 'confirmada', '2026-10-19T11:00:00+00:00'),
+    (12, 4, '2026-11-12T18:00:00', '2026-11-12T20:00:00', 'Charla: portfolio para la primera entrevista', 40, 'confirmada', '2026-10-19T12:00:00+00:00'),
+    (3, 2, '2026-11-09T14:00:00', '2026-11-09T17:00:00', 'Taller de ilustración digital', 20, 'confirmada', '2026-10-19T13:00:00+00:00'),
+    (12, 3, '2026-11-10T17:00:00', '2026-11-10T20:00:00', 'Noche de juegos de mesa', 30, 'confirmada', '2026-10-19T14:00:00+00:00'),
+    (2, 4, '2026-11-11T18:00:00', '2026-11-11T21:00:00', 'Primeros pasos en Unreal Engine', 25, 'confirmada', '2026-10-19T15:00:00+00:00'),
+    (11, 2, '2026-11-13T18:00:00', '2026-11-13T21:00:00', 'Muestra de cortos de primer año', 100, 'confirmada', '2026-10-19T16:00:00+00:00'),
+    (12, 3, '2026-11-17T18:00:00', '2026-11-17T19:30:00', 'Club de lectura de cómics', 15, 'confirmada', '2026-10-19T17:00:00+00:00'),
+    (9, 4, '2026-11-19T16:00:00', '2026-11-19T19:00:00', 'Clínica de mezcla de audio', 2, 'confirmada', '2026-10-19T18:00:00+00:00'),
+    (1, 2, '2026-11-23T10:00:00', '2026-11-23T18:00:00', 'Hackatón de accesibilidad web', 30, 'confirmada', '2026-10-19T19:00:00+00:00'),
+    (5, 3, '2026-11-25T15:00:00', '2026-11-25T18:00:00', 'Rodaje express en 3 horas', 15, 'confirmada', '2026-10-19T20:00:00+00:00'),
+    (2, 3, '2026-11-20T15:00:00', '2026-11-20T21:00:00', 'Jam de videojuegos', 24, 'confirmada', '2026-10-19T21:00:00+00:00'),
+    (11, 2, '2026-11-27T19:00:00', '2026-11-27T22:00:00', 'Maratón de películas de terror', 50, 'cancelada', '2026-10-19T22:00:00+00:00');
+
+INSERT INTO reservas (espacio_id, usuario_id, inicio, fin, motivo, personas, estado, creado) VALUES
+    (7, 1, '2026-11-05T14:00:00', '2026-11-05T16:00:00', 'Visita de escuelas secundarias', 16, 'confirmada', '2026-10-20T10:00:00+00:00'),
+    (8, 1, '2026-11-18T10:00:00', '2026-11-18T12:00:00', 'Grabación del video institucional', 4, 'confirmada', '2026-10-20T11:00:00+00:00'),
+    (12, 6, '2026-11-24T17:00:00', '2026-11-24T20:00:00', 'Muestra de fotografía analógica', 40, 'confirmada', '2026-10-20T12:00:00+00:00'),
+    (11, 1, '2026-11-27T15:00:00', '2026-11-27T17:00:00', 'Bienvenida a ingresantes 2027', 120, 'confirmada', '2026-10-20T13:00:00+00:00');
+
+INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion, cupo_maximo, estado, motivo_rechazo, reserva_id, creado) VALUES
+    (2, 'Grupo de estudio de Lógica', 'Repasamos ejercicios de la guía antes del parcial. Traé tus dudas y la notebook.', '2026-11-04T18:00:00', '2026-11-04T20:00:00', 'Aula de Informática 1', 12, 'aprobada', NULL, 1, '2026-10-19T10:00:00+00:00'),
+    (3, 'Torneo de Street Fighter 6', 'Torneo de eliminación directa, 1 vs 1. Los joysticks los pone el centro de estudiantes.', '2026-11-06T15:00:00', '2026-11-06T19:00:00', 'Auditorio', 32, 'aprobada', NULL, 2, '2026-10-19T11:00:00+00:00'),
+    (4, 'Charla: portfolio para la primera entrevista', 'Egresados cuentan qué mirar al armar el portfolio y cómo presentarlo.', '2026-11-12T18:00:00', '2026-11-12T20:00:00', 'Sala de Exposiciones', 40, 'aprobada', NULL, 3, '2026-10-19T12:00:00+00:00'),
+    (2, 'Taller de ilustración digital', 'Pinceles, capas y color en Procreate y Krita. Hay tabletas para quien no tenga.', '2026-11-09T14:00:00', '2026-11-09T17:00:00', 'Aula de Arte y Diseño', 20, 'aprobada', NULL, 4, '2026-10-19T13:00:00+00:00'),
+    (3, 'Noche de juegos de mesa', 'Catan, Dixit y Codenames. Si tenés un juego que te guste, traelo.', '2026-11-10T17:00:00', '2026-11-10T20:00:00', 'Sala de Exposiciones', 30, 'aprobada', NULL, 5, '2026-10-19T14:00:00+00:00'),
+    (4, 'Primeros pasos en Unreal Engine', 'Armamos una escena desde cero y la iluminamos. No hace falta experiencia.', '2026-11-11T18:00:00', '2026-11-11T21:00:00', 'Aula de Informática 2', 25, 'aprobada', NULL, 6, '2026-10-19T15:00:00+00:00'),
+    (2, 'Muestra de cortos de primer año', 'Proyectamos los cortos del cuatrimestre y charlamos con los directores.', '2026-11-13T18:00:00', '2026-11-13T21:00:00', 'Auditorio', 100, 'aprobada', NULL, 7, '2026-10-19T16:00:00+00:00'),
+    (3, 'Club de lectura de cómics', 'Este mes: Maus, de Art Spiegelman. Leé lo que puedas, nadie controla.', '2026-11-17T18:00:00', '2026-11-17T19:30:00', 'Sala de Exposiciones', 15, 'aprobada', NULL, 8, '2026-10-19T17:00:00+00:00'),
+    (4, 'Clínica de mezcla de audio', 'Traé una sesión y la mezclamos en grupo, paso a paso.', '2026-11-19T16:00:00', '2026-11-19T19:00:00', 'Estudio de Sonido 2', 2, 'aprobada', NULL, 9, '2026-10-19T18:00:00+00:00'),
+    (2, 'Hackatón de accesibilidad web', 'Equipos de tres para mejorar sitios de ONGs. Hay premios del centro de estudiantes.', '2026-11-23T10:00:00', '2026-11-23T18:00:00', 'Aula de Informática 1', 30, 'aprobada', NULL, 10, '2026-10-19T19:00:00+00:00'),
+    (3, 'Rodaje express en 3 horas', 'Guion, rodaje y edición de un corto en una tarde, en grupos de cinco.', '2026-11-25T15:00:00', '2026-11-25T18:00:00', 'Set de Filmación', 15, 'aprobada', NULL, 11, '2026-10-19T20:00:00+00:00'),
+    (3, 'Jam de videojuegos', 'Equipos de hasta cuatro personas, tema sorpresa al empezar.', '2026-11-20T15:00:00', '2026-11-20T21:00:00', 'Aula de Informática 2', 24, 'pendiente', NULL, 12, '2026-10-19T21:00:00+00:00'),
+    (2, 'Maratón de películas de terror', 'Proyección de tres películas con debate al final.', '2026-11-27T19:00:00', '2026-11-27T22:00:00', 'Auditorio', 50, 'rechazada', 'Ese viernes el auditorio se usa para la muestra de fin de año. Proponé otra fecha.', 13, '2026-10-19T22:00:00+00:00');
+
+INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion, cupo_maximo, estado, motivo_rechazo, reserva_id, creado) VALUES
+    (6, 'Muestra de fotografía analógica', 'Copias en blanco y negro reveladas en el laboratorio del club. Charla con los autores al cierre.', '2026-11-24T17:00:00', '2026-11-24T20:00:00', 'Sala de Exposiciones', 40, 'pendiente', NULL, 16, '2026-10-20T12:00:00+00:00'),
+    (1, 'Bienvenida a ingresantes 2027', 'Recorrido por la escuela, presentación de las carreras y del Hub para los que empiezan en marzo.', '2026-11-27T15:00:00', '2026-11-27T17:00:00', 'Auditorio', 120, 'aprobada', NULL, 17, '2026-10-20T13:00:00+00:00');
+
+INSERT INTO inscripciones (actividad_id, usuario_id, creado) VALUES
+    (1, 3, '2026-10-20T12:00:00+00:00'),
+    (1, 4, '2026-10-20T13:00:00+00:00'),
+    (2, 2, '2026-10-20T14:00:00+00:00'),
+    (2, 4, '2026-10-20T15:00:00+00:00'),
+    (3, 2, '2026-10-20T16:00:00+00:00'),
+    (3, 3, '2026-10-20T17:00:00+00:00'),
+    (5, 2, '2026-10-20T18:00:00+00:00'),
+    (9, 2, '2026-10-20T19:00:00+00:00'),
+    (9, 3, '2026-10-20T20:00:00+00:00'),
+    (3, 1, '2026-10-20T21:00:00+00:00'),
+    (15, 2, '2026-10-20T22:00:00+00:00'),
+    (15, 4, '2026-10-20T23:00:00+00:00');

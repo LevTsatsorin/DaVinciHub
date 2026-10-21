@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block titulo %}Administrar espacios — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Catálogo de espacios</a>
+  <div class="cabecera-modulo">
+    <h1>Espacios</h1>
+    <a class="boton boton-primario" href="{{ url_for('espacios.admin_nuevo') }}">Nuevo espacio</a>
+  </div>
+
+  <nav class="pestanas" aria-label="Estado de los espacios">
+    <a class="pestana{% if estado == 'activos' %} pestana-activa{% endif %}"
+       href="{{ url_for('espacios.admin_lista') }}"
+       {% if estado == 'activos' %}aria-current="page"{% endif %}>Activos ({{ total_activos }})</a>
+    <a class="pestana{% if estado == 'deshabilitados' %} pestana-activa{% endif %}"
+       href="{{ url_for('espacios.admin_lista', estado='deshabilitados') }}"
+       {% if estado == 'deshabilitados' %}aria-current="page"{% endif %}>Deshabilitados ({{ total_apagados }})</a>
+  </nav>
+
+  {% if espacios %}
+    <ul class="lista-admin">
+      {% for espacio in espacios %}
+        <li class="fila-admin{% if not espacio.activo %} fila-inactiva{% endif %}">
+          <div class="fila-admin-datos">
+            <div class="fila-admin-titulo">
+              <a href="{{ url_for('espacios.admin_editar', espacio_id=espacio.id) }}">{{ espacio.nombre }}</a>
+            </div>
+            <p class="fila-admin-detalle">
+              {% if espacio.capacidad %}{{ espacio.capacidad | personas }} · {% endif %}
+              {% set resumen = espacio.horarios | resumen_horarios %}
+              {% if resumen %}
+                {% for dias_txt, rango in resumen %}{{ dias_txt }} {{ rango }}{% if not loop.last %} · {% endif %}{% endfor %}
+              {% else %}
+                <span class="sin-horarios">Sin horarios</span>
+              {% endif %}
+            </p>
+          </div>
+          <div class="fila-admin-acciones">
+            <a class="boton" href="{{ url_for('espacios.admin_editar', espacio_id=espacio.id) }}">Editar</a>
+            <form method="post" action="{{ url_for('espacios.admin_estado', espacio_id=espacio.id) }}"
+                  {% if espacio.activo %}
+                    data-confirmar="¿Deshabilitar «{{ espacio.nombre }}»?"
+                    data-confirmar-texto="No va a aparecer en el catálogo ni admitir reservas nuevas. Las reservas que ya existen se mantienen. Podés volver a habilitarlo cuando quieras."
+                    data-confirmar-boton="Deshabilitar"
+                  {% endif %}>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="activo" value="{{ 0 if espacio.activo else 1 }}">
+              <button class="boton boton-suave" type="submit">{{ "Deshabilitar" if espacio.activo else "Habilitar" }}</button>
+            </form>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% elif estado == 'deshabilitados' %}
+    <div class="estado-vacio">
+      <h2>No hay espacios deshabilitados</h2>
+      <p>Cuando deshabilites un espacio, va a aparecer acá para que puedas revisarlo o volver a habilitarlo.</p>
+    </div>
+  {% else %}
+    <div class="estado-vacio">
+      <h2>No hay espacios activos</h2>
+      <p>Creá uno nuevo o habilitá alguno de la pestaña «Deshabilitados».</p>
+    </div>
+  {% endif %}
+</section>
+{% include "espacios/_dialogo.html" %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

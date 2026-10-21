@@ -1,15 +1,11 @@
-from datetime import UTC, datetime
-
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from davincihub import db, seguridad, validacion
+from davincihub.academico import datos as academico_datos
+from davincihub.utiles import ahora
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
-
-
-def _ahora() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 @bp.route("/registro", methods=("GET", "POST"))
@@ -31,7 +27,7 @@ def registro():
                     apellido=request.form["apellido"].strip(),
                     email=email,
                     hash=generate_password_hash(request.form["password"]),
-                    creado=_ahora(),
+                    creado=ahora(),
                 )
             except db.ErrorIntegridad:
                 errores["email"] = "Ese email ya está registrado."
@@ -64,7 +60,7 @@ def registro_datos():
             )
             flash("¡Listo! Tu cuenta quedó completa.")
             return redirect(url_for("inicio"))
-    carreras = db.query("SELECT id, nombre FROM carreras WHERE activa = 1 ORDER BY nombre")
+    carreras = academico_datos.carreras_activas()
     return render_template(
         "auth/registro_datos.html", errores=errores, carreras=carreras, datos=request.form
     )

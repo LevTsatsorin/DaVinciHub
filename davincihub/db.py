@@ -7,6 +7,8 @@ from pathlib import Path
 import click
 from flask import current_app, g
 
+from davincihub.utiles import sin_acentos
+
 
 class ErrorIntegridad(Exception):
     pass
@@ -43,6 +45,7 @@ def get_db():
             conexion = sqlite3.connect(ruta, isolation_level=None)
             conexion.row_factory = sqlite3.Row
             conexion.execute("PRAGMA foreign_keys = ON")
+            conexion.create_function("sin_acentos", 1, lambda t: sin_acentos(t) if t else t, deterministic=True)
             g.db = conexion
             g.db_es_pg = False
     return g.db
@@ -68,6 +71,18 @@ def _ejecutar(sql: str, params: dict):
         return conexion.execute(sql, params)
     except sqlite3.IntegrityError as error:
         raise ErrorIntegridad(str(error)) from error
+
+
+_CON_ACENTO = "áàäâãéèëêíìïîóòöôõúùüûñç"
+_SIN_ACENTO = "aaaaaeeeeiiiiooooouuuunc"
+
+
+def sql_sin_acentos(expresion: str) -> str:
+    """Expresión SQL que pasa el texto a minúsculas y sin acentos, igual que utiles.sin_acentos."""
+    get_db()
+    if g.db_es_pg:
+        return f"translate(lower({expresion}), '{_CON_ACENTO}', '{_SIN_ACENTO}')"
+    return f"sin_acentos({expresion})"
 
 
 def _confirmar():
@@ -113,19 +128,84 @@ def transaccion():
         g.en_transaccion = False
 
 
+_NOMBRE_TABLA = re.compile(r"^[a-z_]+$")
+
+
+def bloquear_fila(tabla: str, fila_id: int) -> bool:
+    if not _NOMBRE_TABLA.match(tabla):
+        raise ValueError(f"Nombre de tabla inválido: {tabla!r}")
+    if not g.get("en_transaccion"):
+        raise RuntimeError("bloquear_fila sólo funciona dentro de db.transaccion().")
+    bloqueo = " FOR UPDATE" if g.db_es_pg else ""
+    fila = query_one(f"SELECT id FROM {tabla} WHERE id = :id{bloqueo}", id=fila_id)
+    return fila is not None
+
+
 def _leer_sql(nombre: str) -> str:
     with current_app.open_resource(nombre) as archivo:
         return archivo.read().decode("utf8")
 
 
+# columnas y tablas agregadas después del primer deploy: se crean solas al arrancar
+COLUMNAS_AGREGADAS = [
+    ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
+    ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
+    ("actividades", "reserva_id", "INTEGER REFERENCES reservas (id)"),
+    ("usuarios", "catedra", "INTEGER NOT NULL DEFAULT 0 CHECK (catedra IN (0, 1))"),
+]
+
+TABLAS_AGREGADAS = {
+    "bloqueos": """CREATE TABLE IF NOT EXISTS bloqueos (
+        id {{PK}},
+        usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+        admin_id INTEGER NOT NULL REFERENCES usuarios (id),
+        accion TEXT NOT NULL CHECK (accion IN ('bloqueo', 'desbloqueo')),
+        motivo TEXT NOT NULL,
+        creado TEXT NOT NULL
+    )""",
+}
+
+INDICES_AGREGADOS = [
+    ("bloqueos", "CREATE INDEX IF NOT EXISTS idx_bloqueos_usuario ON bloqueos (usuario_id, creado)"),
+]
+
+
+def _columnas(tabla: str) -> set[str]:
+    get_db()
+    if g.db_es_pg:
+        filas = query(
+            "SELECT column_name AS nombre FROM information_schema.columns WHERE table_name = :tabla",
+            tabla=tabla,
+        )
+        return {f["nombre"] for f in filas}
+    return {f["name"] for f in query(f"PRAGMA table_info({tabla})")}
+
+
+def _clave_primaria() -> str:
+    get_db()
+    if g.db_es_pg:
+        return "INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
+    return "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+
+def migrar():
+    if _columnas("usuarios"):
+        for tabla, definicion in TABLAS_AGREGADAS.items():
+            if not _columnas(tabla):
+                execute(definicion.replace("{{PK}}", _clave_primaria()))
+        for tabla, indice in INDICES_AGREGADOS:
+            if _columnas(tabla):
+                execute(indice)
+    for tabla, columna, definicion in COLUMNAS_AGREGADAS:
+        existentes = _columnas(tabla)
+        if existentes and columna not in existentes:
+            si_falta = " IF NOT EXISTS" if g.db_es_pg else ""
+            execute(f"ALTER TABLE {tabla} ADD COLUMN{si_falta} {columna} {definicion}")
+
+
 def init_db(demo: bool = False):
     conexion = get_db()
-    pk = (
-        "INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
-        if g.db_es_pg
-        else "INTEGER PRIMARY KEY AUTOINCREMENT"
-    )
-    esquema = _leer_sql("schema.sql").replace("{{PK}}", pk)
+    esquema = _leer_sql("schema.sql").replace("{{PK}}", _clave_primaria())
     if g.db_es_pg:
         conexion.execute(esquema)
     else:
@@ -164,3 +244,5 @@ def registrar(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(comando_init_db)
     app.cli.add_command(comando_migrar_fotos_perfil)
+    with app.app_context():
+        migrar()

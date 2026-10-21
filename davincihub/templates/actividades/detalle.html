@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% from "_persona.html" import persona %}
+
+{% block titulo %}{{ actividad.nombre }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+{% set act = actividad %}
+{% set fecha = act.inicio | partes_fecha %}
+{% set libres = act.cupo_maximo - act.inscriptos %}
+<section class="cabecera-seccion fondo-oscuro">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/actividades.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    {% if act.estado == 'aprobada' %}
+      <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
+    {% elif g.usuario.rol == 'admin' %}
+      <a class="enlace-volver" href="{{ url_for('actividades.admin_panel') }}">← Moderación de actividades</a>
+    {% else %}
+      <a class="enlace-volver" href="{{ url_for('actividades.mis_actividades') }}">← Mis actividades</a>
+    {% endif %}
+    {% if act.estado != 'aprobada' %}<div class="detalle-estado">{% include "actividades/_estado.html" %}</div>{% endif %}
+    <h1>{{ act.nombre }}</h1>
+    <p>Organiza {{ persona(act.creador_id, act.creador_nombre ~ " " ~ act.creador_apellido, act.creador_rol) }}</p>
+    <ul class="cifras-cabecera">
+      <li>{{ act.inicio | dia_y_fecha }}</li>
+      <li>{{ act.inicio[11:16] }}{% if act.fin %}–{{ act.fin[11:16] }}{% endif %}</li>
+      <li>{{ act.ubicacion }}</li>
+    </ul>
+  </div>
+</section>
+
+<section class="contenedor pagina-modulo detalle-actividad">
+  <div class="detalle-columnas">
+    <article class="detalle-cuerpo">
+      {% if act.estado == 'rechazada' and act.motivo_rechazo %}
+        <p class="aviso-alerta"><strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}</p>
+      {% elif act.estado == 'pendiente' and g.usuario and g.usuario.id == act.creador_id %}
+        <p class="aviso">La escuela todavía no la revisó. El espacio ya está reservado para vos.</p>
+      {% endif %}
+      <h2>Sobre esta actividad</h2>
+      <p class="detalle-descripcion">{{ act.descripcion }}</p>
+
+      {% if g.usuario and g.usuario.rol == 'admin' and act.estado == 'pendiente' %}
+        <div class="panel-acciones-moderacion">
+          <h3>Moderación</h3>
+          {% include "actividades/_moderar.html" %}
+        </div>
+      {% endif %}
+    </article>
+
+    <aside class="detalle-ficha" aria-label="Cuándo y dónde">
+      <div class="ficha-fecha">
+        <div class="destacada-fecha" aria-hidden="true">
+          <span>{{ fecha.dia }}</span><strong>{{ fecha.numero }}</strong><span>{{ fecha.mes }}</span>
+        </div>
+        <div>
+          <strong>{{ act.inicio[11:16] }}{% if act.fin %} a {{ act.fin[11:16] }}{% endif %}</strong>
+          {% if act.fin %}<span>{{ act | duracion }}</span>{% endif %}
+        </div>
+      </div>
+      <dl class="ficha-datos">
+        <div>
+          <dt>Lugar</dt>
+          <dd>
+            {% if act.espacio_id and g.usuario %}
+              <a href="{{ url_for('espacios.detalle', espacio_id=act.espacio_id, fecha=act.inicio[:10]) }}">{{ act.ubicacion }}</a>
+            {% else %}{{ act.ubicacion }}{% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Organiza</dt>
+          <dd>{{ persona(act.creador_id, act.creador_nombre ~ " " ~ act.creador_apellido, act.creador_rol) }}</dd>
+        </div>
+      </dl>
+      <div class="cupo">
+        <span class="cupo-barra"><span style="width: {{ (act.inscriptos * 100 / act.cupo_maximo) | round(0) }}%"></span></span>
+        <span class="cupo-texto">
+          {% if libres > 0 %}{{ libres }} de {{ act.cupo_maximo }} {{ "lugar libre" if libres == 1 else "lugares libres" }}{% else %}Actividad completa · {{ act.cupo_maximo }} {{ 'inscripto' if act.cupo_maximo == 1 else 'inscriptos' }}{% endif %}
+        </span>
+      </div>
+      {% include "actividades/_inscripcion.html" %}
+    </aside>
+  </div>
+
+  {% if act.estado == 'aprobada' and otras %}
+    <section class="detalle-otras" aria-labelledby="otras-titulo">
+      <h2 id="otras-titulo">Otras actividades</h2>
+      <div class="actividades-filas">
+        {% for otra in otras %}
+          {% with act = otra, destacar = false %}
+            <a class="actividad-fila" href="{{ url_for('actividades.detalle', actividad_id=act.id) }}" style="--orden: {{ loop.index0 }}">
+              {% include "actividades/_tarjeta.html" %}
+            </a>
+          {% endwith %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</section>
+{% if g.usuario %}{% include "espacios/_dialogo.html" %}{% endif %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}
