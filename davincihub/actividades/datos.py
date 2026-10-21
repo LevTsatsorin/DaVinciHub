@@ -142,6 +142,7 @@ def obtener_actividad(actividad_id: int) -> dict | None:
     """Obtiene una actividad por su id con los datos de su creador y el conteo de inscriptos."""
     act = db.query_one(
         "SELECT a.*, u.nombre AS creador_nombre, u.apellido AS creador_apellido, u.email AS creador_email,"
+        "       u.rol AS creador_rol,"
         "       (SELECT count(*) FROM inscripciones i WHERE i.actividad_id = a.id) AS inscriptos,"
         "       r.espacio_id"
         " FROM actividades a"
@@ -236,6 +237,7 @@ def listar_actividades_admin(estado: str | None = None) -> list[dict]:
     """Lista actividades para el panel de administración, opcionalmente filtrando por estado."""
     sql = (
         "SELECT a.*, u.nombre AS creador_nombre, u.apellido AS creador_apellido, u.email AS creador_email,"
+        "       u.rol AS creador_rol,"
         "       (SELECT count(*) FROM inscripciones i WHERE i.actividad_id = a.id) AS inscriptos"
         " FROM actividades a"
         " JOIN usuarios u ON u.id = a.creador_id"
@@ -345,7 +347,7 @@ def cancelar_actividad(actividad_id: int, usuario_id: int) -> None:
 
 def listar_inscriptos(actividad_id: int) -> list[dict]:
     return db.query(
-        "SELECT u.id, u.nombre, u.apellido, u.email, c.nombre AS carrera, i.creado AS inscripto"
+        "SELECT u.id, u.nombre, u.apellido, u.email, u.rol, c.nombre AS carrera, i.creado AS inscripto"
         " FROM inscripciones i"
         " JOIN usuarios u ON u.id = i.usuario_id"
         " LEFT JOIN carreras c ON c.id = u.carrera_id"

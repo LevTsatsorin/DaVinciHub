@@ -1,0 +1,4 @@
+{% macro persona(usuario_id, nombre, rol="estudiante") -%}
+  {%- set url = url_perfil(usuario_id, rol) -%}
+  {%- if url %}<a class="enlace-persona" href="{{ url }}">{{ nombre }}</a>{% else %}{{ nombre }}{% endif -%}
+{%- endmacro %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_persona.html" import persona %}
 
 {% block titulo %}Inscriptos — {{ actividad.nombre }} — Da Vinci Hub{% endblock %}
 
@@ -16,7 +17,7 @@
         <li>
           <span class="inscripto-avatar" aria-hidden="true">{{ u.nombre[:1] }}{{ u.apellido[:1] }}</span>
           <div>
-            <strong>{{ u.nombre }} {{ u.apellido }}</strong>
+            <strong>{{ persona(u.id, u.nombre ~ " " ~ u.apellido, u.rol) }}</strong>
             <span>{{ u.email }}{% if u.carrera %} · {{ u.carrera }}{% endif %}</span>
           </div>
           <time datetime="{{ u.inscripto }}">{{ u.inscripto | fecha_corta }}</time>

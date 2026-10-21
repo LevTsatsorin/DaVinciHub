@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}">
   <script src="{{ url_for('static', filename='menu.js') }}" defer></script>
   <script src="{{ url_for('static', filename='formularios.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='avisos.js') }}" defer></script>
 </head>
 <body>
 <header class="barra">
@@ -83,7 +84,7 @@
 <main>
   {% with mensajes = get_flashed_messages(with_categories=true) %}
     {% if mensajes %}
-      <div class="contenedor">
+      <div class="avisos-flotantes" data-avisos-flotantes>
         {% for categoria, mensaje in mensajes %}
           <p class="aviso{% if categoria == 'error' %} aviso-error{% endif %}" role="{{ 'alert' if categoria == 'error' else 'status' }}">{{ mensaje }}</p>
         {% endfor %}

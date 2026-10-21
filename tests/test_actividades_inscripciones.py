@@ -148,3 +148,35 @@ def test_la_lista_marca_las_actividades_completas(client, app, actividad):
     login(client, "lucia@davinci.edu.ar")
     texto = client.get("/actividades/?mes=2030-01").get_data(as_text=True)
     assert "Completa" in texto
+
+
+@pytest.fixture
+def con_perfiles(app):
+    from flask import Blueprint
+
+    perfiles = Blueprint("perfil", __name__, url_prefix="/estudiantes")
+    perfiles.add_url_rule("/<int:usuario_id>", "ver", lambda usuario_id: "perfil")
+    app.register_blueprint(perfiles)
+
+
+def test_sin_modulo_de_perfiles_los_nombres_no_son_enlaces(client, actividad):
+    login(client)
+    assert "/estudiantes/" not in client.get(f"/actividades/{actividad}").get_data(as_text=True)
+
+
+def test_el_organizador_y_los_inscriptos_enlazan_a_su_perfil(client, app, actividad, con_perfiles):
+    with app.app_context():
+        datos.inscribir(actividad, MICA)
+    login(client, "tomas@davinci.edu.ar")
+    assert f'href="/estudiantes/{TOMAS}"' in client.get(f"/actividades/{actividad}").get_data(as_text=True)
+    assert f'href="/estudiantes/{MICA}"' in client.get(f"/actividades/{actividad}/inscriptos").get_data(as_text=True)
+
+
+def test_un_admin_organizador_no_enlaza_a_un_perfil(client, app, con_perfiles):
+    login(client, "admin@davinci.edu.ar")
+    with app.app_context():
+        sala = reservas.crear_espacio("Sala Admin", capacidad=30)
+        reservas.reemplazar_horarios_espacio(sala, [{"dia_semana": 0, "abre": "08:00", "cierra": "22:00"}])
+        actividad = datos.crear_actividad(1, "Charla institucional", "Bienvenida.", sala,
+                                          "2030-01-07T10:00", "2030-01-07T11:00", 20, aprobada=True)
+    assert 'href="/estudiantes/1"' not in client.get(f"/actividades/{actividad}").get_data(as_text=True)
