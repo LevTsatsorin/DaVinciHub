@@ -21,6 +21,9 @@
       <a href="#">Objetos</a>
       <a href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
       <a href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
+      {% if g.usuario and g.usuario.rol == 'admin' %}
+        <a href="{{ url_for('usuarios.lista') }}"{% if request.blueprint == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
+      {% endif %}
     </div>
     <div class="barra-acciones">
       {% if g.usuario %}
@@ -63,6 +66,9 @@
     <a class="menu-enlace modulo-objetos" href="#">Objetos</a>
     <a class="menu-enlace modulo-reservas" href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
     <a class="menu-enlace modulo-actividades" href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
+    {% if g.usuario and g.usuario.rol == 'admin' %}
+      <a class="menu-enlace modulo-usuarios" href="{{ url_for('usuarios.lista') }}"{% if request.blueprint == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
+    {% endif %}
     {% if g.usuario %}
       <a class="menu-enlace menu-avisos" href="{{ url_for('notificaciones.bandeja') }}">
         Notificaciones{% if avisos_sin_leer %} <span class="campana-cantidad">{{ avisos_sin_leer }}</span>{% endif %}

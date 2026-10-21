@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ usuario.nombre }} {{ usuario.apellido }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+{% set u = usuario %}
+{% set es_yo = u.id == g.usuario.id %}
+<section class="contenedor pagina-modulo pagina-admin pagina-ficha-usuario">
+  <a class="enlace-volver" href="{{ url_for('usuarios.lista') }}">← Usuarios</a>
+
+  <header class="ficha-usuario fondo-oscuro">
+    <div class="ficha-usuario-avatar" aria-hidden="true">{{ u.nombre[:1] }}{{ u.apellido[:1] }}</div>
+    <div class="ficha-usuario-datos">
+      <div class="ficha-usuario-estados">
+        {% if u.rol == 'admin' %}<span class="estado estado-admin">Admin</span>{% endif %}
+        {% if u.catedra %}<span class="estado estado-catedra">Cátedra</span>{% endif %}
+        {% if u.bloqueado %}<span class="estado estado-bloqueado">Bloqueado</span>{% else %}<span class="estado estado-activo">Activo</span>{% endif %}
+      </div>
+      <h1>{{ u.nombre }} {{ u.apellido }}</h1>
+      <p class="ficha-usuario-email">{{ u.email }}</p>
+      <ul class="cifras-cabecera">
+        {% if u.carrera_nombre %}<li>{{ u.carrera_nombre }}</li>{% endif %}
+        {% if u.anio %}<li>{{ u.anio }}.º año{% if u.comision %} · Com. {{ u.comision }}{% endif %}</li>{% endif %}
+        <li>Alta {{ (u.creado | fecha_corta)[:5] }}/{{ u.creado[:4] }}</li>
+      </ul>
+      {% set perfil = url_perfil(u.id, u.rol) %}
+      {% if perfil %}<a class="boton boton-ficha" href="{{ perfil }}">Ver perfil público</a>{% endif %}
+    </div>
+  </header>
+
+  <h2 class="subtitulo">Actividad en el Hub</h2>
+  {% set bloqueos = historial | selectattr("accion", "equalto", "bloqueo") | list | length %}
+  <div class="resumen-grupos">
+    <section class="resumen-grupo grupo-espacios">
+      <h3>Espacios y actividades</h3>
+      <dl>
+        <div><dt>Reservas de espacios</dt><dd>{{ resumen.reservas }}</dd></div>
+        <div><dt>Actividades que organizó{% if resumen.actividades_rechazadas %} <span>{{ resumen.actividades_rechazadas }} rechazada{{ "s" if resumen.actividades_rechazadas != 1 }}</span>{% endif %}</dt><dd>{{ resumen.actividades }}</dd></div>
+        <div><dt>Se anotó en actividades</dt><dd>{{ resumen.inscripciones }}</dd></div>
+      </dl>
+    </section>
+    <section class="resumen-grupo grupo-foro">
+      <h3>Foro</h3>
+      <dl>
+        <div><dt>Preguntas hechas</dt><dd>{{ resumen.preguntas }}</dd></div>
+        <div><dt>Respuestas dadas</dt><dd>{{ resumen.respuestas }}</dd></div>
+      </dl>
+    </section>
+    <section class="resumen-grupo grupo-objetos">
+      <h3>Objetos</h3>
+      <dl>
+        <div><dt>Publicaciones</dt><dd>{{ resumen.publicaciones }}</dd></div>
+      </dl>
+    </section>
+    <section class="resumen-grupo grupo-moderacion{% if resumen.reportes or bloqueos %} con-alertas{% endif %}">
+      <h3>Moderación</h3>
+      <dl>
+        <div><dt>Reportes recibidos</dt><dd>{{ resumen.reportes }}</dd></div>
+        <div><dt>Bloqueos anteriores</dt><dd>{{ bloqueos }}</dd></div>
+      </dl>
+    </section>
+  </div>
+
+  <section class="bloque-admin" aria-labelledby="titulo-bloqueo">
+    <h2 id="titulo-bloqueo">{{ "Desbloquear la cuenta" if u.bloqueado else "Bloquear la cuenta" }}</h2>
+    {% if es_yo %}
+      <p class="nota">Es tu cuenta: no podés bloquearla.</p>
+    {% else %}
+      <p class="ayuda-bloque">
+        {% if u.bloqueado %}
+          Va a poder volver a ingresar con su email y contraseña.
+        {% else %}
+          No va a poder usar ninguna función del Hub. Si ahora tiene la sesión abierta, se cierra en su próxima acción.
+        {% endif %}
+      </p>
+      <form class="form-bloqueo" method="post" action="{{ url_for('usuarios.bloqueo', usuario_id=u.id) }}" data-mantener-posicion
+            data-confirmar="{{ '¿Desbloquear a ' if u.bloqueado else '¿Bloquear a ' }}{{ u.nombre }} {{ u.apellido }}?"
+            data-confirmar-texto="El motivo queda registrado con tu nombre y la fecha."
+            data-confirmar-boton="{{ 'Desbloquear' if u.bloqueado else 'Bloquear' }}"
+            {% if u.bloqueado %}data-confirmar-tono="positivo"{% endif %}>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="accion" value="{{ 'desbloquear' if u.bloqueado else 'bloquear' }}">
+        <div class="campo">
+          <label for="motivo">Motivo</label>
+          <textarea id="motivo" name="motivo" rows="3" maxlength="500" required
+                    placeholder="{{ 'Por qué se levanta el bloqueo' if u.bloqueado else 'Qué regla incumplió' }}"></textarea>
+        </div>
+        <button class="boton {{ 'boton-primario' if u.bloqueado else 'boton-peligro' }}" type="submit">{{ "Desbloquear cuenta" if u.bloqueado else "Bloquear cuenta" }}</button>
+      </form>
+    {% endif %}
+
+    {% if historial %}
+      <h3>Historial</h3>
+      <ol class="historial-bloqueos">
+        {% for r in historial %}
+          <li class="historial-{{ r.accion }}">
+            <div class="historial-cabecera">
+              <strong>{{ "Bloqueo" if r.accion == 'bloqueo' else "Desbloqueo" }}</strong>
+              <span>{{ r.creado | fecha_corta }} · {{ r.admin_nombre }} {{ r.admin_apellido }}</span>
+            </div>
+            <p>{{ r.motivo }}</p>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+
+  <section class="bloque-admin" id="catedra" aria-labelledby="titulo-catedra">
+    <h2 id="titulo-catedra">Estudiante de cátedra</h2>
+    <p class="ayuda-bloque">Ayuda a sus compañeros en todas las materias que ya cursó: en el foro, sus respuestas en esas materias llevan la insignia «Cátedra». Cuando pasa de año, las materias nuevas se suman solas.</p>
+    {% if u.rol != 'estudiante' %}
+      <p class="nota">El rol de cátedra es sólo para estudiantes.</p>
+    {% elif not plan %}
+      <p class="nota">Todavía no completó su carrera.</p>
+    {% else %}
+      {% set cursadas = plan | selectattr("anio", "le", cursados) | sum(attribute="materias", start=[]) | length %}
+      <div class="estado-catedra-actual{% if u.catedra %} con-catedra{% endif %}">
+        <p>
+          {% if u.catedra %}
+            Es de cátedra en las <strong>{{ cursadas }} materias</strong> que ya cursó.
+          {% elif cursadas %}
+            Cursa {{ u.anio }}.{{ "er" if u.anio in (1, 3) else "º" }} año: ya cursó <strong>{{ cursadas }} materias</strong>.
+          {% else %}
+            Cursa el primer año: todavía no terminó ninguna materia.
+          {% endif %}
+        </p>
+        {% if u.catedra or cursadas %}
+          <form method="post" action="{{ url_for('usuarios.catedra', usuario_id=u.id) }}" data-mantener-posicion
+                data-confirmar="{{ '¿Quitarle el rol de cátedra a ' if u.catedra else '¿Nombrar de cátedra a ' }}{{ u.nombre }} {{ u.apellido }}?"
+                data-confirmar-texto="{{ 'Sus respuestas dejan de llevar la insignia.' if u.catedra else 'Le llega un aviso y sus respuestas en las materias que ya cursó van a llevar la insignia.' }}"
+                data-confirmar-boton="{{ 'Quitar rol' if u.catedra else 'Nombrar' }}"
+                {% if not u.catedra %}data-confirmar-tono="positivo"{% endif %}>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="accion" value="{{ 'quitar' if u.catedra else 'nombrar' }}">
+            <button class="boton {{ 'boton-suave' if u.catedra else 'boton-primario' }}" type="submit">{{ "Quitar rol de cátedra" if u.catedra else "Nombrar estudiante de cátedra" }}</button>
+          </form>
+        {% endif %}
+      </div>
+      <div class="plan-carrera-cabecera">
+        <h3>Plan de {{ u.carrera_nombre }}</h3>
+        <ul class="leyenda-plan" aria-label="Referencias">
+          <li class="materia-cursada-ref">Ya cursó</li>
+          <li class="materia-cursando-ref">Cursa ahora</li>
+          <li class="materia-pendiente-ref">Por cursar</li>
+        </ul>
+      </div>
+      <div class="anios-cursados">
+        {% for anio in plan %}
+          {% set estado = "cursada" if anio.anio <= cursados else ("cursando" if anio.anio == u.anio else "pendiente") %}
+          <div class="anio-cursado">
+            <h4>{{ anio.anio }}.{{ "er" if anio.anio in (1, 3) else "º" }} año</h4>
+            <ul class="reserva-chips">
+              {% for m in anio.materias %}<li class="materia-{{ estado }}">{{ m.nombre }}</li>{% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+</section>
+{% include "espacios/_dialogo.html" %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

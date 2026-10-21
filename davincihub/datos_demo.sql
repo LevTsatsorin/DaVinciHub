@@ -270,8 +270,7 @@ INSERT INTO usuarios (nombre, apellido, email, password_hash, rol, carrera_id, a
     ('Tomás', 'Vega', 'tomas@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 2, 1, 'B', '2026-10-18T00:00:00'),
     ('Lucía', 'Paz', 'lucia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 3, 'A', '2026-10-18T00:00:00');
 
-INSERT INTO catedras (usuario_id, materia_id)
-SELECT 4, id FROM materias WHERE carrera_id = 1 AND nombre = 'Lógica de la Programación';
+UPDATE usuarios SET catedra = 1 WHERE email = 'lucia@davinci.edu.ar';
 
 -- espacios según davinci.edu.ar/infraestructura; capacidades estimadas
 INSERT INTO espacios (nombre, descripcion, capacidad) VALUES

@@ -6,7 +6,7 @@ TABLAS = {
     "carreras",
     "materias",
     "usuarios",
-    "catedras",
+    "bloqueos",
     "conexiones",
     "preguntas",
     "respuestas",

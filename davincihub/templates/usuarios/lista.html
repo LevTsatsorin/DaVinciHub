@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block titulo %}Usuarios — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <div class="cabecera-modulo">
+    <h1>Usuarios</h1>
+  </div>
+
+  {% set filtrando = filtros.q or filtros.carrera or filtros.rol or filtros.estado %}
+  <form class="filtros-espacios filtros-usuarios" method="get" role="search">
+    <label class="filtro-buscar">Buscar
+      <input type="search" name="q" value="{{ filtros.q }}" placeholder="Nombre, apellido o email" maxlength="100">
+    </label>
+    <label>Carrera
+      <select name="carrera">
+        <option value="">Todas</option>
+        {% for carrera in carreras %}
+          <option value="{{ carrera.id }}"{% if filtros.carrera == carrera.id %} selected{% endif %}>{{ carrera.nombre }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Rol
+      <select name="rol">
+        <option value="">Todos</option>
+        <option value="estudiante"{% if filtros.rol == 'estudiante' %} selected{% endif %}>Estudiante</option>
+        <option value="catedra"{% if filtros.rol == 'catedra' %} selected{% endif %}>De cátedra</option>
+        <option value="admin"{% if filtros.rol == 'admin' %} selected{% endif %}>Admin</option>
+      </select>
+    </label>
+    <label>Estado
+      <select name="estado">
+        <option value="">Todos</option>
+        <option value="activo"{% if filtros.estado == 'activo' %} selected{% endif %}>Activo</option>
+        <option value="bloqueado"{% if filtros.estado == 'bloqueado' %} selected{% endif %}>Bloqueado</option>
+      </select>
+    </label>
+    <button class="boton boton-primario" type="submit">Filtrar</button>
+    {% if filtrando %}<a class="enlace-limpiar" href="{{ url_for('usuarios.lista') }}">Limpiar</a>{% endif %}
+  </form>
+
+  <p class="resultado-filtros"><strong>{{ total }}</strong> {{ "usuario" if total == 1 else "usuarios" }}</p>
+
+  {% if usuarios %}
+    <ul class="lista-admin">
+      {% for u in usuarios %}
+        <li class="fila-admin fila-usuario{% if u.bloqueado %} fila-inactiva{% endif %}">
+          <div class="fila-admin-datos">
+            <div class="fila-admin-titulo">
+              <a href="{{ url_for('usuarios.ficha', usuario_id=u.id) }}">{{ u.nombre }} {{ u.apellido }}</a>
+              {% if u.rol == 'admin' %}<span class="estado estado-admin">Admin</span>{% endif %}
+              {% if u.catedra %}<span class="estado estado-catedra">Cátedra</span>{% endif %}
+              {% if u.bloqueado %}<span class="estado estado-bloqueado">Bloqueado</span>{% endif %}
+            </div>
+            <p class="fila-admin-detalle">
+              <span class="fila-usuario-email">{{ u.email }}</span>
+              {% if u.carrera_nombre %} · {{ u.carrera_nombre }}{% if u.anio %}, {{ u.anio }}.º año{% endif %}{% if u.comision %} · Com. {{ u.comision }}{% endif %}{% endif %}
+            </p>
+          </div>
+          <div class="fila-admin-acciones">
+            <a class="boton boton-suave" href="{{ url_for('usuarios.ficha', usuario_id=u.id) }}">Ver ficha</a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if paginas > 1 %}
+      <nav class="paginacion" aria-label="Páginas">
+        {% if pagina > 1 %}
+          <a class="boton boton-suave" href="{{ url_for('usuarios.lista', q=filtros.q or None, carrera=filtros.carrera, rol=filtros.rol or None, estado=filtros.estado or None, pagina=pagina - 1) }}">Anteriores</a>
+        {% endif %}
+        <span>Página {{ pagina }} de {{ paginas }}</span>
+        {% if pagina < paginas %}
+          <a class="boton boton-suave" href="{{ url_for('usuarios.lista', q=filtros.q or None, carrera=filtros.carrera, rol=filtros.rol or None, estado=filtros.estado or None, pagina=pagina + 1) }}">Siguientes</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="estado-vacio">
+      <h2>Ningún usuario coincide con la búsqueda</h2>
+      <p>Probá con otro nombre o sacá algún filtro.</p>
+      <a class="boton boton-suave" href="{{ url_for('usuarios.lista') }}">Ver todos</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

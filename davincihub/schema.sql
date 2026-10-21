@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS bloqueos;
 DROP TABLE IF EXISTS reportes;
 DROP TABLE IF EXISTS notificaciones;
 DROP TABLE IF EXISTS mensajes;
@@ -49,15 +50,20 @@ CREATE TABLE usuarios (
     anio INTEGER,
     comision TEXT,
     bloqueado INTEGER NOT NULL DEFAULT 0 CHECK (bloqueado IN (0, 1)),
+    catedra INTEGER NOT NULL DEFAULT 0 CHECK (catedra IN (0, 1)),
     creado TEXT NOT NULL
 );
 
-CREATE TABLE catedras (
+CREATE TABLE bloqueos (
     id {{PK}},
     usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
-    materia_id INTEGER NOT NULL REFERENCES materias (id),
-    UNIQUE (usuario_id, materia_id)
+    admin_id INTEGER NOT NULL REFERENCES usuarios (id),
+    accion TEXT NOT NULL CHECK (accion IN ('bloqueo', 'desbloqueo')),
+    motivo TEXT NOT NULL,
+    creado TEXT NOT NULL
 );
+
+CREATE INDEX idx_bloqueos_usuario ON bloqueos (usuario_id, creado);
 
 CREATE TABLE conexiones (
     id {{PK}},

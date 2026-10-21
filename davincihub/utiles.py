@@ -1,3 +1,4 @@
+import unicodedata
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -28,3 +29,7 @@ def fecha_corta(iso: str) -> str:
     if momento.tzinfo is None:
         momento = momento.replace(tzinfo=ZONA_LOCAL)
     return momento.astimezone(ZONA_LOCAL).strftime("%d/%m %H:%M")
+
+
+def sin_acentos(texto: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", texto.casefold()) if not unicodedata.combining(c))
