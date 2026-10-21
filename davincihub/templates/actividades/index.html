@@ -35,6 +35,7 @@
     {% endwith %}
   {% endif %}
 
+  <div class="agenda" data-agenda>
   <section class="calendario" id="calendario" aria-labelledby="calendario-titulo">
     <div class="calendario-cabecera">
       <h2 id="calendario-titulo">Calendario de actividades</h2>
@@ -114,5 +115,8 @@
       <p class="lista-vacia">No hay más actividades {{ "ese día" if dia else "este mes" }}. Probá con otro mes en el calendario.</p>
     {% endif %}
   </section>
+  </div>
 </section>
 {% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='actividades.js') }}" defer></script>{% endblock %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_persona.html" import persona %}
 
 {% block titulo %}Moderación de actividades — Da Vinci Hub{% endblock %}
 
@@ -26,7 +27,7 @@
         <li class="tarjeta-moderacion">
           <div class="moderacion-cabecera">
             {% include "actividades/_estado.html" %}
-            <span class="moderacion-autor">{{ act.creador_nombre }} {{ act.creador_apellido }} · {{ act.creador_email }}</span>
+            <span class="moderacion-autor">{{ persona(act.creador_id, act.creador_nombre ~ " " ~ act.creador_apellido, act.creador_rol) }} · {{ act.creador_email }}</span>
           </div>
           <h2><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
           {% with con_cupo = true %}{% include "actividades/_chips.html" %}{% endwith %}

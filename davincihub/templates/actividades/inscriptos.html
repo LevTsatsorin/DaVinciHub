@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_persona.html" import persona %}
+
+{% block titulo %}Inscriptos — {{ actividad.nombre }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo">
+  <a class="enlace-volver" href="{{ url_for('actividades.detalle', actividad_id=actividad.id) }}">← {{ actividad.nombre }}</a>
+  <div class="cabecera-modulo">
+    <h1>Inscriptos</h1>
+    <span class="chip-capacidad">{{ actividad.inscriptos }} de {{ actividad.cupo_maximo }}</span>
+  </div>
+
+  {% if inscriptos %}
+    <ol class="lista-inscriptos">
+      {% for u in inscriptos %}
+        <li>
+          <span class="inscripto-avatar" aria-hidden="true">{{ u.nombre[:1] }}{{ u.apellido[:1] }}</span>
+          <div>
+            <strong>{{ persona(u.id, u.nombre ~ " " ~ u.apellido, u.rol) }}</strong>
+            <span>{{ u.email }}{% if u.carrera %} · {{ u.carrera }}{% endif %}</span>
+          </div>
+          <time datetime="{{ u.inscripto }}">{{ u.inscripto | fecha_corta }}</time>
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+      <h2>Todavía no se inscribió nadie</h2>
+      <p>Cuando alguien se sume, te avisamos y aparece en esta lista.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

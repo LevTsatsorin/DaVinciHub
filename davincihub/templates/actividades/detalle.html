@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_persona.html" import persona %}
 
 {% block titulo %}{{ actividad.nombre }} — Da Vinci Hub{% endblock %}
 
@@ -18,7 +19,7 @@
     {% endif %}
     {% if act.estado != 'aprobada' %}<div class="detalle-estado">{% include "actividades/_estado.html" %}</div>{% endif %}
     <h1>{{ act.nombre }}</h1>
-    <p>Organiza {{ act.creador_nombre }} {{ act.creador_apellido }}</p>
+    <p>Organiza {{ persona(act.creador_id, act.creador_nombre ~ " " ~ act.creador_apellido, act.creador_rol) }}</p>
     <ul class="cifras-cabecera">
       <li>{{ act.inicio | dia_y_fecha }}</li>
       <li>{{ act.inicio[11:16] }}{% if act.fin %}–{{ act.fin[11:16] }}{% endif %}</li>
@@ -67,13 +68,16 @@
         </div>
         <div>
           <dt>Organiza</dt>
-          <dd>{{ act.creador_nombre }} {{ act.creador_apellido }}</dd>
+          <dd>{{ persona(act.creador_id, act.creador_nombre ~ " " ~ act.creador_apellido, act.creador_rol) }}</dd>
         </div>
       </dl>
       <div class="cupo">
         <span class="cupo-barra"><span style="width: {{ (act.inscriptos * 100 / act.cupo_maximo) | round(0) }}%"></span></span>
-        <span class="cupo-texto">{{ libres }} de {{ act.cupo_maximo }} {{ "lugar libre" if libres == 1 else "lugares libres" }}</span>
+        <span class="cupo-texto">
+          {% if libres > 0 %}{{ libres }} de {{ act.cupo_maximo }} {{ "lugar libre" if libres == 1 else "lugares libres" }}{% else %}Actividad completa · {{ act.cupo_maximo }} {{ 'inscripto' if act.cupo_maximo == 1 else 'inscriptos' }}{% endif %}
+        </span>
       </div>
+      {% include "actividades/_inscripcion.html" %}
     </aside>
   </div>
 
@@ -92,9 +96,7 @@
     </section>
   {% endif %}
 </section>
-{% if g.usuario and g.usuario.rol == 'admin' and act.estado == 'pendiente' %}
-  {% include "espacios/_dialogo.html" %}
-{% endif %}
+{% if g.usuario %}{% include "espacios/_dialogo.html" %}{% endif %}
 {% endblock %}
 
 {% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

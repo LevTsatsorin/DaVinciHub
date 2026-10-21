@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, render_template
+from flask import Flask, render_template, url_for
 from flask_wtf.csrf import CSRFProtect
 
 from davincihub import actividades, auth, db, notificaciones, seguridad
@@ -29,6 +29,13 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(reservas_rutas.bp)
     app.register_blueprint(actividades.bp)
     app.before_request(seguridad.cargar_usuario)
+
+    # devuelve None hasta que exista el blueprint de perfiles (B1)
+    @app.template_global()
+    def url_perfil(usuario_id: int, rol: str = "estudiante") -> str | None:
+        if rol != "estudiante" or "perfil.ver" not in app.view_functions:
+            return None
+        return url_for("perfil.ver", usuario_id=usuario_id)
 
     @app.route("/")
     def inicio():

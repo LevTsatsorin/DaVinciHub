@@ -2649,3 +2649,145 @@ a.dia-con-actividad.dia-elegido small { background: #ffffff; color: var(--violet
   .moderacion-acciones > form:first-child { grid-row: 2; grid-column: 2; }
   .moderacion-acciones .boton { width: 100%; text-align: center; }
 }
+
+.ficha-acciones { display: flex; flex-direction: column; gap: 10px; }
+
+.ficha-acciones:empty { display: none; }
+
+.ficha-acciones form { display: flex; flex-direction: column; }
+
+.ficha-acciones .boton { width: 100%; min-height: 44px; text-align: center; }
+
+.boton-ficha { border-color: rgba(255, 255, 255, 0.35); color: #ffffff; }
+
+.boton-ficha:hover { border-color: #ffffff; background: rgba(255, 255, 255, 0.08); }
+
+.ficha-inscripto,
+.ficha-completa,
+.ficha-nota { margin: 0; padding: 10px 14px; border-radius: 12px; font-weight: 600; text-align: center; }
+
+.ficha-inscripto { background: rgba(0, 201, 167, 0.18); color: #7ff0da; }
+
+.ficha-completa { background: rgba(245, 166, 35, 0.18); color: #ffd28a; }
+
+.ficha-nota { background: rgba(255, 255, 255, 0.08); color: #cfcbdb; }
+
+.enlace-ficha { align-self: center; color: #cfcbdb; font-size: 14px; font-weight: 600; }
+
+a.enlace-ficha:hover { color: #ffffff; }
+
+.detalle-ficha .boton-texto-peligro { color: #ff9a9a; }
+
+.detalle-ficha .boton-texto-peligro:hover { color: #ffc2c2; }
+
+.badge-terminada { background: #eeeaf8; color: #5b3fb0; }
+
+.tarjeta-pasada h2 a { color: var(--gris-texto); }
+
+.lista-inscriptos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  background: var(--fondo);
+}
+
+.lista-inscriptos li { display: flex; align-items: center; gap: 14px; padding: 14px 18px; }
+
+.lista-inscriptos li + li { border-top: 1px solid var(--borde); }
+
+.lista-inscriptos li > div { display: grid; flex: 1; min-width: 0; }
+
+.lista-inscriptos li > div span { color: var(--gris-texto); font-size: 14px; overflow-wrap: anywhere; }
+
+.lista-inscriptos time { flex: none; color: var(--gris-texto); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.inscripto-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--violeta);
+  font-weight: 700;
+}
+
+@media (max-width: 520px) {
+  .lista-inscriptos time { display: none; }
+}
+
+.avisos-flotantes {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(560px, calc(100% - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.avisos-flotantes .aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 14px 12px 16px;
+  border-radius: 12px;
+  background: #ecfbf7;
+  box-shadow: 0 18px 40px -18px rgba(21, 19, 26, 0.45);
+  pointer-events: auto;
+  animation: aviso-entra 260ms var(--ease-out) backwards;
+}
+
+.avisos-flotantes .aviso-error { background: #fdeeee; }
+
+.aviso-saliendo { animation: aviso-sale 200ms ease-in forwards !important; }
+
+.aviso-cerrar {
+  flex: none;
+  margin-left: auto;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1.1;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.aviso-cerrar:hover { opacity: 1; }
+
+@keyframes aviso-entra {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+}
+
+@keyframes aviso-sale {
+  to { opacity: 0; transform: translateY(-8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avisos-flotantes .aviso, .aviso-saliendo { animation-duration: 1ms !important; }
+}
+
+.agenda { display: flex; flex-direction: column; gap: 36px; transition: opacity 150ms ease; }
+
+.agenda[aria-busy="true"] { opacity: 0.6; }
+
+.lista-actividades { scroll-margin-top: 76px; }
+
+.enlace-persona { color: inherit; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(124, 58, 237, 0.4); text-underline-offset: 3px; }
+
+.enlace-persona:hover { color: var(--violeta); text-decoration-color: currentColor; }
+
+.fondo-oscuro .enlace-persona,
+.detalle-ficha .enlace-persona { text-decoration-color: rgba(127, 240, 218, 0.5); }
+
+.fondo-oscuro .enlace-persona:hover,
+.detalle-ficha .enlace-persona:hover { color: #7ff0da; }

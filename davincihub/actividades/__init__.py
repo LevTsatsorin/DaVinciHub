@@ -6,13 +6,19 @@ from davincihub import seguridad
 from davincihub.actividades.datos import (
     ErrorActividad,
     aprobar_actividad,
+    cancelar_actividad,
     contar_actividades_por_estado,
     contar_actividades_publicas,
     crear_actividad,
+    dar_de_baja,
     dias_con_actividades,
+    esta_inscripto,
+    inscribir,
     listar_actividades_admin,
     listar_actividades_creador,
     listar_actividades_publicas,
+    listar_inscripciones_de,
+    listar_inscriptos,
     obtener_actividad,
     rechazar_actividad,
 )
@@ -115,33 +121,79 @@ def index():
     )
 
 
+def _rol_en(actividad: dict) -> dict:
+    usuario = g.get("usuario")
+    return {
+        "admin": bool(usuario) and usuario["rol"] == "admin",
+        "creador": bool(usuario) and usuario["id"] == actividad["creador_id"],
+        "inscripto": bool(usuario) and esta_inscripto(actividad["id"], usuario["id"]),
+    }
+
+
 @bp.route("/<int:actividad_id>")
 def detalle(actividad_id: int):
     """Detalle de una actividad.
 
     RN-11 / CA-08: Sólo las actividades aprobadas son visibles para todos.
-    Una actividad pendiente o rechazada no es accesible por URL directa para otros estudiantes;
-    únicamente la puede ver su creador o un admin.
+    Una pendiente o rechazada sólo la ven su creador y un admin; una cancelada, también sus inscriptos.
     """
     actividad = obtener_actividad(actividad_id)
     if not actividad:
         abort(404)
-
-    if actividad["estado"] != "aprobada":
-        usuario = g.get("usuario")
-        if not usuario:
-            abort(404)
-        es_admin = usuario.get("rol") == "admin"
-        es_creador = usuario.get("id") == actividad["creador_id"]
-        if not (es_admin or es_creador):
-            abort(404)
+    rol = _rol_en(actividad)
+    if actividad["estado"] != "aprobada" and not (
+        rol["admin"] or rol["creador"] or (actividad["estado"] == "cancelada" and rol["inscripto"])
+    ):
+        abort(404)
 
     return render_template(
         "actividades/detalle.html",
         actividad=actividad,
+        rol=rol,
         otras=listar_actividades_publicas(limite=3, excluir=actividad_id),
         ahora=ahora_local(),
     )
+
+
+@bp.route("/<int:actividad_id>/inscriptos")
+@seguridad.requiere_login
+def inscriptos(actividad_id: int):
+    """El creador (o un admin) ve quiénes se anotaron."""
+    actividad = obtener_actividad(actividad_id)
+    if not actividad:
+        abort(404)
+    rol = _rol_en(actividad)
+    if not (rol["creador"] or rol["admin"]):
+        abort(404)
+    return render_template("actividades/inscriptos.html", actividad=actividad,
+                           inscriptos=listar_inscriptos(actividad_id))
+
+
+def _accion(actividad_id: int, funcion, mensaje: str):
+    try:
+        funcion(actividad_id, g.usuario["id"])
+        flash(mensaje)
+    except ErrorActividad as error:
+        flash(str(error), "error")
+    return redirect(url_for("actividades.detalle", actividad_id=actividad_id))
+
+
+@bp.route("/<int:actividad_id>/inscribir", methods=("POST",))
+@seguridad.requiere_login
+def inscribirse(actividad_id: int):
+    return _accion(actividad_id, inscribir, "¡Listo! Ya estás inscripto.")
+
+
+@bp.route("/<int:actividad_id>/baja", methods=("POST",))
+@seguridad.requiere_login
+def baja(actividad_id: int):
+    return _accion(actividad_id, dar_de_baja, "Te diste de baja: tu lugar quedó libre.")
+
+
+@bp.route("/<int:actividad_id>/cancelar", methods=("POST",))
+@seguridad.requiere_login
+def cancelar(actividad_id: int):
+    return _accion(actividad_id, cancelar_actividad, "La actividad fue cancelada y se avisó a los inscriptos.")
 
 
 @bp.route("/crear")
@@ -198,9 +250,17 @@ def proponer():
 @bp.route("/mis-actividades")
 @seguridad.requiere_login
 def mis_actividades():
-    """El creador ve el estado de sus actividades (pendiente, aprobada, rechazada)."""
-    actividades = listar_actividades_creador(g.usuario["id"])
-    return render_template("actividades/mis_actividades.html", actividades=actividades)
+    """Las actividades a las que se inscribió el estudiante y las que propuso, con su estado."""
+    propuestas = listar_actividades_creador(g.usuario["id"])
+    inscripciones = listar_inscripciones_de(g.usuario["id"])
+    ver = request.args.get("ver") or ("propuestas" if propuestas and not inscripciones else "inscripciones")
+    return render_template(
+        "actividades/mis_actividades.html",
+        ver="propuestas" if ver == "propuestas" else "inscripciones",
+        actividades=propuestas,
+        inscripciones=inscripciones,
+        ahora=ahora_local(),
+    )
 
 
 @bp.route("/admin")

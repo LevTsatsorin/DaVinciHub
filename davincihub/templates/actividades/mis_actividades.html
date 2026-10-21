@@ -6,11 +6,39 @@
 <section class="contenedor pagina-modulo">
   <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
   <div class="cabecera-modulo">
-    <h1>Mis actividades propuestas</h1>
-    {% if actividades %}<a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>{% endif %}
+    <h1>Mis actividades</h1>
+    {% if ver == 'propuestas' and actividades %}<a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>{% endif %}
   </div>
 
-  {% if actividades %}
+  <nav class="pestanas" aria-label="Mis actividades">
+    <a class="pestana{% if ver == 'inscripciones' %} pestana-activa{% endif %}" href="{{ url_for('actividades.mis_actividades') }}"
+       {% if ver == 'inscripciones' %}aria-current="page"{% endif %}>Me inscribí ({{ inscripciones | length }})</a>
+    <a class="pestana{% if ver == 'propuestas' %} pestana-activa{% endif %}" href="{{ url_for('actividades.mis_actividades', ver='propuestas') }}"
+       {% if ver == 'propuestas' %}aria-current="page"{% endif %}>Propuestas ({{ actividades | length }})</a>
+  </nav>
+
+  {% if ver == 'inscripciones' %}
+    {% if inscripciones %}
+      <ul class="lista-moderacion">
+        {% for act in inscripciones %}
+          {% set termino = (act.fin or act.inicio) < ahora %}
+          <li class="tarjeta-moderacion{% if termino or act.estado == 'cancelada' %} tarjeta-pasada{% endif %}">
+            {% if act.estado == 'cancelada' %}<span class="badge badge-rechazada">Cancelada</span>
+            {% elif termino %}<span class="badge badge-terminada">Terminó</span>{% endif %}
+            <h2><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
+            {% include "actividades/_chips.html" %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="estado-vacio">
+        <img src="{{ url_for('static', filename='img/actividades.png') }}" alt="">
+        <h2>Todavía no te inscribiste en ninguna actividad</h2>
+        <p>Mirá el calendario y sumate a un torneo, una charla o un grupo de estudio.</p>
+        <a class="boton boton-primario" href="{{ url_for('actividades.index') }}">Ver actividades</a>
+      </div>
+    {% endif %}
+  {% elif actividades %}
     <ul class="lista-moderacion">
       {% for act in actividades %}
         <li class="tarjeta-moderacion">
@@ -20,7 +48,10 @@
           {% if act.estado == 'pendiente' %}
             <p class="moderacion-descripcion">La escuela todavía no la revisó. Te avisamos cuando la aprueben o la rechacen.</p>
           {% elif act.estado == 'aprobada' %}
-            <p class="moderacion-descripcion">Publicada en el listado · {{ act.inscriptos }}/{{ act.cupo_maximo }} cupos ocupados.</p>
+            <p class="moderacion-descripcion">
+              Publicada · {{ act.inscriptos }}/{{ act.cupo_maximo }} inscriptos ·
+              <a href="{{ url_for('actividades.inscriptos', actividad_id=act.id) }}">Ver inscriptos</a>
+            </p>
           {% endif %}
           {% if act.estado == 'rechazada' and act.motivo_rechazo %}
             <p class="aviso-alerta"><strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}</p>

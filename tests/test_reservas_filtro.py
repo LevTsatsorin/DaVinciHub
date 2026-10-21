@@ -11,6 +11,7 @@ def login(client, email="mica@davinci.edu.ar"):
 @pytest.fixture
 def salas(app):
     with app.app_context():
+        db.execute("DELETE FROM inscripciones")
         db.execute("DELETE FROM actividades")
         db.execute("DELETE FROM reservas")
         db.execute("DELETE FROM horarios_espacios")
