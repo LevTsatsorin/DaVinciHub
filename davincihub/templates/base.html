@@ -18,8 +18,8 @@
     <div class="barra-enlaces">
       <a href="#">Foro</a>
       <a href="#">Objetos</a>
-      <a href="{{ url_for('espacios.catalogo') }}">Reservas</a>
-      <a href="#">Actividades</a>
+      <a href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
+      <a href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
     </div>
     <div class="barra-acciones">
       {% if g.usuario %}
@@ -60,8 +60,8 @@
   <nav class="menu-enlaces">
     <a class="menu-enlace modulo-foro" href="#">Foro académico</a>
     <a class="menu-enlace modulo-objetos" href="#">Objetos</a>
-    <a class="menu-enlace modulo-reservas" href="{{ url_for('espacios.catalogo') }}">Reservas</a>
-    <a class="menu-enlace modulo-actividades" href="#">Actividades</a>
+    <a class="menu-enlace modulo-reservas" href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
+    <a class="menu-enlace modulo-actividades" href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
     {% if g.usuario %}
       <a class="menu-enlace menu-avisos" href="{{ url_for('notificaciones.bandeja') }}">
         Notificaciones{% if avisos_sin_leer %} <span class="campana-cantidad">{{ avisos_sin_leer }}</span>{% endif %}
@@ -114,7 +114,7 @@
       <a href="#">Foro académico</a>
       <a href="#">Objetos</a>
       <a href="{{ url_for('espacios.catalogo') }}">Reservas</a>
-      <a href="#">Actividades</a>
+      <a href="{{ url_for('actividades.index') }}">Actividades</a>
     </nav>
     <nav class="pie-columna pie-col-cian">
       <h3>Tu cuenta</h3>

@@ -21,12 +21,10 @@
     </section>
   {% endif %}
 
+  <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
   <div class="cabecera-modulo">
-    <div>
-      <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
-      {% if recien %}<h2 class="titulo-lista">Mis próximas reservas</h2>{% else %}<h1>Mis próximas reservas</h1>{% endif %}
-    </div>
-    {% if not recien %}<a class="boton boton-primario" href="{{ url_for('espacios.catalogo') }}">Buscar un espacio</a>{% endif %}
+    {% if recien %}<h2 class="titulo-lista">Mis próximas reservas</h2>{% else %}<h1>Mis próximas reservas</h1>{% endif %}
+    {% if not recien and reservas %}<a class="boton boton-primario" href="{{ url_for('espacios.catalogo') }}">Buscar un espacio</a>{% endif %}
   </div>
 
   {% if reservas %}
@@ -40,7 +38,11 @@
             </h2>
             {% include "espacios/_reserva_detalles.html" %}
           </div>
-          {% if reserva.puede_cancelar %}
+          {% if reserva.actividad_id %}
+            <a class="nota reserva-actividad" href="{{ url_for('actividades.detalle', actividad_id=reserva.actividad_id) }}">
+              Para la actividad{% if reserva.actividad_estado == 'pendiente' %} · en revisión{% endif %}
+            </a>
+          {% elif reserva.puede_cancelar %}
             <form method="post" action="{{ url_for('espacios.cancelar', reserva_id=reserva.id) }}"
                   data-confirmar="¿Cancelar la reserva de «{{ reserva.espacio_nombre }}»?"
                   data-confirmar-texto="{{ reserva.inicio | dia_y_fecha }} · {{ reserva.inicio[11:16] }}–{{ reserva.fin[11:16] }}. El horario queda libre para otros estudiantes."

@@ -1,3 +1,4 @@
+import unicodedata
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
@@ -60,14 +61,50 @@ def dia_actual() -> int:
     return datetime.now(ZONA_LOCAL).weekday()
 
 
+def _sin_acentos(texto: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", texto.casefold()) if not unicodedata.combining(c))
+
+
+def _filtros_catalogo(args) -> dict:
+    fecha = args.get("fecha", "")
+    try:
+        fecha = date.fromisoformat(fecha).isoformat()
+    except ValueError:
+        fecha = ""
+    personas = args.get("personas", "")
+    return {
+        "q": args.get("q", "").strip(),
+        "fecha": fecha,
+        "personas": int(personas) if personas.isascii() and personas.isdecimal() and int(personas) > 0 else None,
+    }
+
+
 @bp.route("/espacios/")
 @seguridad.requiere_login
 def catalogo():
-    espacios = datos.listar_espacios_catalogo()
+    todos = datos.listar_espacios_catalogo()
     hoy = dia_actual()
-    abiertos_hoy = sum(1 for e in espacios if any(h["dia_semana"] == hoy for h in e["horarios"]))
-    return render_template("espacios/catalogo.html", espacios=espacios, abiertos_hoy=abiertos_hoy,
-                           dias=datos.DIAS_SEMANA)
+    abiertos_hoy = sum(1 for e in todos if any(h["dia_semana"] == hoy for h in e["horarios"]))
+    filtros = _filtros_catalogo(request.args)
+    espacios = [
+        e for e in todos
+        if _sin_acentos(filtros["q"]) in _sin_acentos(e["nombre"])
+        and (not filtros["personas"] or not e["capacidad"] or e["capacidad"] >= filtros["personas"])
+    ]
+    if filtros["fecha"]:
+        ahora = ahora_local()
+        for e in espacios:
+            e["libres"] = rangos_libres(turnos_del_dia(datos.obtener_disponibilidad_dia(e["id"], filtros["fecha"], e), ahora))
+        espacios = [e for e in espacios if e["libres"]]
+    return render_template(
+        "espacios/catalogo.html",
+        espacios=espacios,
+        total=len(todos),
+        abiertos_hoy=abiertos_hoy,
+        filtros=filtros,
+        hoy=hoy_local(),
+        dias=datos.DIAS_SEMANA,
+    )
 
 
 def _minutos(hora: str) -> int:
@@ -99,6 +136,20 @@ def turnos_del_dia(disponibilidad: dict, ahora: str) -> list[dict]:
     return bloques
 
 
+def rangos_libres(bloques: list[dict]) -> list[tuple[str, str]]:
+    """Une los turnos libres seguidos en rangos: [("09:00", "10:00"), ("11:00", "13:00")]."""
+    rangos: list[list[str]] = []
+    for bloque in bloques:
+        for turno in bloque["turnos"]:
+            if turno["estado"] != "libre":
+                continue
+            if rangos and rangos[-1][1] == turno["inicio"]:
+                rangos[-1][1] = turno["fin"]
+            else:
+                rangos.append([turno["inicio"], turno["fin"]])
+    return [(inicio, fin) for inicio, fin in rangos]
+
+
 def proximos_dias(desde: str, horarios: list[dict], cantidad: int = DIAS_PANEL) -> list[dict]:
     abiertos = {h["dia_semana"] for h in horarios}
     inicio = date.fromisoformat(desde)
@@ -123,6 +174,29 @@ def _siguiente_dia_abierto(desde: str, horarios: list[dict]) -> str | None:
     return next((d["fecha"] for d in proximos_dias(siguiente, horarios, 7) if d["abierto"]), None)
 
 
+def contexto_disponibilidad(espacio: dict, fecha: str | None) -> dict:
+    """Datos de la línea de tiempo de un día: la usan la reserva y la propuesta de actividades."""
+    hoy = hoy_local()
+    try:
+        fecha = datetime.strptime(fecha or hoy, "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        flash("Elegí una fecha válida para consultar la disponibilidad.", "error")
+        fecha = hoy
+    disponibilidad = datos.obtener_disponibilidad_dia(espacio["id"], fecha, espacio)
+    bloques = turnos_del_dia(disponibilidad, ahora_local())
+    return {
+        "espacio": espacio,
+        "fecha": fecha,
+        "hoy": hoy,
+        "disponibilidad": disponibilidad,
+        "bloques": bloques,
+        "hay_libres": any(t["estado"] == "libre" for b in bloques for t in b["turnos"]),
+        "proximos": proximos_dias(hoy, espacio["horarios"]),
+        "siguiente_abierto": _siguiente_dia_abierto(max(fecha, _ayer(hoy)), espacio["horarios"]),
+        "es_pasado": fecha < hoy,
+    }
+
+
 @bp.route("/espacios/<int:espacio_id>")
 @seguridad.requiere_login
 def detalle(espacio_id: int):
@@ -130,27 +204,9 @@ def detalle(espacio_id: int):
     if espacio is None or (not espacio["activo"] and g.usuario["rol"] != "admin"):
         abort(404)
 
-    fecha = request.args.get("fecha", hoy_local())
-    try:
-        fecha = datetime.strptime(fecha, "%Y-%m-%d").date().isoformat()
-    except ValueError:
-        flash("Elegí una fecha válida para consultar la disponibilidad.", "error")
-        fecha = hoy_local()
-
-    hoy = hoy_local()
-    disponibilidad = datos.obtener_disponibilidad_dia(espacio_id, fecha, espacio)
-    bloques = turnos_del_dia(disponibilidad, ahora_local())
     return render_template(
         "espacios/detalle.html",
-        espacio=espacio,
-        fecha=fecha,
-        hoy=hoy,
-        disponibilidad=disponibilidad,
-        bloques=bloques,
-        hay_libres=any(t["estado"] == "libre" for b in bloques for t in b["turnos"]),
-        proximos=proximos_dias(hoy, espacio["horarios"]),
-        siguiente_abierto=_siguiente_dia_abierto(max(fecha, _ayer(hoy)), espacio["horarios"]),
-        es_pasado=fecha < hoy,
+        **contexto_disponibilidad(espacio, request.args.get("fecha")),
         formulario=session.pop("reserva_form", {}),
         es_admin=g.usuario["rol"] == "admin",
         dias=datos.DIAS_SEMANA,

@@ -3,13 +3,13 @@
 {% block titulo %}{{ espacio.nombre }} — Reservas{% endblock %}
 
 {% block contenido %}
-<section class="cabecera-reservas fondo-oscuro">
-  <img class="cabecera-reservas-imagen" src="{{ url_for('static', filename='img/reservas.png') }}" alt="">
-  <div class="contenedor cabecera-reservas-contenido">
+<section class="cabecera-seccion fondo-oscuro">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/reservas.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
     <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
     <h1>{{ espacio.nombre }}</h1>
     {% if espacio.descripcion %}<p>{{ espacio.descripcion }}</p>{% endif %}
-    <ul class="cifras-reservas">
+    <ul class="cifras-cabecera">
       {% if espacio.capacidad %}<li>{{ espacio.capacidad | personas }}</li>{% endif %}
       {% if not espacio.activo %}<li>Espacio deshabilitado</li>{% endif %}
     </ul>
@@ -26,20 +26,7 @@
   </div>
 
   <div class="selector-dia">
-    <nav class="tira-dias" aria-label="Próximos 7 días">
-      {% for dia in proximos %}
-        {% if dia.abierto %}
-          <a class="dia-chip{% if dia.fecha == fecha %} dia-actual{% endif %}" href="?fecha={{ dia.fecha }}"
-             {% if dia.fecha == fecha %}aria-current="date"{% endif %}>
-            <span>{{ dia.etiqueta }}</span><strong>{{ dia.numero }}</strong>
-          </a>
-        {% else %}
-          <span class="dia-chip dia-cerrado{% if dia.fecha == fecha %} dia-actual{% endif %}" title="Cerrado">
-            <span>{{ dia.etiqueta }}</span><strong>{{ dia.numero }}</strong>
-          </span>
-        {% endif %}
-      {% endfor %}
-    </nav>
+    {% include "espacios/_tira_dias.html" %}
     <form class="filtro-fecha" method="get">
       <label>Otra fecha
         <input id="fecha" name="fecha" type="date" value="{{ fecha }}" min="{{ hoy }}" required>
@@ -48,51 +35,8 @@
     </form>
   </div>
 
-  {% if es_pasado %}
-    <p class="aviso aviso-error">
-      Ese día ya pasó.
-      {% if siguiente_abierto %}<a href="?fecha={{ siguiente_abierto }}">Ver el {{ siguiente_abierto | dia_y_fecha }}</a>{% endif %}
-    </p>
-  {% elif not disponibilidad.abierto %}
-    <p class="aviso aviso-error">
-      {{ espacio.nombre }} no abre los {{ disponibilidad.dia_nombre }}.
-      {% if siguiente_abierto %}<a href="?fecha={{ siguiente_abierto }}">Ver el {{ siguiente_abierto | dia_y_fecha }}</a>{% endif %}
-    </p>
-  {% elif not espacio.activo %}
-    <p class="aviso aviso-error">El espacio está deshabilitado y no admite reservas nuevas.</p>
-  {% else %}
-    <div class="linea-tiempo">
-      <div class="linea-tiempo-cabecera">
-        <h3>{{ fecha | dia_y_fecha }}</h3>
-        <ul class="leyenda-turnos" aria-hidden="true">
-          <li><i class="turno-muestra libre"></i>Libre</li>
-          <li><i class="turno-muestra ocupado"></i>Ocupado</li>
-          <li><i class="turno-muestra elegido"></i>Tu reserva</li>
-        </ul>
-      </div>
-      {% for bloque in bloques %}
-        <div class="pista-contenedor">
-          <div class="pista" role="group" aria-label="Turnos de {{ bloque.abre }} a {{ bloque.cierra }}"
-               style="--turnos: {{ bloque.turnos | length }}">
-            {% for turno in bloque.turnos %}
-              <button type="button" class="turno turno-{{ turno.estado }}{% if turno.inicio.endswith(':00') %} turno-hora{% endif %}"
-                      data-inicio="{{ turno.inicio }}" data-fin="{{ turno.fin }}"
-                      {% if turno.estado != "libre" %}disabled{% endif %}
-                      aria-label="{{ turno.inicio }} a {{ turno.fin }}, {{ turno.estado }}"></button>
-            {% endfor %}
-            <span class="pista-fin">{{ bloque.cierra }}</span>
-          </div>
-        </div>
-      {% endfor %}
-      {% if hay_libres %}
-        <p class="pista-ayuda" data-ayuda>Tocá la hora de inicio y después la de fin.</p>
-      {% else %}
-        <p class="aviso aviso-error">No quedan horarios libres para este día.
-          {% if siguiente_abierto %}<a href="?fecha={{ siguiente_abierto }}">Ver el {{ siguiente_abierto | dia_y_fecha }}</a>{% endif %}
-        </p>
-      {% endif %}
-    </div>
-
+  {% include "espacios/_linea_tiempo.html" %}
+  {% if not es_pasado and disponibilidad.abierto and espacio.activo %}
     {% if hay_libres %}
       <form class="panel-reserva" method="post" action="{{ url_for('espacios.reservar', espacio_id=espacio.id) }}" data-panel-reserva
             data-espacio="{{ espacio.nombre }}" data-confirmar="¿Confirmás la reserva?" data-confirmar-tono="positivo"
@@ -125,7 +69,7 @@
                    placeholder="Ej.: grupo de estudio de Programación II">
           </label>
           <label>Personas
-            <input name="personas" type="number" min="1" {% if espacio.capacidad %}max="{{ espacio.capacidad }}" placeholder="Máx. {{ espacio.capacidad }}"{% endif %}
+            <input name="personas" type="number" min="1" {% if espacio.capacidad %}max="{{ espacio.capacidad }}" placeholder="Máx. {{ espacio.capacidad }}"{% else %}max="10000"{% endif %}
                    required inputmode="numeric" value="{{ formulario.personas or '' }}">
           </label>
           <button class="boton boton-primario" type="submit" data-confirmar-reserva>Confirmar reserva</button>

@@ -1,0 +1,10 @@
+<ul class="reserva-chips">
+  <li class="chip-fecha">{{ act.inicio | dia_y_fecha }}</li>
+  <li class="chip-hora">
+    {{- act.inicio[11:16] -}}
+    {%- if act.fin and act.fin[:10] == act.inicio[:10] %}–{{ act.fin[11:16] }}
+    {%- elif act.fin %} → {{ act.fin | dia_y_fecha }} {{ act.fin[11:16] }}{% endif -%}
+  </li>
+  <li class="chip-hora">{{ act.ubicacion }}</li>
+  {% if con_cupo %}<li class="chip-personas">Cupo {{ act.cupo_maximo }}</li>{% endif %}
+</ul>

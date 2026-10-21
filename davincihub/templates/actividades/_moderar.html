@@ -1,0 +1,15 @@
+<div class="moderacion-acciones">
+  <form method="post" action="{{ url_for('actividades.aprobar', actividad_id=act.id) }}"
+        data-confirmar="¿Aprobar «{{ act.nombre }}»?"
+        data-confirmar-texto="Se publica en el listado de actividades y se avisa a quien la propuso."
+        data-confirmar-boton="Sí, aprobar"
+        data-confirmar-tono="positivo">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="boton boton-primario" type="submit">Aprobar</button>
+  </form>
+  <form class="moderacion-rechazo" method="post" action="{{ url_for('actividades.rechazar', actividad_id=act.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input name="motivo" aria-label="Motivo del rechazo" maxlength="300" placeholder="Motivo del rechazo" required>
+    <button class="boton boton-rechazar" type="submit">Rechazar</button>
+  </form>
+</div>

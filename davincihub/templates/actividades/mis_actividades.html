@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block titulo %}Mis actividades — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo">
+  <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
+  <div class="cabecera-modulo">
+    <h1>Mis actividades propuestas</h1>
+    {% if actividades %}<a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>{% endif %}
+  </div>
+
+  {% if actividades %}
+    <ul class="lista-moderacion">
+      {% for act in actividades %}
+        <li class="tarjeta-moderacion">
+          {% include "actividades/_estado.html" %}
+          <h2><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
+          {% with con_cupo = true %}{% include "actividades/_chips.html" %}{% endwith %}
+          {% if act.estado == 'pendiente' %}
+            <p class="moderacion-descripcion">La escuela todavía no la revisó. Te avisamos cuando la aprueben o la rechacen.</p>
+          {% elif act.estado == 'aprobada' %}
+            <p class="moderacion-descripcion">Publicada en el listado · {{ act.inscriptos }}/{{ act.cupo_maximo }} cupos ocupados.</p>
+          {% endif %}
+          {% if act.estado == 'rechazada' and act.motivo_rechazo %}
+            <p class="aviso-alerta"><strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}</p>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/actividades.png') }}" alt="">
+      <h2>No propusiste ninguna actividad todavía</h2>
+      <p>Cualquier estudiante puede organizar una charla, un grupo de estudio o un torneo.</p>
+      <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

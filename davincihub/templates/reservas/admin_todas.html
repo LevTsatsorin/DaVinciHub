@@ -4,11 +4,9 @@
 
 {% block contenido %}
 <section class="contenedor pagina-reservas-usuario">
+  <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
   <div class="cabecera-modulo">
-    <div>
-      <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Espacios</a>
-      <h1>Todas las reservas</h1>
-    </div>
+    <h1>Todas las reservas</h1>
   </div>
 
   {% if con_reservas %}
