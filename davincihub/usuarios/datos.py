@@ -11,31 +11,43 @@ class ErrorUsuario(ValueError):
     """Error base para la administración de usuarios."""
 
 
-def listar_usuarios(q: str = "", carrera_id: int | None = None, rol: str = "", estado: str = "") -> list[dict]:
-    usuarios = db.query(
+def _filtros_sql(q: str, carrera_id: int | None, rol: str, estado: str) -> tuple[str, dict]:
+    condiciones, params = [], {}
+    buscado = sin_acentos(q.strip())
+    if buscado:
+        texto = db.sql_sin_acentos("u.nombre || ' ' || u.apellido || ' ' || u.email")
+        condiciones.append(f"{texto} LIKE :buscado ESCAPE '\\'")
+        escapado = buscado.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        params["buscado"] = f"%{escapado}%"
+    if carrera_id:
+        condiciones.append("u.carrera_id = :carrera")
+        params["carrera"] = carrera_id
+    if rol in ("estudiante", "admin"):
+        condiciones.append("u.rol = :rol")
+        params["rol"] = rol
+    elif rol == "catedra":
+        condiciones.append("u.catedra = 1")
+    if estado in ESTADOS:
+        condiciones.append("u.bloqueado = :bloqueado")
+        params["bloqueado"] = int(estado == "bloqueado")
+    return (" WHERE " + " AND ".join(condiciones) if condiciones else ""), params
+
+
+def listar_usuarios(q: str = "", carrera_id: int | None = None, rol: str = "", estado: str = "",
+                    limite: int = 10, salto: int = 0) -> list[dict]:
+    donde, params = _filtros_sql(q, carrera_id, rol, estado)
+    return db.query(
         "SELECT u.id, u.nombre, u.apellido, u.email, u.rol, u.bloqueado, u.catedra, u.carrera_id, u.anio,"
         " u.comision, c.nombre AS carrera_nombre"
         " FROM usuarios u LEFT JOIN carreras c ON c.id = u.carrera_id"
-        " ORDER BY u.apellido, u.nombre, u.id"
+        f"{donde} ORDER BY u.apellido, u.nombre, u.id LIMIT :limite OFFSET :salto",
+        limite=limite, salto=salto, **params,
     )
-    buscado = sin_acentos(q.strip())
 
-    def coincide(u: dict) -> bool:
-        if buscado and buscado not in sin_acentos(f"{u['nombre']} {u['apellido']} {u['email']}"):
-            return False
-        if carrera_id and u["carrera_id"] != carrera_id:
-            return False
-        if rol == "admin" and u["rol"] != "admin":
-            return False
-        if rol == "estudiante" and u["rol"] != "estudiante":
-            return False
-        if rol == "catedra" and not u["catedra"]:
-            return False
-        if estado == "activo" and u["bloqueado"]:
-            return False
-        return not (estado == "bloqueado" and not u["bloqueado"])
 
-    return [u for u in usuarios if coincide(u)]
+def contar_usuarios(q: str = "", carrera_id: int | None = None, rol: str = "", estado: str = "") -> int:
+    donde, params = _filtros_sql(q, carrera_id, rol, estado)
+    return db.query_one(f"SELECT count(*) AS n FROM usuarios u{donde}", **params)["n"]
 
 
 def obtener_usuario(usuario_id: int) -> dict | None:

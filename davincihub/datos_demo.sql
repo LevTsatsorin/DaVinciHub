@@ -268,9 +268,15 @@ INSERT INTO usuarios (nombre, apellido, email, password_hash, rol, carrera_id, a
     ('Admin', 'Demo', 'admin@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'admin', NULL, NULL, NULL, '2026-10-18T00:00:00'),
     ('Mica', 'Suárez', 'mica@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 2, 'A', '2026-10-18T00:00:00'),
     ('Tomás', 'Vega', 'tomas@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 2, 1, 'B', '2026-10-18T00:00:00'),
-    ('Lucía', 'Paz', 'lucia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 3, 'A', '2026-10-18T00:00:00');
+    ('Lucía', 'Paz', 'lucia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 3, 'A', '2026-10-18T00:00:00'),
+    ('Bruno', 'Ferreyra', 'bruno@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 3, 1, 'C', '2026-10-18T00:00:00'),
+    ('Sofía', 'Ríos', 'sofia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 4, 2, 'A', '2026-10-18T00:00:00');
 
 UPDATE usuarios SET catedra = 1 WHERE email = 'lucia@davinci.edu.ar';
+UPDATE usuarios SET bloqueado = 1 WHERE email = 'bruno@davinci.edu.ar';
+
+INSERT INTO bloqueos (usuario_id, admin_id, accion, motivo, creado) VALUES
+    (5, 1, 'bloqueo', 'Insultos a otros participantes en el chat de la Jam de videojuegos.', '2026-10-20T15:00:00+00:00');
 
 -- espacios según davinci.edu.ar/infraestructura; capacidades estimadas
 INSERT INTO espacios (nombre, descripcion, capacidad) VALUES
@@ -357,6 +363,12 @@ INSERT INTO reservas (espacio_id, usuario_id, inicio, fin, motivo, personas, est
     (2, 3, '2026-11-20T15:00:00', '2026-11-20T21:00:00', 'Jam de videojuegos', 24, 'confirmada', '2026-10-19T21:00:00+00:00'),
     (11, 2, '2026-11-27T19:00:00', '2026-11-27T22:00:00', 'Maratón de películas de terror', 50, 'cancelada', '2026-10-19T22:00:00+00:00');
 
+INSERT INTO reservas (espacio_id, usuario_id, inicio, fin, motivo, personas, estado, creado) VALUES
+    (7, 1, '2026-11-05T14:00:00', '2026-11-05T16:00:00', 'Visita de escuelas secundarias', 16, 'confirmada', '2026-10-20T10:00:00+00:00'),
+    (8, 1, '2026-11-18T10:00:00', '2026-11-18T12:00:00', 'Grabación del video institucional', 4, 'confirmada', '2026-10-20T11:00:00+00:00'),
+    (12, 6, '2026-11-24T17:00:00', '2026-11-24T20:00:00', 'Muestra de fotografía analógica', 40, 'confirmada', '2026-10-20T12:00:00+00:00'),
+    (11, 1, '2026-11-27T15:00:00', '2026-11-27T17:00:00', 'Bienvenida a ingresantes 2027', 120, 'confirmada', '2026-10-20T13:00:00+00:00');
+
 INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion, cupo_maximo, estado, motivo_rechazo, reserva_id, creado) VALUES
     (2, 'Grupo de estudio de Lógica', 'Repasamos ejercicios de la guía antes del parcial. Traé tus dudas y la notebook.', '2026-11-04T18:00:00', '2026-11-04T20:00:00', 'Aula de Informática 1', 12, 'aprobada', NULL, 1, '2026-10-19T10:00:00+00:00'),
     (3, 'Torneo de Street Fighter 6', 'Torneo de eliminación directa, 1 vs 1. Los joysticks los pone el centro de estudiantes.', '2026-11-06T15:00:00', '2026-11-06T19:00:00', 'Auditorio', 32, 'aprobada', NULL, 2, '2026-10-19T11:00:00+00:00'),
@@ -372,6 +384,10 @@ INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion
     (3, 'Jam de videojuegos', 'Equipos de hasta cuatro personas, tema sorpresa al empezar.', '2026-11-20T15:00:00', '2026-11-20T21:00:00', 'Aula de Informática 2', 24, 'pendiente', NULL, 12, '2026-10-19T21:00:00+00:00'),
     (2, 'Maratón de películas de terror', 'Proyección de tres películas con debate al final.', '2026-11-27T19:00:00', '2026-11-27T22:00:00', 'Auditorio', 50, 'rechazada', 'Ese viernes el auditorio se usa para la muestra de fin de año. Proponé otra fecha.', 13, '2026-10-19T22:00:00+00:00');
 
+INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion, cupo_maximo, estado, motivo_rechazo, reserva_id, creado) VALUES
+    (6, 'Muestra de fotografía analógica', 'Copias en blanco y negro reveladas en el laboratorio del club. Charla con los autores al cierre.', '2026-11-24T17:00:00', '2026-11-24T20:00:00', 'Sala de Exposiciones', 40, 'pendiente', NULL, 16, '2026-10-20T12:00:00+00:00'),
+    (1, 'Bienvenida a ingresantes 2027', 'Recorrido por la escuela, presentación de las carreras y del Hub para los que empiezan en marzo.', '2026-11-27T15:00:00', '2026-11-27T17:00:00', 'Auditorio', 120, 'aprobada', NULL, 17, '2026-10-20T13:00:00+00:00');
+
 INSERT INTO inscripciones (actividad_id, usuario_id, creado) VALUES
     (1, 3, '2026-10-20T12:00:00+00:00'),
     (1, 4, '2026-10-20T13:00:00+00:00'),
@@ -381,4 +397,7 @@ INSERT INTO inscripciones (actividad_id, usuario_id, creado) VALUES
     (3, 3, '2026-10-20T17:00:00+00:00'),
     (5, 2, '2026-10-20T18:00:00+00:00'),
     (9, 2, '2026-10-20T19:00:00+00:00'),
-    (9, 3, '2026-10-20T20:00:00+00:00');
+    (9, 3, '2026-10-20T20:00:00+00:00'),
+    (3, 1, '2026-10-20T21:00:00+00:00'),
+    (15, 2, '2026-10-20T22:00:00+00:00'),
+    (15, 4, '2026-10-20T23:00:00+00:00');

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block titulo %}Carreras — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <div class="cabecera-modulo">
+    <h1>Carreras</h1>
+    <a class="boton boton-primario" href="{{ url_for('academico.nueva') }}">Nueva carrera</a>
+  </div>
+
+  <nav class="pestanas" aria-label="Estado de las carreras">
+    <a class="pestana{% if estado == 'activas' %} pestana-activa{% endif %}" href="{{ url_for('academico.lista') }}"
+       {% if estado == 'activas' %}aria-current="page"{% endif %}>Activas ({{ total_activas }})</a>
+    <a class="pestana{% if estado == 'deshabilitadas' %} pestana-activa{% endif %}" href="{{ url_for('academico.lista', estado='deshabilitadas') }}"
+       {% if estado == 'deshabilitadas' %}aria-current="page"{% endif %}>Deshabilitadas ({{ total_apagadas }})</a>
+  </nav>
+
+  {% if carreras %}
+    <ul class="lista-admin">
+      {% for c in carreras %}
+        <li class="fila-admin{% if not c.activa %} fila-inactiva{% endif %}">
+          <div class="fila-admin-datos">
+            <div class="fila-admin-titulo">
+              <a href="{{ url_for('academico.plan', carrera_id=c.id) }}">{{ c.nombre }}</a>
+            </div>
+            {% if c.titulo %}<p class="fila-admin-detalle">{{ c.titulo }}</p>{% endif %}
+            <ul class="reserva-chips chips-carrera">
+              <li class="chip-fecha">{{ c.duracion_anios }} {{ "año" if c.duracion_anios == 1 else "años" }}</li>
+              <li class="chip-personas">{{ c.materias }} {{ "materia" if c.materias == 1 else "materias" }}</li>
+              <li class="chip-hora">{{ c.estudiantes }} {{ "estudiante" if c.estudiantes == 1 else "estudiantes" }}</li>
+            </ul>
+          </div>
+          <div class="fila-admin-acciones">
+            <a class="boton boton-suave" href="{{ url_for('academico.plan', carrera_id=c.id) }}">Ver plan</a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% elif estado == 'deshabilitadas' %}
+    <div class="estado-vacio">
+      <h2>No hay carreras deshabilitadas</h2>
+      <p>Cuando una carrera deje de dictarse, deshabilitala desde su plan y va a aparecer acá.</p>
+    </div>
+  {% else %}
+    <div class="estado-vacio">
+      <h2>Todavía no hay carreras</h2>
+      <p>Creá la primera para que los estudiantes puedan elegirla al registrarse.</p>
+      <a class="boton boton-primario" href="{{ url_for('academico.nueva') }}">Nueva carrera</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

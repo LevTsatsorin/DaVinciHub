@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block titulo %}Nueva carrera — Da Vinci Hub{% endblock %}
+
+{% macro fila_materia(cuatrimestre, valor="") %}
+  <li class="fila-materia">
+    <input name="materias-{{ cuatrimestre }}" value="{{ valor }}" maxlength="120" placeholder="Nombre de la materia" aria-label="Materia del {{ cuatrimestre }}.º cuatrimestre">
+    <button type="button" class="quitar-fila" data-quitar-materia aria-label="Quitar materia">×</button>
+  </li>
+{% endmacro %}
+
+{% block contenido %}
+{% set duracion = (datos_form.get('duracion_anios') or 3) | int %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <a class="enlace-volver" href="{{ url_for('academico.lista') }}">← Carreras</a>
+  <div class="cabecera-modulo">
+    <h1>Nueva carrera</h1>
+  </div>
+
+  <ol class="pasos-asistente" aria-label="Pasos">
+    <li data-indicador="1"><span>1</span> Datos generales</li>
+    <li data-indicador="2"><span>2</span> Plan de materias</li>
+    <li data-indicador="3"><span>3</span> Revisar y crear</li>
+  </ol>
+
+  <form class="asistente" method="post" data-asistente data-paso-inicial="{{ paso }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if error %}<p class="aviso aviso-error" role="alert">{{ error }}</p>{% endif %}
+
+    <fieldset class="paso-asistente" data-paso="1">
+      <legend class="titulo-tarjeta">Datos generales</legend>
+      <div class="tarjeta">
+        <div class="grilla-datos">
+          <div class="campo">
+            <label for="nombre">Nombre</label>
+            <input id="nombre" name="nombre" value="{{ datos_form.get('nombre') or '' }}" maxlength="120" required>
+          </div>
+          <div class="campo">
+            <label for="duracion_anios">Duración</label>
+            <select id="duracion_anios" name="duracion_anios" required data-duracion>
+              {% for n in range(1, duracion_maxima + 1) %}
+                <option value="{{ n }}"{% if duracion == n %} selected{% endif %}>{{ n }} {{ "año" if n == 1 else "años" }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="campo campo-completo">
+            <label for="titulo">Título que otorga <span class="opcional">(opcional)</span></label>
+            <input id="titulo" name="titulo" value="{{ datos_form.get('titulo') or '' }}" maxlength="160" placeholder="Por ejemplo: Técnico Superior en Diseño y Programación Web">
+          </div>
+        </div>
+      </div>
+      <div class="barra-guardar">
+        <a class="boton" href="{{ url_for('academico.lista') }}">Cancelar</a>
+        <button class="boton boton-primario" type="button" data-ir="2">Siguiente: plan de materias</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="paso-asistente" data-paso="2">
+      <legend class="titulo-tarjeta">Plan de materias</legend>
+      <p class="ayuda">Escribí las materias de cada cuatrimestre. Con Enter pasás a la siguiente. Los cuatrimestres pueden quedar vacíos y completarse después.</p>
+      {% for anio in range(1, duracion_maxima + 1) %}
+        <div class="anio-asistente" data-anio="{{ anio }}"{% if anio > duracion %} hidden{% endif %}>
+          <h2 class="subtitulo">{{ anio }}.{{ "er" if anio in (1, 3) else "º" }} año</h2>
+          <div class="plan-anio">
+            {% for cuatrimestre in [anio * 2 - 1, anio * 2] %}
+              <section class="plan-cuatrimestre" data-cuatrimestre="{{ cuatrimestre }}">
+                <h3>{{ cuatrimestre }}.º cuatrimestre <span data-cantidad></span></h3>
+                <ul class="lista-materias-nuevas" data-lista-materias>
+                  {% for nombre in materias[cuatrimestre] %}{{ fila_materia(cuatrimestre, nombre) }}{% endfor %}
+                  {{ fila_materia(cuatrimestre) }}
+                </ul>
+                <button class="boton-texto" type="button" data-agregar-materia>+ Agregar materia</button>
+              </section>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+      <div class="barra-guardar">
+        <button class="boton" type="button" data-ir="1">Anterior</button>
+        <button class="boton boton-primario" type="button" data-ir="3">Siguiente: revisar</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="paso-asistente" data-paso="3">
+      <legend class="titulo-tarjeta">Revisar y crear</legend>
+      <div class="tarjeta resumen-asistente" data-resumen></div>
+      <div class="barra-guardar">
+        <button class="boton" type="button" data-ir="2">Anterior</button>
+        <button class="boton boton-primario" type="submit">Crear carrera</button>
+      </div>
+    </fieldset>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='asistente.js') }}" defer></script>{% endblock %}

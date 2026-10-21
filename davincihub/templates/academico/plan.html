@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ carrera.nombre }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+{% set activas = plan | map(attribute="cuatrimestres") | sum(start=[]) | map(attribute="materias") | sum(start=[]) | selectattr("activa") | list | length %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <a class="enlace-volver" href="{{ url_for('academico.lista') }}">← Carreras</a>
+
+  <header class="ficha-usuario cabecera-carrera fondo-oscuro">
+    <div class="ficha-usuario-datos">
+      <div class="ficha-usuario-estados">
+        {% if carrera.activa %}<span class="estado estado-activo">Activa</span>{% else %}<span class="estado estado-bloqueado">Deshabilitada</span>{% endif %}
+      </div>
+      <h1>{{ carrera.nombre }}</h1>
+      {% if carrera.titulo %}<p class="ficha-usuario-email">{{ carrera.titulo }}</p>{% endif %}
+      <ul class="cifras-cabecera">
+        <li>{{ carrera.duracion_anios }} {{ "año" if carrera.duracion_anios == 1 else "años" }}</li>
+        <li>{{ activas }} {{ "materia" if activas == 1 else "materias" }}</li>
+      </ul>
+      <div class="acciones-carrera">
+        <a class="boton boton-ficha" href="{{ url_for('academico.editar', carrera_id=carrera.id) }}">Editar carrera</a>
+        <form method="post" action="{{ url_for('academico.estado', carrera_id=carrera.id) }}"
+              {% if carrera.activa %}
+                data-confirmar="¿Deshabilitar «{{ carrera.nombre }}»?"
+                data-confirmar-texto="Deja de aparecer en el registro y en los formularios nuevos. Los estudiantes que ya la cursan y lo que publicaron se mantienen."
+                data-confirmar-boton="Deshabilitar"
+              {% endif %}>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="activa" value="{{ 0 if carrera.activa else 1 }}">
+          <button class="boton boton-ficha" type="submit">{{ "Deshabilitar" if carrera.activa else "Habilitar" }}</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  {% if not carrera.activa %}
+    <p class="aviso aviso-advertencia">Esta carrera está deshabilitada: no aparece en el registro ni en los formularios nuevos.</p>
+  {% endif %}
+
+  <form class="filtros-espacios form-materia" method="post" action="{{ url_for('academico.nueva_materia', carrera_id=carrera.id) }}" data-mantener-posicion>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Nueva materia
+      <input name="nombre" maxlength="120" required placeholder="Nombre de la materia">
+    </label>
+    <label>Cuatrimestre
+      {% with elegido = 1 %}{% include "academico/_cuatrimestres.html" %}{% endwith %}
+    </label>
+    <button class="boton boton-primario" type="submit">Agregar</button>
+  </form>
+
+  {% for anio in plan %}
+    <h2 class="subtitulo">{{ anio.anio }}.{{ "er" if anio.anio in (1, 3) else "º" }} año</h2>
+    <div class="plan-anio">
+      {% for cuatri in anio.cuatrimestres %}
+        <section class="plan-cuatrimestre" aria-label="{{ cuatri.numero }}.º cuatrimestre">
+          <h3>{{ cuatri.numero }}.º cuatrimestre</h3>
+          {% if cuatri.materias %}
+            <ul>
+              {% for m in cuatri.materias %}
+                <li class="plan-materia{% if not m.activa %} plan-materia-inactiva{% endif %}">
+                  <span class="plan-materia-nombre">{{ m.nombre }}{% if not m.activa %} <span class="estado estado-inactivo">Deshabilitada</span>{% endif %}</span>
+                  <span class="plan-materia-acciones">
+                    <a href="{{ url_for('academico.editar_materia', materia_id=m.id) }}">Editar</a>
+                    <form method="post" action="{{ url_for('academico.estado_materia', materia_id=m.id) }}" data-mantener-posicion>
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="activa" value="{{ 0 if m.activa else 1 }}">
+                      <button type="submit">{{ "Deshabilitar" if m.activa else "Habilitar" }}</button>
+                    </form>
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="lista-vacia">Sin materias.</p>
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</section>
+{% include "espacios/_dialogo.html" %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

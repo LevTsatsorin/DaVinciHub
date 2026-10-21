@@ -5,7 +5,7 @@ from davincihub.usuarios import datos
 
 bp = Blueprint("usuarios", __name__, url_prefix="/admin/usuarios")
 
-POR_PAGINA = 20
+POR_PAGINA = 10
 
 
 def _filtros(args) -> dict:
@@ -23,13 +23,14 @@ def _filtros(args) -> dict:
 @seguridad.requiere_admin
 def lista():
     filtros = _filtros(request.args)
-    usuarios = datos.listar_usuarios(filtros["q"], filtros["carrera"], filtros["rol"], filtros["estado"])
-    paginas = max(1, -(-len(usuarios) // POR_PAGINA))
+    criterios = (filtros["q"], filtros["carrera"], filtros["rol"], filtros["estado"])
+    total = datos.contar_usuarios(*criterios)
+    paginas = max(1, -(-total // POR_PAGINA))
     pagina = min(max(request.args.get("pagina", 1, type=int) or 1, 1), paginas)
     return render_template(
         "usuarios/lista.html",
-        usuarios=usuarios[(pagina - 1) * POR_PAGINA:pagina * POR_PAGINA],
-        total=len(usuarios),
+        usuarios=datos.listar_usuarios(*criterios, limite=POR_PAGINA, salto=(pagina - 1) * POR_PAGINA),
+        total=total,
         pagina=pagina,
         paginas=paginas,
         filtros=filtros,

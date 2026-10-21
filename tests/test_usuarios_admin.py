@@ -4,7 +4,7 @@ from flask import render_template_string
 from davincihub import db
 from davincihub.usuarios import datos
 
-ADMIN, MICA, TOMAS, LUCIA = 1, 2, 3, 4
+ADMIN, MICA, TOMAS, LUCIA, BRUNO = 1, 2, 3, 4, 5
 
 
 def login(client, email="admin@davinci.edu.ar"):
@@ -56,7 +56,7 @@ def test_el_listado_filtra_por_carrera_rol_y_estado(app):
         assert {u["id"] for u in datos.listar_usuarios(carrera_id=1)} == {MICA, LUCIA}
         assert {u["id"] for u in datos.listar_usuarios(rol="admin")} == {ADMIN}
         assert {u["id"] for u in datos.listar_usuarios(rol="catedra")} == {LUCIA}
-        assert {u["id"] for u in datos.listar_usuarios(estado="bloqueado")} == {TOMAS}
+        assert {u["id"] for u in datos.listar_usuarios(estado="bloqueado")} == {TOMAS, BRUNO}
         assert TOMAS not in {u["id"] for u in datos.listar_usuarios(estado="activo")}
 
 
@@ -214,3 +214,40 @@ def test_la_ficha_muestra_todo_el_plan_con_el_avance_del_estudiante(client):
     assert texto.count('class="materia-cursada"') == 12
     assert texto.count('class="materia-cursando"') == 12
     assert 'class="materia-pendiente"' in texto
+
+
+@pytest.fixture
+def muchos_estudiantes(app):
+    with app.app_context():
+        for n in range(15):
+            db.execute(
+                "INSERT INTO usuarios (nombre, apellido, email, password_hash, carrera_id, anio, creado)"
+                " VALUES (:n, 'Zúñiga', :e, 'x', 2, 1, '2026-10-18T00:00:00')",
+                n=f"Estudiante{n:02d}", e=f"zuniga{n:02d}@davinci.edu.ar",
+            )
+
+
+def test_el_listado_trae_diez_por_pagina(app, muchos_estudiantes):
+    with app.app_context():
+        primera = datos.listar_usuarios(limite=10, salto=0)
+        tercera = datos.listar_usuarios(limite=10, salto=20)
+        assert len(primera) == 10 and len(tercera) == 1
+        assert datos.contar_usuarios() == 21
+        assert not {u["id"] for u in primera} & {u["id"] for u in tercera}
+
+
+def test_la_paginacion_respeta_los_filtros(client, muchos_estudiantes):
+    login(client)
+    texto = client.get("/admin/usuarios/?q=zuniga").get_data(as_text=True)
+    assert "<strong>15</strong> usuarios" in texto and "Página 1 de 2" in texto
+    assert texto.count('class="fila-admin fila-usuario') == 10
+    segunda = client.get("/admin/usuarios/?q=zuniga&pagina=2").get_data(as_text=True)
+    assert segunda.count('class="fila-admin fila-usuario') == 5
+    assert "q=zuniga" in segunda
+
+
+def test_buscar_comodines_no_trae_a_todos(app):
+    with app.app_context():
+        assert datos.contar_usuarios(q="%") == 0
+        assert datos.contar_usuarios(q="_") == 0
+        assert datos.contar_usuarios(q="SUÁREZ") == 1

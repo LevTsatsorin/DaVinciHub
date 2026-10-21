@@ -1,9 +1,10 @@
 import os
 
-from flask import Flask, render_template, url_for
+from flask import Flask, g, render_template, url_for
 from flask_wtf.csrf import CSRFProtect
 
-from davincihub import actividades, auth, db, notificaciones, seguridad, usuarios
+from davincihub import academico, actividades, auth, db, notificaciones, seguridad, usuarios
+from davincihub import inicio as pagina_inicio
 from davincihub.reservas import rutas as reservas_rutas
 
 csrf = CSRFProtect()
@@ -29,6 +30,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(reservas_rutas.bp)
     app.register_blueprint(actividades.bp)
     app.register_blueprint(usuarios.bp)
+    app.register_blueprint(academico.bp)
     app.before_request(seguridad.cargar_usuario)
     app.add_template_global(seguridad.es_catedra)
 
@@ -41,7 +43,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.route("/")
     def inicio():
-        return render_template("inicio.html")
+        return render_template("inicio.html", **pagina_inicio.contexto(g.usuario))
 
     @app.errorhandler(403)
     def prohibido(error):
