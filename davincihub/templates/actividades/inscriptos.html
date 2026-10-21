@@ -3,39 +3,31 @@
 {% block titulo %}Inscriptos — {{ actividad.nombre }} — Da Vinci Hub{% endblock %}
 
 {% block contenido %}
-<section class="contenedor pagina-modulo pagina-admin">
+<section class="contenedor pagina-modulo">
+  <a class="enlace-volver" href="{{ url_for('actividades.detalle', actividad_id=actividad.id) }}">← {{ actividad.nombre }}</a>
   <div class="cabecera-modulo">
-    <div>
-      <a class="enlace-volver" href="{{ url_for('actividades.detalle', actividad_id=actividad.id) }}">← {{ actividad.nombre }}</a>
-      <h1>Inscriptos</h1>
-    </div>
-    <div class="cupo-numeros">
-      <span class="cupo-inscriptos">{{ actividad.inscriptos }}</span>
-      <span class="cupo-sep">/</span>
-      <span class="cupo-maximo">{{ actividad.cupo_maximo }}</span>
-      <span class="cupo-label">lugares</span>
-    </div>
+    <h1>Inscriptos</h1>
+    <span class="chip-capacidad">{{ actividad.inscriptos }} de {{ actividad.cupo_maximo }}</span>
   </div>
 
   {% if inscriptos %}
-    <ul class="lista-admin">
+    <ol class="lista-inscriptos">
       {% for u in inscriptos %}
-        <li class="fila-admin">
-          <div class="fila-admin-datos">
-            <div class="fila-admin-titulo">{{ u.nombre }} {{ u.apellido }}</div>
-            <p class="fila-admin-detalle">
-              {{ u.email }}
-              {% if u.carrera_nombre %} · {{ u.carrera_nombre }}{% endif %}
-              · Inscripto/a el {{ u.fecha_inscripcion[:10] }}
-            </p>
+        <li>
+          <span class="inscripto-avatar" aria-hidden="true">{{ u.nombre[:1] }}{{ u.apellido[:1] }}</span>
+          <div>
+            <strong>{{ u.nombre }} {{ u.apellido }}</strong>
+            <span>{{ u.email }}{% if u.carrera %} · {{ u.carrera }}{% endif %}</span>
           </div>
+          <time datetime="{{ u.inscripto }}">{{ u.inscripto | fecha_corta }}</time>
         </li>
       {% endfor %}
-    </ul>
+    </ol>
   {% else %}
     <div class="estado-vacio">
-      <h2>Todavía no hay inscriptos</h2>
-      <p>Cuando alguien se inscriba, va a aparecer acá.</p>
+      <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+      <h2>Todavía no se inscribió nadie</h2>
+      <p>Cuando alguien se sume, te avisamos y aparece en esta lista.</p>
     </div>
   {% endif %}
 </section>

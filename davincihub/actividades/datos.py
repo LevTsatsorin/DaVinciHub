@@ -256,3 +256,116 @@ def listar_actividades_admin(estado: str | None = None) -> list[dict]:
 def contar_actividades_por_estado() -> dict[str, int]:
     filas = db.query("SELECT estado, count(*) AS n FROM actividades GROUP BY estado")
     return {fila["estado"]: fila["n"] for fila in filas}
+
+
+def esta_inscripto(actividad_id: int, usuario_id: int) -> bool:
+    return db.query_one(
+        "SELECT 1 AS si FROM inscripciones WHERE actividad_id = :a AND usuario_id = :u",
+        a=actividad_id,
+        u=usuario_id,
+    ) is not None
+
+
+def inscribir(actividad_id: int, usuario_id: int) -> None:
+    """Inscribe a un estudiante sin pasarse del cupo, aunque lleguen inscripciones a la vez (RN-12, CA-08)."""
+    with db.transaccion():
+        if not db.bloquear_fila("actividades", actividad_id):
+            raise ErrorActividad("La actividad no existe.")
+        act = db.query_one(
+            "SELECT id, creador_id, nombre, estado, inicio, cupo_maximo FROM actividades WHERE id = :id",
+            id=actividad_id,
+        )
+        if act["estado"] != "aprobada":
+            raise ErrorActividad("Sólo te podés inscribir en actividades aprobadas.")
+        if act["creador_id"] == usuario_id:
+            raise ErrorActividad("No te podés inscribir en tu propia actividad.")
+        if act["inicio"] <= ahora_local():
+            raise ErrorActividad("La actividad ya empezó: no admite inscripciones.")
+        if esta_inscripto(actividad_id, usuario_id):
+            raise ErrorActividad("Ya estás inscripto en esta actividad.")
+        ocupados = db.query_one(
+            "SELECT count(*) AS n FROM inscripciones WHERE actividad_id = :id", id=actividad_id
+        )["n"]
+        if ocupados >= act["cupo_maximo"]:
+            raise ErrorActividad("La actividad está completa: no quedan lugares.")
+        db.execute(
+            "INSERT INTO inscripciones (actividad_id, usuario_id, creado) VALUES (:a, :u, :creado)",
+            a=actividad_id,
+            u=usuario_id,
+            creado=ahora(),
+        )
+        alumno = db.query_one("SELECT nombre, apellido FROM usuarios WHERE id = :id", id=usuario_id)
+        notificar(
+            act["creador_id"],
+            "actividades",
+            f"{alumno['nombre']} {alumno['apellido']} se inscribió en '{act['nombre']}'.",
+            f"/actividades/{actividad_id}/inscriptos",
+        )
+
+
+def dar_de_baja(actividad_id: int, usuario_id: int) -> None:
+    with db.transaccion():
+        if not db.bloquear_fila("actividades", actividad_id):
+            raise ErrorActividad("La actividad no existe.")
+        act = db.query_one("SELECT inicio FROM actividades WHERE id = :id", id=actividad_id)
+        if act["inicio"] <= ahora_local():
+            raise ErrorActividad("La actividad ya empezó: no te podés dar de baja.")
+        if not db.execute(
+            "DELETE FROM inscripciones WHERE actividad_id = :a AND usuario_id = :u", a=actividad_id, u=usuario_id
+        ):
+            raise ErrorActividad("No estabas inscripto en esta actividad.")
+
+
+def cancelar_actividad(actividad_id: int, usuario_id: int) -> None:
+    """El creador o un admin cancela la actividad: se libera el espacio y se avisa a los inscriptos."""
+    with db.transaccion():
+        if not db.bloquear_fila("actividades", actividad_id):
+            raise ErrorActividad("La actividad no existe.")
+        act = db.query_one(
+            "SELECT id, creador_id, nombre, estado, inicio, reserva_id FROM actividades WHERE id = :id",
+            id=actividad_id,
+        )
+        es_admin = db.query_one("SELECT rol FROM usuarios WHERE id = :id", id=usuario_id)["rol"] == "admin"
+        if act["creador_id"] != usuario_id and not es_admin:
+            raise ErrorActividad("Sólo el creador de la actividad o la escuela la pueden cancelar.")
+        if act["estado"] not in ("pendiente", "aprobada"):
+            raise ErrorActividad(f"La actividad ya está en estado '{act['estado']}'.")
+        if act["inicio"] <= ahora_local():
+            raise ErrorActividad("La actividad ya empezó: no se puede cancelar.")
+        db.execute("UPDATE actividades SET estado = 'cancelada' WHERE id = :id", id=actividad_id)
+        db.execute("UPDATE reservas SET estado = 'cancelada' WHERE id = :id", id=act["reserva_id"])
+        for fila in listar_inscriptos(actividad_id):
+            notificar(
+                fila["id"],
+                "actividades",
+                f"La actividad '{act['nombre']}' ({fecha_corta(act['inicio'])}) fue cancelada.",
+                f"/actividades/{actividad_id}",
+            )
+
+
+def listar_inscriptos(actividad_id: int) -> list[dict]:
+    return db.query(
+        "SELECT u.id, u.nombre, u.apellido, u.email, c.nombre AS carrera, i.creado AS inscripto"
+        " FROM inscripciones i"
+        " JOIN usuarios u ON u.id = i.usuario_id"
+        " LEFT JOIN carreras c ON c.id = u.carrera_id"
+        " WHERE i.actividad_id = :id"
+        " ORDER BY i.creado ASC, i.id ASC",
+        id=actividad_id,
+    )
+
+
+def listar_inscripciones_de(usuario_id: int) -> list[dict]:
+    """Actividades a las que está inscripto un estudiante, próximas primero."""
+    filas = db.query(
+        "SELECT a.*, (SELECT count(*) FROM inscripciones i2 WHERE i2.actividad_id = a.id) AS inscriptos"
+        " FROM inscripciones i"
+        " JOIN actividades a ON a.id = i.actividad_id"
+        " WHERE i.usuario_id = :usuario"
+        " ORDER BY COALESCE(a.fin, a.inicio) < :ahora, a.inicio ASC",
+        usuario=usuario_id,
+        ahora=ahora_local(),
+    )
+    for act in filas:
+        act["inicio_formato"] = fecha_corta(act["inicio"])
+    return filas

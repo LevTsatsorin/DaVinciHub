@@ -12,6 +12,7 @@ def login(client, email="mica@davinci.edu.ar"):
 @pytest.fixture
 def doce_en_enero(app):
     with app.app_context():
+        db.execute("DELETE FROM inscripciones")
         db.execute("DELETE FROM actividades")
         sala = reservas.crear_espacio("Sala Calendario", capacidad=50)
         reservas.reemplazar_horarios_espacio(

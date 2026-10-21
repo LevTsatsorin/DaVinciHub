@@ -12,7 +12,7 @@
   {% include "actividades/_chips.html" %}
   <div class="cupo">
     <span class="cupo-barra"><span style="width: {{ (act.inscriptos * 100 / act.cupo_maximo) | round(0) }}%"></span></span>
-    <span class="cupo-texto">{{ libres }} de {{ act.cupo_maximo }} {{ "lugar libre" if libres == 1 else "lugares libres" }}</span>
+    <span class="cupo-texto">{% if libres > 0 %}{{ libres }} de {{ act.cupo_maximo }} {{ "lugar libre" if libres == 1 else "lugares libres" }}{% else %}Completa{% endif %}</span>
   </div>
 </div>
 <span class="tarjeta-espacio-accion">

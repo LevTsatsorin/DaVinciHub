@@ -132,6 +132,7 @@ def test_la_cabecera_no_muestra_cifras_sueltas(client):
 
 def test_el_detalle_muestra_lugar_duracion_y_otras(client, app, sala):
     with app.app_context():
+        db.execute("DELETE FROM inscripciones")
         db.execute("DELETE FROM actividades")
         una = _proponer(sala)
         otra = _proponer(sala, nombre="Club de lectura", inicio="2030-01-07T10:00", fin="2030-01-07T11:30")

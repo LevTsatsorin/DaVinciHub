@@ -1,0 +1,42 @@
+{% set empezo = act.inicio <= ahora %}
+<div class="ficha-acciones">
+  {% if act.estado == 'cancelada' %}
+    <p class="ficha-nota">La actividad fue cancelada.</p>
+  {% elif act.estado != 'aprobada' %}
+  {% elif empezo %}
+    <p class="ficha-nota">La actividad ya empezó.</p>
+  {% elif rol.creador %}
+    <a class="boton boton-primario" href="{{ url_for('actividades.inscriptos', actividad_id=act.id) }}">Ver inscriptos ({{ act.inscriptos }})</a>
+  {% elif rol.inscripto %}
+    <p class="ficha-inscripto">Estás inscripto</p>
+    <form method="post" action="{{ url_for('actividades.baja', actividad_id=act.id) }}"
+          data-confirmar="¿Darte de baja de «{{ act.nombre }}»?"
+          data-confirmar-texto="Tu lugar queda libre para otra persona."
+          data-confirmar-boton="Darme de baja" data-confirmar-volver="Seguir inscripto">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="boton boton-ficha" type="submit">Darme de baja</button>
+    </form>
+  {% elif act.inscriptos >= act.cupo_maximo %}
+    <p class="ficha-completa">Sin lugares disponibles</p>
+  {% elif g.usuario %}
+    <form method="post" action="{{ url_for('actividades.inscribirse', actividad_id=act.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="boton boton-primario" type="submit">Inscribirme</button>
+    </form>
+  {% else %}
+    <a class="boton boton-primario" href="{{ url_for('auth.login', siguiente=request.path) }}">Ingresá para inscribirte</a>
+  {% endif %}
+
+  {% if act.estado in ('pendiente', 'aprobada') and not empezo and (rol.creador or rol.admin) %}
+    {% if rol.admin and not rol.creador and act.estado == 'aprobada' %}
+      <a class="enlace-ficha" href="{{ url_for('actividades.inscriptos', actividad_id=act.id) }}">Ver inscriptos ({{ act.inscriptos }})</a>
+    {% endif %}
+    <form method="post" action="{{ url_for('actividades.cancelar', actividad_id=act.id) }}"
+          data-confirmar="¿Cancelar «{{ act.nombre }}»?"
+          data-confirmar-texto="Se libera el espacio reservado y se avisa a {{ act.inscriptos }} {{ 'inscripto' if act.inscriptos == 1 else 'inscriptos' }}. No se puede deshacer."
+          data-confirmar-boton="Cancelar actividad" data-confirmar-volver="Volver">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="boton-texto boton-texto-peligro enlace-ficha" type="submit">Cancelar actividad</button>
+    </form>
+  {% endif %}
+</div>

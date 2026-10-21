@@ -352,7 +352,7 @@ INSERT INTO reservas (espacio_id, usuario_id, inicio, fin, motivo, personas, est
     (2, 4, '2026-11-11T18:00:00', '2026-11-11T21:00:00', 'Primeros pasos en Unreal Engine', 25, 'confirmada', '2026-10-19T15:00:00+00:00'),
     (11, 2, '2026-11-13T18:00:00', '2026-11-13T21:00:00', 'Muestra de cortos de primer año', 100, 'confirmada', '2026-10-19T16:00:00+00:00'),
     (12, 3, '2026-11-17T18:00:00', '2026-11-17T19:30:00', 'Club de lectura de cómics', 15, 'confirmada', '2026-10-19T17:00:00+00:00'),
-    (9, 4, '2026-11-19T16:00:00', '2026-11-19T19:00:00', 'Clínica de mezcla de audio', 6, 'confirmada', '2026-10-19T18:00:00+00:00'),
+    (9, 4, '2026-11-19T16:00:00', '2026-11-19T19:00:00', 'Clínica de mezcla de audio', 2, 'confirmada', '2026-10-19T18:00:00+00:00'),
     (1, 2, '2026-11-23T10:00:00', '2026-11-23T18:00:00', 'Hackatón de accesibilidad web', 30, 'confirmada', '2026-10-19T19:00:00+00:00'),
     (5, 3, '2026-11-25T15:00:00', '2026-11-25T18:00:00', 'Rodaje express en 3 horas', 15, 'confirmada', '2026-10-19T20:00:00+00:00'),
     (2, 3, '2026-11-20T15:00:00', '2026-11-20T21:00:00', 'Jam de videojuegos', 24, 'confirmada', '2026-10-19T21:00:00+00:00'),
@@ -367,8 +367,19 @@ INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion
     (4, 'Primeros pasos en Unreal Engine', 'Armamos una escena desde cero y la iluminamos. No hace falta experiencia.', '2026-11-11T18:00:00', '2026-11-11T21:00:00', 'Aula de Informática 2', 25, 'aprobada', NULL, 6, '2026-10-19T15:00:00+00:00'),
     (2, 'Muestra de cortos de primer año', 'Proyectamos los cortos del cuatrimestre y charlamos con los directores.', '2026-11-13T18:00:00', '2026-11-13T21:00:00', 'Auditorio', 100, 'aprobada', NULL, 7, '2026-10-19T16:00:00+00:00'),
     (3, 'Club de lectura de cómics', 'Este mes: Maus, de Art Spiegelman. Leé lo que puedas, nadie controla.', '2026-11-17T18:00:00', '2026-11-17T19:30:00', 'Sala de Exposiciones', 15, 'aprobada', NULL, 8, '2026-10-19T17:00:00+00:00'),
-    (4, 'Clínica de mezcla de audio', 'Traé una sesión y la mezclamos en grupo, paso a paso.', '2026-11-19T16:00:00', '2026-11-19T19:00:00', 'Estudio de Sonido 2', 6, 'aprobada', NULL, 9, '2026-10-19T18:00:00+00:00'),
+    (4, 'Clínica de mezcla de audio', 'Traé una sesión y la mezclamos en grupo, paso a paso.', '2026-11-19T16:00:00', '2026-11-19T19:00:00', 'Estudio de Sonido 2', 2, 'aprobada', NULL, 9, '2026-10-19T18:00:00+00:00'),
     (2, 'Hackatón de accesibilidad web', 'Equipos de tres para mejorar sitios de ONGs. Hay premios del centro de estudiantes.', '2026-11-23T10:00:00', '2026-11-23T18:00:00', 'Aula de Informática 1', 30, 'aprobada', NULL, 10, '2026-10-19T19:00:00+00:00'),
     (3, 'Rodaje express en 3 horas', 'Guion, rodaje y edición de un corto en una tarde, en grupos de cinco.', '2026-11-25T15:00:00', '2026-11-25T18:00:00', 'Set de Filmación', 15, 'aprobada', NULL, 11, '2026-10-19T20:00:00+00:00'),
     (3, 'Jam de videojuegos', 'Equipos de hasta cuatro personas, tema sorpresa al empezar.', '2026-11-20T15:00:00', '2026-11-20T21:00:00', 'Aula de Informática 2', 24, 'pendiente', NULL, 12, '2026-10-19T21:00:00+00:00'),
     (2, 'Maratón de películas de terror', 'Proyección de tres películas con debate al final.', '2026-11-27T19:00:00', '2026-11-27T22:00:00', 'Auditorio', 50, 'rechazada', 'Ese viernes el auditorio se usa para la muestra de fin de año. Proponé otra fecha.', 13, '2026-10-19T22:00:00+00:00');
+
+INSERT INTO inscripciones (actividad_id, usuario_id, creado) VALUES
+    (1, 3, '2026-10-20T12:00:00+00:00'),
+    (1, 4, '2026-10-20T13:00:00+00:00'),
+    (2, 2, '2026-10-20T14:00:00+00:00'),
+    (2, 4, '2026-10-20T15:00:00+00:00'),
+    (3, 2, '2026-10-20T16:00:00+00:00'),
+    (3, 3, '2026-10-20T17:00:00+00:00'),
+    (5, 2, '2026-10-20T18:00:00+00:00'),
+    (9, 2, '2026-10-20T19:00:00+00:00'),
+    (9, 3, '2026-10-20T20:00:00+00:00');
