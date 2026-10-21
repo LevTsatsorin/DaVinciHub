@@ -15,25 +15,25 @@
 
       <div class="campo">
         <label for="nombre">Nombre de la actividad</label>
-        <input id="nombre" name="nombre" value="{{ datos.get('nombre', '') }}" placeholder="Ej: Torneo de Street Fighter / Grupo de estudio 3D" required>
+        <input id="nombre" name="nombre" maxlength="120" value="{{ datos.get('nombre', '') }}" placeholder="Ej: Torneo de Street Fighter / Grupo de estudio 3D" required>
         {% if errores.nombre %}<p class="error-texto">{{ errores.nombre }}</p>{% endif %}
       </div>
 
       <div class="campo">
         <label for="descripcion">Descripción y temática</label>
-        <textarea id="descripcion" name="descripcion" rows="4" style="width: 100%; padding: 9px 12px; border: 1px solid var(--borde); border-radius: 8px; font: inherit;" placeholder="Contanos de qué trata, qué van a hacer y qué materiales se necesitan..." required>{{ datos.get('descripcion', '') }}</textarea>
+        <textarea id="descripcion" name="descripcion" maxlength="2000" rows="4" style="width: 100%; padding: 9px 12px; border: 1px solid var(--borde); border-radius: 8px; font: inherit;" placeholder="Contanos de qué trata, qué van a hacer y qué materiales se necesitan..." required>{{ datos.get('descripcion', '') }}</textarea>
         {% if errores.descripcion %}<p class="error-texto">{{ errores.descripcion }}</p>{% endif %}
       </div>
 
       <div class="campo-doble">
         <div class="campo">
           <label for="inicio">Fecha y hora de inicio</label>
-          <input id="inicio" name="inicio" type="datetime-local" value="{{ datos.get('inicio', '') }}" required>
+          <input id="inicio" name="inicio" type="datetime-local" min="{{ minimo }}" value="{{ datos.get('inicio', '') }}" required>
           {% if errores.inicio %}<p class="error-texto">{{ errores.inicio }}</p>{% endif %}
         </div>
         <div class="campo">
           <label for="fin">Fecha y hora de fin (opcional)</label>
-          <input id="fin" name="fin" type="datetime-local" value="{{ datos.get('fin', '') }}">
+          <input id="fin" name="fin" type="datetime-local" min="{{ minimo }}" value="{{ datos.get('fin', '') }}">
           {% if errores.fin %}<p class="error-texto">{{ errores.fin }}</p>{% endif %}
         </div>
       </div>
@@ -41,7 +41,7 @@
       <div class="campo-doble">
         <div class="campo">
           <label for="ubicacion">Ubicación / Aula / Espacio</label>
-          <input id="ubicacion" name="ubicacion" value="{{ datos.get('ubicacion', '') }}" placeholder="Ej: Aula 302 / Discord" required>
+          <input id="ubicacion" name="ubicacion" maxlength="120" value="{{ datos.get('ubicacion', '') }}" placeholder="Ej: Aula 302 / Discord" required>
           {% if errores.ubicacion %}<p class="error-texto">{{ errores.ubicacion }}</p>{% endif %}
         </div>
         <div class="campo">

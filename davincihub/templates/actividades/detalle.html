@@ -4,22 +4,21 @@
 
 {% block contenido %}
 <section class="contenedor pagina-modulo">
-  <div style="margin-bottom: 20px;">
-    <a href="{{ url_for('actividades.index') }}" style="color: var(--gris-texto); text-decoration: none; font-size: 14px;">
-      ← Volver al listado de actividades
-    </a>
-  </div>
+  {% if actividad.estado == 'aprobada' %}
+    <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
+  {% elif g.usuario.rol == 'admin' %}
+    <a class="enlace-volver" href="{{ url_for('actividades.admin_panel') }}">← Moderación de actividades</a>
+  {% else %}
+    <a class="enlace-volver" href="{{ url_for('actividades.mis_actividades') }}">← Mis actividades</a>
+  {% endif %}
 
   <article class="tarjeta-detalle-actividad">
     <div class="actividad-cabecera">
       {% if actividad.estado == 'aprobada' %}
-        <span class="badge badge-aprobada">Aprobada</span>
-      {% elif actividad.estado == 'pendiente' %}
-        <span class="badge badge-pendiente">Pendiente de moderación</span>
-      {% elif actividad.estado == 'rechazada' %}
-        <span class="badge badge-rechazada">Rechazada</span>
+        <span class="actividad-cupo">{{ actividad.inscriptos }}/{{ actividad.cupo_maximo }} cupos ocupados</span>
+      {% else %}
+        {% with act = actividad %}{% include "actividades/_estado.html" %}{% endwith %}
       {% endif %}
-      <span class="actividad-cupo">{{ actividad.inscriptos }}/{{ actividad.cupo_maximo }} cupos ocupados</span>
     </div>
 
     <h1>{{ actividad.nombre }}</h1>
@@ -48,25 +47,20 @@
 
     <div class="actividad-cuerpo-completo">
       <h3>Sobre esta actividad</h3>
-      <p style="white-space: pre-line;">{{ actividad.descripcion }}</p>
+      <p>{{ actividad.descripcion }}</p>
     </div>
 
     {% if g.usuario and g.usuario.rol == 'admin' and actividad.estado == 'pendiente' %}
       <div class="panel-acciones-moderacion">
-        <h3>Acciones de moderación</h3>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-          <form method="post" action="{{ url_for('actividades.aprobar', actividad_id=actividad.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="boton boton-primario" type="submit">Aprobar actividad</button>
-          </form>
-          <form method="post" action="{{ url_for('actividades.rechazar', actividad_id=actividad.id) }}" style="display: flex; gap: 8px;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input name="motivo" placeholder="Motivo de rechazo..." required style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--borde);">
-            <button class="boton" type="submit" style="color: var(--error); border-color: var(--error);">Rechazar</button>
-          </form>
-        </div>
+        <h3>Moderación</h3>
+        {% with act = actividad %}{% include "actividades/_moderar.html" %}{% endwith %}
       </div>
     {% endif %}
   </article>
 </section>
+{% if g.usuario and g.usuario.rol == 'admin' and actividad.estado == 'pendiente' %}
+  {% include "espacios/_dialogo.html" %}
+{% endif %}
 {% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

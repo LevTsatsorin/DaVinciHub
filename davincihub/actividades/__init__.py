@@ -1,10 +1,10 @@
-# pyrefly: ignore[missing-import]
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from davincihub import seguridad
 from davincihub.actividades.datos import (
     ErrorActividad,
     aprobar_actividad,
+    contar_actividades_por_estado,
     crear_actividad,
     listar_actividades_admin,
     listar_actividades_creador,
@@ -12,8 +12,11 @@ from davincihub.actividades.datos import (
     obtener_actividad,
     rechazar_actividad,
 )
+from davincihub.utiles import ahora_local
 
 bp = Blueprint("actividades", __name__, url_prefix="/actividades")
+
+ESTADOS_MODERACION = {"pendiente": "Pendientes", "aprobada": "Aprobadas", "rechazada": "Rechazadas"}
 
 
 @bp.route("/")
@@ -70,10 +73,11 @@ def crear():
             errores["ubicacion"] = "La ubicación es obligatoria."
         if not cupo_raw:
             errores["cupo_maximo"] = "El cupo máximo es obligatorio."
+        elif not cupo_raw.isdecimal() or not cupo_raw.isascii() or int(cupo_raw) < 1:
+            errores["cupo_maximo"] = "El cupo máximo debe ser un número entero mayor a 0."
 
         if not errores:
             try:
-                cupo = int(cupo_raw)
                 crear_actividad(
                     creador_id=g.usuario["id"],
                     nombre=nombre,
@@ -81,14 +85,16 @@ def crear():
                     inicio=inicio,
                     fin=fin,
                     ubicacion=ubicacion,
-                    cupo_maximo=cupo,
+                    cupo_maximo=int(cupo_raw),
                 )
                 flash("¡Actividad enviada! Quedó pendiente de aprobación por la escuela.")
                 return redirect(url_for("actividades.mis_actividades"))
             except ErrorActividad as e:
-                flash(str(e))
+                flash(str(e), "error")
 
-    return render_template("actividades/crear.html", errores=errores, datos=request.form)
+    return render_template(
+        "actividades/crear.html", errores=errores, datos=request.form, minimo=ahora_local()[:16]
+    )
 
 
 @bp.route("/mis-actividades")
@@ -104,8 +110,15 @@ def mis_actividades():
 def admin_panel():
     """Panel de administración para ver todas las actividades."""
     estado_filtro = request.args.get("estado")
-    actividades = listar_actividades_admin(estado=estado_filtro)
-    return render_template("actividades/admin.html", actividades=actividades, estado_filtro=estado_filtro)
+    if estado_filtro not in ESTADOS_MODERACION:
+        estado_filtro = None
+    return render_template(
+        "actividades/admin.html",
+        actividades=listar_actividades_admin(estado=estado_filtro),
+        estado_filtro=estado_filtro,
+        totales=contar_actividades_por_estado(),
+        estados=ESTADOS_MODERACION,
+    )
 
 
 @bp.route("/admin/<int:actividad_id>/aprobar", methods=("POST",))
@@ -116,7 +129,7 @@ def aprobar(actividad_id: int):
         aprobar_actividad(actividad_id)
         flash("Actividad aprobada y publicada.")
     except ErrorActividad as e:
-        flash(str(e))
+        flash(str(e), "error")
     return redirect(url_for("actividades.admin_panel"))
 
 
@@ -126,12 +139,12 @@ def rechazar(actividad_id: int):
     """El admin rechaza la actividad indicando un motivo obligatorio (RF-22)."""
     motivo = request.form.get("motivo", "").strip()
     if not motivo:
-        flash("Debés indicar un motivo para rechazar la actividad.")
+        flash("Debés indicar un motivo para rechazar la actividad.", "error")
         return redirect(url_for("actividades.admin_panel"))
 
     try:
         rechazar_actividad(actividad_id, motivo=motivo)
         flash("Actividad rechazada. Se notificó al creador.")
     except ErrorActividad as e:
-        flash(str(e))
+        flash(str(e), "error")
     return redirect(url_for("actividades.admin_panel"))

@@ -5,47 +5,37 @@
 {% block contenido %}
 <section class="contenedor pagina-modulo">
   <div class="cabecera-modulo">
-    <h1>Mis actividades propuestas</h1>
-    <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">+ Nueva propuesta</a>
+    <div>
+      <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
+      <h1>Mis actividades propuestas</h1>
+    </div>
+    <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
   </div>
 
   {% if actividades %}
-    <div style="display: flex; flex-direction: column; gap: 14px;">
+    <ul class="lista-moderacion">
       {% for act in actividades %}
-        <article class="tarjeta-actividad-fila">
-          <div style="flex: 1;">
-            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 6px;">
-              {% if act.estado == 'aprobada' %}
-                <span class="badge badge-aprobada">Aprobada</span>
-              {% elif act.estado == 'pendiente' %}
-                <span class="badge badge-pendiente">Pendiente de revisión</span>
-              {% elif act.estado == 'rechazada' %}
-                <span class="badge badge-rechazada">Rechazada</span>
-              {% endif %}
-              <span style="font-size: 13px; color: var(--gris-texto);">{{ act.inicio_formato }}</span>
-            </div>
-            <h3 style="margin: 0 0 6px;"><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h3>
-            <p style="margin: 0; color: var(--gris-texto); font-size: 14px;">{{ act.descripcion|truncate(140) }}</p>
-            {% if act.estado == 'rechazada' and act.motivo_rechazo %}
-              <p style="margin: 8px 0 0; color: var(--error); font-size: 13px; background: rgba(224, 49, 49, 0.08); padding: 8px 12px; border-radius: 8px;">
-                <strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}
-              </p>
-            {% endif %}
-          </div>
-          <div style="flex: none; display: flex; align-items: center;">
-            <a class="boton boton-chico" href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">Ver detalle</a>
-          </div>
-        </article>
+        <li class="tarjeta-moderacion">
+          {% include "actividades/_estado.html" %}
+          <h2><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
+          {% include "actividades/_detalles.html" %}
+          {% if act.estado == 'pendiente' %}
+            <p class="moderacion-descripcion">La escuela todavía no la revisó. Te avisamos cuando la aprueben o la rechacen.</p>
+          {% elif act.estado == 'aprobada' %}
+            <p class="moderacion-descripcion">Publicada en el listado · {{ act.inscriptos }}/{{ act.cupo_maximo }} cupos ocupados.</p>
+          {% endif %}
+          {% if act.estado == 'rechazada' and act.motivo_rechazo %}
+            <p class="aviso-alerta"><strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}</p>
+          {% endif %}
+        </li>
       {% endfor %}
-    </div>
+    </ul>
   {% else %}
     <div class="estado-vacio">
-      <img src="{{ url_for('static', filename='img/actividades.png') }}" alt="Actividades Da Vinci">
-      <h3>No propusiste ninguna actividad todavía</h3>
-      <p>Cualquier estudiante puede organizar una charla, grupo de estudio o encuentro.</p>
-      <div style="margin-top: 18px;">
-        <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
-      </div>
+      <img src="{{ url_for('static', filename='img/actividades.png') }}" alt="">
+      <h2>No propusiste ninguna actividad todavía</h2>
+      <p>Cualquier estudiante puede organizar una charla, un grupo de estudio o un torneo.</p>
+      <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
     </div>
   {% endif %}
 </section>

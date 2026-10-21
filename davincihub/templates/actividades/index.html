@@ -9,13 +9,13 @@
     <p>Encuentros, grupos de estudio, torneos y charlas organizados por y para estudiantes de la Da Vinci.</p>
     <div class="portada-acciones">
       {% if g.usuario %}
-        <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">+ Proponer actividad</a>
+        <a class="boton boton-grande" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
         <a class="boton boton-fantasma" href="{{ url_for('actividades.mis_actividades') }}">Mis actividades</a>
         {% if g.usuario.rol == 'admin' %}
-          <a class="boton" href="{{ url_for('actividades.admin_panel') }}">Panel de moderación</a>
+          <a class="boton boton-fantasma" href="{{ url_for('actividades.admin_panel') }}">Moderar actividades</a>
         {% endif %}
       {% else %}
-        <a class="boton boton-primario" href="{{ url_for('auth.login') }}">Ingresá para proponer</a>
+        <a class="boton boton-grande" href="{{ url_for('auth.login') }}">Ingresá para proponer</a>
       {% endif %}
     </div>
   </div>
@@ -24,9 +24,6 @@
 <section class="contenedor pagina-modulo">
   <div class="cabecera-modulo">
     <h2>Próximas actividades</h2>
-    {% if g.usuario %}
-      <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">+ Nueva actividad</a>
-    {% endif %}
   </div>
 
   {% if actividades %}
@@ -34,7 +31,6 @@
       {% for act in actividades %}
         <article class="tarjeta-actividad">
           <div class="actividad-cabecera">
-            <span class="badge badge-aprobada">Aprobada</span>
             <span class="actividad-cupo">{{ act.inscriptos }}/{{ act.cupo_maximo }} cupos</span>
           </div>
           <h3 class="actividad-titulo"><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h3>
@@ -42,7 +38,7 @@
           <div class="actividad-detalles">
             <span class="actividad-detalle">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              {{ act.inicio_formato }}{% if act.fin_formato %} a {{ act.fin_formato }}{% endif %}
+              {{ act.inicio_formato }}{% if act.fin and act.fin[:10] == act.inicio[:10] %}–{{ act.fin[11:16] }}{% elif act.fin_formato %} a {{ act.fin_formato }}{% endif %}
             </span>
             <span class="actividad-detalle">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>

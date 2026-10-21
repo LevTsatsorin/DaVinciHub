@@ -3,73 +3,56 @@
 {% block titulo %}Moderación de actividades — Da Vinci Hub{% endblock %}
 
 {% block contenido %}
-<section class="contenedor pagina-modulo">
+<section class="contenedor pagina-modulo pagina-admin">
   <div class="cabecera-modulo">
     <div>
+      <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
       <h1>Moderación de actividades</h1>
-      <p style="color: var(--gris-texto); margin: 4px 0 0;">Panel de administración escolar para aprobar o rechazar propuestas.</p>
-    </div>
-    <div style="display: flex; gap: 8px;">
-      <a class="boton {% if not estado_filtro %}boton-primario{% endif %}" href="{{ url_for('actividades.admin_panel') }}">Todas</a>
-      <a class="boton {% if estado_filtro == 'pendiente' %}boton-primario{% endif %}" href="{{ url_for('actividades.admin_panel', estado='pendiente') }}">Pendientes</a>
-      <a class="boton {% if estado_filtro == 'aprobada' %}boton-primario{% endif %}" href="{{ url_for('actividades.admin_panel', estado='aprobada') }}">Aprobadas</a>
-      <a class="boton {% if estado_filtro == 'rechazada' %}boton-primario{% endif %}" href="{{ url_for('actividades.admin_panel', estado='rechazada') }}">Rechazadas</a>
     </div>
   </div>
 
-  {% if actividades %}
-    <div style="display: flex; flex-direction: column; gap: 18px;">
-      {% for act in actividades %}
-        <article class="tarjeta" style="display: flex; flex-direction: column; gap: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
-            <div>
-              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 4px;">
-                {% if act.estado == 'aprobada' %}
-                  <span class="badge badge-aprobada">Aprobada</span>
-                {% elif act.estado == 'pendiente' %}
-                  <span class="badge badge-pendiente">Pendiente</span>
-                {% elif act.estado == 'rechazada' %}
-                  <span class="badge badge-rechazada">Rechazada</span>
-                {% endif %}
-                <span style="font-size: 13px; color: var(--gris-texto);">Por {{ act.creador_nombre }} {{ act.creador_apellido }} ({{ act.creador_email }})</span>
-              </div>
-              <h2 style="font-size: 20px; margin: 0;"><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
-            </div>
-            <div style="font-size: 14px; color: var(--gris-texto); text-align: right;">
-              <div>{{ act.inicio_formato }}</div>
-              <div>{{ act.ubicacion }} · Cupo: {{ act.cupo_maximo }}</div>
-            </div>
-          </div>
+  <nav class="pestanas" aria-label="Estado de las actividades">
+    <a class="pestana{% if not estado_filtro %} pestana-activa{% endif %}"
+       href="{{ url_for('actividades.admin_panel') }}"
+       {% if not estado_filtro %}aria-current="page"{% endif %}>Todas ({{ totales.values() | sum }})</a>
+    {% for clave, etiqueta in estados.items() %}
+      <a class="pestana{% if estado_filtro == clave %} pestana-activa{% endif %}"
+         href="{{ url_for('actividades.admin_panel', estado=clave) }}"
+         {% if estado_filtro == clave %}aria-current="page"{% endif %}>{{ etiqueta }} ({{ totales.get(clave, 0) }})</a>
+    {% endfor %}
+  </nav>
 
-          <p style="margin: 0; color: var(--gris-texto); font-size: 15px;">{{ act.descripcion }}</p>
+  {% if actividades %}
+    <ul class="lista-moderacion">
+      {% for act in actividades %}
+        <li class="tarjeta-moderacion">
+          <div class="moderacion-cabecera">
+            {% include "actividades/_estado.html" %}
+            <span class="moderacion-autor">{{ act.creador_nombre }} {{ act.creador_apellido }} · {{ act.creador_email }}</span>
+          </div>
+          <h2><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
+          {% include "actividades/_detalles.html" %}
+          <p class="moderacion-descripcion">{{ act.descripcion | truncate(220) }}</p>
 
           {% if act.estado == 'rechazada' and act.motivo_rechazo %}
-            <p style="margin: 0; color: var(--error); font-size: 13px; background: rgba(224, 49, 49, 0.08); padding: 8px 12px; border-radius: 8px;">
-              <strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}
-            </p>
+            <p class="aviso-alerta"><strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}</p>
           {% endif %}
 
           {% if act.estado == 'pendiente' %}
-            <div style="display: flex; gap: 10px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--borde); flex-wrap: wrap;">
-              <form method="post" action="{{ url_for('actividades.aprobar', actividad_id=act.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="boton boton-primario" type="submit">✓ Aprobar actividad</button>
-              </form>
-              <form method="post" action="{{ url_for('actividades.rechazar', actividad_id=act.id) }}" style="display: flex; gap: 8px; flex: 1; min-width: 280px;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input name="motivo" placeholder="Motivo de rechazo (obligatorio)..." required style="flex: 1; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--borde);">
-                <button class="boton" type="submit" style="color: var(--error); border-color: var(--error);">✗ Rechazar</button>
-              </form>
-            </div>
+            {% include "actividades/_moderar.html" %}
           {% endif %}
-        </article>
+        </li>
       {% endfor %}
-    </div>
+    </ul>
   {% else %}
     <div class="estado-vacio">
-      <h3>No hay actividades en esta vista</h3>
-      <p>Todas las propuestas están al día.</p>
+      <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+      <h2>{{ "No hay propuestas pendientes" if estado_filtro == 'pendiente' else "No hay actividades en esta vista" }}</h2>
+      <p>Cuando un estudiante proponga una actividad, va a aparecer acá para que la revises.</p>
     </div>
   {% endif %}
 </section>
+{% include "espacios/_dialogo.html" %}
 {% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

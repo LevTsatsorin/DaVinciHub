@@ -341,3 +341,10 @@ INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, leida, creado) VAL
     (2, 'bienvenida', '¡Bienvenida a Da Vinci Hub! Completá tu perfil para que tus compañeros te encuentren.', '/', 1, '2026-10-18T12:00:00+00:00'),
     (2, 'catedra', 'Lucía Paz respondió tu pregunta de Lógica de la Programación.', '/', 0, '2026-10-19T15:20:00+00:00'),
     (2, 'reservas', 'Tu reserva del Estudio de Sonido 1 quedó confirmada.', '/reservas/mis-reservas/', 0, '2026-10-20T13:05:00+00:00');
+
+INSERT INTO actividades (creador_id, nombre, descripcion, inicio, fin, ubicacion, cupo_maximo, estado, motivo_rechazo, creado) VALUES
+    (2, 'Grupo de estudio de Lógica', 'Repasamos ejercicios de la guía antes del parcial. Traé tus dudas y la notebook.', '2026-11-04T18:00:00', '2026-11-04T20:00:00', 'Aula de Informática 1', 12, 'aprobada', NULL, '2026-10-18T10:00:00+00:00'),
+    (3, 'Torneo de Street Fighter 6', 'Torneo de eliminación directa, 1 vs 1. Los joysticks los pone el centro de estudiantes.', '2026-11-07T15:00:00', '2026-11-07T19:00:00', 'Auditorio', 32, 'aprobada', NULL, '2026-10-18T11:00:00+00:00'),
+    (4, 'Charla: portfolio para la primera entrevista', 'Egresados cuentan qué mirar al armar el portfolio y cómo presentarlo.', '2026-11-12T19:00:00', NULL, 'Sala de Exposiciones', 40, 'aprobada', NULL, '2026-10-18T12:00:00+00:00'),
+    (3, 'Jam de videojuegos de 48 horas', 'Equipos de hasta cuatro personas, tema sorpresa el viernes a la tarde.', '2026-11-20T18:00:00', '2026-11-22T18:00:00', 'Aula de Informática 2', 24, 'pendiente', NULL, '2026-10-19T09:00:00+00:00'),
+    (2, 'Maratón de películas de terror', 'Proyección de tres películas con debate al final.', '2026-11-14T20:00:00', NULL, 'Auditorio', 50, 'rechazada', 'El auditorio no está disponible de noche ese fin de semana. Proponé otra fecha.', '2026-10-19T10:00:00+00:00');

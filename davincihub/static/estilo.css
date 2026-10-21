@@ -128,9 +128,7 @@ a { color: inherit; }
 /* --- botones --- */
 
 .boton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-block;
   white-space: nowrap;
   line-height: 1.4;
   padding: 8px 20px;
@@ -139,7 +137,6 @@ a { color: inherit; }
   font-weight: 600;
   font-family: inherit;
   font-size: 15px;
-  line-height: 1;
   text-decoration: none;
   background: none;
   color: inherit;
@@ -588,9 +585,9 @@ a { color: inherit; }
 
 .tarjeta-acceso {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 320px 1fr;
   width: 100%;
-  max-width: 960px;
+  max-width: 860px;
   background: var(--fondo);
   border-radius: 18px;
   overflow: hidden;
@@ -602,7 +599,6 @@ a { color: inherit; }
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 15% center;
   display: block;
 }
 
@@ -2018,7 +2014,7 @@ a.dia-chip:active { transform: scale(0.96); }
 
 .grilla-actividades {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 20px;
 }
 
@@ -2195,6 +2191,8 @@ a.dia-chip:active { transform: scale(0.96); }
 .actividad-cuerpo-completo p {
   color: #3b3944;
   line-height: 1.7;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .panel-acciones-moderacion {
@@ -2208,17 +2206,6 @@ a.dia-chip:active { transform: scale(0.96); }
   font-size: 16px;
 }
 
-.tarjeta-actividad-fila {
-  background: var(--fondo);
-  border: 1px solid var(--borde);
-  border-radius: 14px;
-  padding: 18px 22px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-
 .aviso-alerta {
   background: rgba(224, 49, 49, 0.08);
   border: 1px solid var(--error);
@@ -2229,3 +2216,56 @@ a.dia-chip:active { transform: scale(0.96); }
   font-size: 14px;
 }
 
+
+.lista-moderacion { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+
+.tarjeta-moderacion {
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 18px 22px;
+}
+
+.tarjeta-moderacion h2 { margin: 8px 0 2px; font-size: 19px; overflow-wrap: anywhere; }
+
+.tarjeta-moderacion h2 a { text-decoration: none; }
+
+.tarjeta-moderacion h2 a:hover { color: var(--violeta); }
+
+.tarjeta-moderacion .aviso-alerta { margin: 10px 0 0; }
+
+.moderacion-cabecera { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+
+.moderacion-autor { min-width: 0; color: var(--gris-texto); font-size: 13px; overflow-wrap: anywhere; }
+
+.moderacion-descripcion { margin: 6px 0 0; color: var(--gris-texto); font-size: 15px; overflow-wrap: anywhere; }
+
+.moderacion-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--borde);
+}
+
+.moderacion-rechazo { display: flex; flex: 1; gap: 8px; min-width: min(100%, 280px); }
+
+.moderacion-rechazo input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.boton-rechazar { color: var(--error); border-color: var(--error); }
+
+.boton-rechazar:hover { background: var(--error); color: #ffffff; }
+
+.pestanas { overflow-x: auto; scrollbar-width: none; }
+
+.pestana { white-space: nowrap; }
+
+.moderacion-acciones .boton { min-height: 42px; }
