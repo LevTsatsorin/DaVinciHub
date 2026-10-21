@@ -309,13 +309,20 @@ def dar_de_baja(actividad_id: int, usuario_id: int) -> None:
     with db.transaccion():
         if not db.bloquear_fila("actividades", actividad_id):
             raise ErrorActividad("La actividad no existe.")
-        act = db.query_one("SELECT inicio FROM actividades WHERE id = :id", id=actividad_id)
+        act = db.query_one("SELECT creador_id, nombre, inicio FROM actividades WHERE id = :id", id=actividad_id)
         if act["inicio"] <= ahora_local():
             raise ErrorActividad("La actividad ya empezó: no te podés dar de baja.")
         if not db.execute(
             "DELETE FROM inscripciones WHERE actividad_id = :a AND usuario_id = :u", a=actividad_id, u=usuario_id
         ):
             raise ErrorActividad("No estabas inscripto en esta actividad.")
+        alumno = db.query_one("SELECT nombre, apellido FROM usuarios WHERE id = :id", id=usuario_id)
+        notificar(
+            act["creador_id"],
+            "actividades",
+            f"{alumno['nombre']} {alumno['apellido']} se dio de baja de '{act['nombre']}'.",
+            f"/actividades/{actividad_id}/inscriptos",
+        )
 
 
 def cancelar_actividad(actividad_id: int, usuario_id: int) -> None:
@@ -336,6 +343,13 @@ def cancelar_actividad(actividad_id: int, usuario_id: int) -> None:
             raise ErrorActividad("La actividad ya empezó: no se puede cancelar.")
         db.execute("UPDATE actividades SET estado = 'cancelada' WHERE id = :id", id=actividad_id)
         db.execute("UPDATE reservas SET estado = 'cancelada' WHERE id = :id", id=act["reserva_id"])
+        if act["creador_id"] != usuario_id:
+            notificar(
+                act["creador_id"],
+                "actividades",
+                f"La escuela canceló tu actividad '{act['nombre']}' ({fecha_corta(act['inicio'])}).",
+                f"/actividades/{actividad_id}",
+            )
         for fila in listar_inscriptos(actividad_id):
             notificar(
                 fila["id"],

@@ -180,3 +180,24 @@ def test_un_admin_organizador_no_enlaza_a_un_perfil(client, app, con_perfiles):
         actividad = datos.crear_actividad(1, "Charla institucional", "Bienvenida.", sala,
                                           "2030-01-07T10:00", "2030-01-07T11:00", 20, aprobada=True)
     assert 'href="/estudiantes/1"' not in client.get(f"/actividades/{actividad}").get_data(as_text=True)
+
+
+def test_si_cancela_un_admin_se_avisa_al_creador(app, actividad):
+    with app.app_context():
+        datos.cancelar_actividad(actividad, 1)
+        avisos = [a for a in _avisos(TOMAS, f"/actividades/{actividad}") if "cancel" in a["cuerpo"]]
+    assert len(avisos) == 1
+
+
+def test_si_cancela_el_creador_no_se_avisa_a_si_mismo(app, actividad):
+    with app.app_context():
+        datos.cancelar_actividad(actividad, TOMAS)
+        assert not [a for a in _avisos(TOMAS, f"/actividades/{actividad}") if "cancel" in a["cuerpo"]]
+
+
+def test_la_baja_avisa_al_creador(app, actividad):
+    with app.app_context():
+        datos.inscribir(actividad, MICA)
+        datos.dar_de_baja(actividad, MICA)
+        avisos = _avisos(TOMAS, f"/actividades/{actividad}/inscriptos")
+    assert len(avisos) == 2 and "baja" in avisos[1]["cuerpo"]
