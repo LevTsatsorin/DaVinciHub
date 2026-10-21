@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block titulo %}Actividades — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="cabecera-seccion fondo-oscuro">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/actividades.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    <h1>Actividades <span class="acento-cian">estudiantiles</span></h1>
+    <p>Encuentros, grupos de estudio, torneos y charlas organizados por y para estudiantes de la Da Vinci.</p>
+    <div class="acciones-cabecera">
+      {% if g.usuario %}
+        <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">{{ "Nueva actividad" if g.usuario.rol == 'admin' else "Proponer actividad" }}</a>
+        <div class="enlaces-admin">
+          <a class="enlace-admin" href="{{ url_for('actividades.mis_actividades') }}">Mis actividades</a>
+          {% if g.usuario.rol == 'admin' %}
+            <a class="enlace-admin" href="{{ url_for('actividades.admin_panel', estado='pendiente' if pendientes else None) }}">
+              Moderar actividades{% if pendientes %} ({{ pendientes }}){% endif %}
+            </a>
+          {% endif %}
+        </div>
+      {% else %}
+        <a class="boton boton-primario" href="{{ url_for('auth.login', siguiente=request.path) }}">Ingresá para proponer</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="contenedor pagina-espacios pagina-actividades">
+  {% if destacada %}
+    {% with act = destacada, destacar = true %}
+      <a class="actividad-destacada" href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">
+        {% include "actividades/_tarjeta.html" %}
+      </a>
+    {% endwith %}
+  {% endif %}
+
+  <section class="calendario" id="calendario" aria-labelledby="calendario-titulo">
+    <div class="calendario-cabecera">
+      <h2 id="calendario-titulo">Calendario de actividades</h2>
+      <nav class="calendario-meses" aria-label="Cambiar de mes">
+        {% if mes_anterior %}
+          <a class="calendario-flecha" href="{{ url_for('actividades.index', mes=mes_anterior.isoformat()[:7]) }}#calendario" aria-label="Mes anterior">‹</a>
+        {% else %}
+          <span class="calendario-flecha" aria-hidden="true">‹</span>
+        {% endif %}
+        <strong>{{ nombre_mes }}</strong>
+        <a class="calendario-flecha" href="{{ url_for('actividades.index', mes=mes_siguiente.isoformat()[:7]) }}#calendario" aria-label="Mes siguiente">›</a>
+      </nav>
+    </div>
+    <div class="calendario-grilla" role="grid" aria-label="{{ nombre_mes }}">
+      {% for nombre in ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] %}
+        <span class="calendario-dia-semana" role="columnheader">{{ nombre }}</span>
+      {% endfor %}
+      {% for semana in semanas %}{% for celda in semana %}
+        {% set clases = ["calendario-dia"]
+             + (["fuera-de-mes"] if not celda.en_mes else [])
+             + (["dia-pasado"] if celda.pasado else [])
+             + (["dia-hoy"] if celda.hoy else [])
+             + (["dia-elegido"] if celda.fecha == dia else []) %}
+        {% if celda.cantidad and celda.en_mes %}
+          <a class="{{ (clases + ['dia-con-actividad']) | join(' ') }}" role="gridcell"
+             href="{{ url_for('actividades.index', mes=mes.isoformat()[:7], dia=None if celda.fecha == dia else celda.fecha) }}#calendario"
+             aria-label="{{ celda.numero }}: {{ celda.cantidad }} {{ 'actividad' if celda.cantidad == 1 else 'actividades' }}"
+             {% if celda.fecha == dia %}aria-current="date"{% endif %}>
+            <span>{{ celda.numero }}</span>
+            <small>{{ celda.cantidad }}</small>
+          </a>
+        {% else %}
+          <span class="{{ clases | join(' ') }}" role="gridcell"><span>{{ celda.numero }}</span></span>
+        {% endif %}
+      {% endfor %}{% endfor %}
+    </div>
+  </section>
+
+  <section class="lista-actividades" aria-labelledby="lista-titulo">
+    <div class="lista-actividades-cabecera">
+      <h2 id="lista-titulo">
+        {% if dia %}{{ dia | dia_y_fecha }}{% else %}{{ "Más actividades" if destacada and destacada.inicio[:7] == mes.isoformat()[:7] else "Actividades" }} de {{ nombre_mes | lower }}{% endif %}
+        <span>{{ total }} {{ "actividad" if total == 1 else "actividades" }}</span>
+      </h2>
+      {% if dia %}<a class="enlace-volver" href="{{ url_for('actividades.index', mes=mes.isoformat()[:7]) }}#calendario">Ver todo el mes</a>{% endif %}
+    </div>
+
+    {% if actividades %}
+      <div class="actividades-filas">
+        {% for act in actividades %}
+          <a class="actividad-fila" href="{{ url_for('actividades.detalle', actividad_id=act.id) }}" style="--orden: {{ loop.index0 }}">
+            {% include "actividades/_tarjeta.html" %}
+          </a>
+        {% endfor %}
+      </div>
+      {% if paginas > 1 %}
+        <nav class="paginacion" aria-label="Páginas">
+          {% if pagina > 1 %}
+            <a class="boton boton-suave" href="{{ url_for('actividades.index', mes=mes.isoformat()[:7], dia=dia or None, pagina=pagina - 1) }}#lista-titulo">Anteriores</a>
+          {% endif %}
+          <span>Página {{ pagina }} de {{ paginas }}</span>
+          {% if pagina < paginas %}
+            <a class="boton boton-suave" href="{{ url_for('actividades.index', mes=mes.isoformat()[:7], dia=dia or None, pagina=pagina + 1) }}#lista-titulo">Siguientes</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+    {% elif not destacada %}
+      <div class="estado-vacio">
+        <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+        <h2>No hay actividades próximas por ahora</h2>
+        <p>¿Tenés una idea para un taller, un grupo de estudio o un torneo? Proponé el primer encuentro.</p>
+        {% if g.usuario %}
+          <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="lista-vacia">No hay más actividades {{ "ese día" if dia else "este mes" }}. Probá con otro mes en el calendario.</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

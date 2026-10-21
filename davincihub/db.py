@@ -131,6 +131,33 @@ def _leer_sql(nombre: str) -> str:
         return archivo.read().decode("utf8")
 
 
+# columnas agregadas después del primer deploy: se crean solas al arrancar
+COLUMNAS_AGREGADAS = [
+    ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
+    ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
+    ("actividades", "reserva_id", "INTEGER REFERENCES reservas (id)"),
+]
+
+
+def _columnas(tabla: str) -> set[str]:
+    get_db()
+    if g.db_es_pg:
+        filas = query(
+            "SELECT column_name AS nombre FROM information_schema.columns WHERE table_name = :tabla",
+            tabla=tabla,
+        )
+        return {f["nombre"] for f in filas}
+    return {f["name"] for f in query(f"PRAGMA table_info({tabla})")}
+
+
+def migrar():
+    for tabla, columna, definicion in COLUMNAS_AGREGADAS:
+        existentes = _columnas(tabla)
+        if existentes and columna not in existentes:
+            si_falta = " IF NOT EXISTS" if g.db_es_pg else ""
+            execute(f"ALTER TABLE {tabla} ADD COLUMN{si_falta} {columna} {definicion}")
+
+
 def init_db(demo: bool = False):
     conexion = get_db()
     pk = (
@@ -162,3 +189,5 @@ def comando_init_db(demo: bool):
 def registrar(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(comando_init_db)
+    with app.app_context():
+        migrar()

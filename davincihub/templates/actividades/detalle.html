@@ -3,139 +3,98 @@
 {% block titulo %}{{ actividad.nombre }} — Da Vinci Hub{% endblock %}
 
 {% block contenido %}
-<section class="contenedor pagina-modulo pagina-detalle-actividad">
-
-  <div class="cabecera-modulo">
-    <div>
-      <a class="enlace-volver" href="{{ url_for('actividades.lista') }}">← Actividades</a>
-      <h1>{{ actividad.nombre }}</h1>
-    </div>
-    {% if g.usuario.rol == "admin" or actividad.creador_id == g.usuario.id %}
-      <a class="boton" href="{{ url_for('actividades.inscriptos', actividad_id=actividad.id) }}">
-        Ver inscriptos ({{ actividad.inscriptos }})
-      </a>
+{% set act = actividad %}
+{% set fecha = act.inicio | partes_fecha %}
+{% set libres = act.cupo_maximo - act.inscriptos %}
+<section class="cabecera-seccion fondo-oscuro">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/actividades.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    {% if act.estado == 'aprobada' %}
+      <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
+    {% elif g.usuario.rol == 'admin' %}
+      <a class="enlace-volver" href="{{ url_for('actividades.admin_panel') }}">← Moderación de actividades</a>
+    {% else %}
+      <a class="enlace-volver" href="{{ url_for('actividades.mis_actividades') }}">← Mis actividades</a>
     {% endif %}
+    {% if act.estado != 'aprobada' %}<div class="detalle-estado">{% include "actividades/_estado.html" %}</div>{% endif %}
+    <h1>{{ act.nombre }}</h1>
+    <p>Organiza {{ act.creador_nombre }} {{ act.creador_apellido }}</p>
+    <ul class="cifras-cabecera">
+      <li>{{ act.inicio | dia_y_fecha }}</li>
+      <li>{{ act.inicio[11:16] }}{% if act.fin %}–{{ act.fin[11:16] }}{% endif %}</li>
+      <li>{{ act.ubicacion }}</li>
+    </ul>
   </div>
+</section>
 
-  {# Estado #}
-  {% if actividad.estado != "aprobada" %}
-    <p class="aviso{% if actividad.estado == 'cancelada' or actividad.estado == 'rechazada' %} aviso-error{% endif %}" role="status">
-      Esta actividad está en estado <strong>{{ actividad.estado }}</strong>.
-      {% if actividad.motivo_rechazo %}Motivo: {{ actividad.motivo_rechazo }}{% endif %}
-    </p>
-  {% endif %}
+<section class="contenedor pagina-modulo detalle-actividad">
+  <div class="detalle-columnas">
+    <article class="detalle-cuerpo">
+      {% if act.estado == 'rechazada' and act.motivo_rechazo %}
+        <p class="aviso-alerta"><strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}</p>
+      {% elif act.estado == 'pendiente' and g.usuario and g.usuario.id == act.creador_id %}
+        <p class="aviso">La escuela todavía no la revisó. El espacio ya está reservado para vos.</p>
+      {% endif %}
+      <h2>Sobre esta actividad</h2>
+      <p class="detalle-descripcion">{{ act.descripcion }}</p>
 
-  <div class="detalle-actividad">
-    <div class="detalle-actividad-cuerpo">
-      <p class="detalle-descripcion">{{ actividad.descripcion }}</p>
-
-      <ul class="actividad-meta actividad-meta-grande">
-        <li>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span>
-            Inicio: <strong>{{ actividad.inicio[:16].replace("T", " ") }}</strong>
-            {% if actividad.fin %} — Fin: <strong>{{ actividad.fin[:16].replace("T", " ") }}</strong>{% endif %}
-          </span>
-        </li>
-        <li>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span>{{ actividad.ubicacion }}</span>
-        </li>
-        <li>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span>Organiza: <strong>{{ actividad.creador_nombre }} {{ actividad.creador_apellido }}</strong></span>
-        </li>
-      </ul>
-    </div>
-
-    {# Panel de cupo e inscripción #}
-    <aside class="panel-cupo">
-      <div class="cupo-barra-wrap">
-        {% set pct = (actividad.inscriptos / actividad.cupo_maximo * 100) | int %}
-        <div class="cupo-numeros">
-          <span class="cupo-inscriptos">{{ actividad.inscriptos }}</span>
-          <span class="cupo-sep">/</span>
-          <span class="cupo-maximo">{{ actividad.cupo_maximo }}</span>
-          <span class="cupo-label">inscriptos</span>
+      {% if g.usuario and g.usuario.rol == 'admin' and act.estado == 'pendiente' %}
+        <div class="panel-acciones-moderacion">
+          <h3>Moderación</h3>
+          {% include "actividades/_moderar.html" %}
         </div>
-        <div class="cupo-barra" role="progressbar"
-             aria-valuenow="{{ actividad.inscriptos }}"
-             aria-valuemin="0" aria-valuemax="{{ actividad.cupo_maximo }}">
-          <div class="cupo-barra-relleno{% if actividad.cupo_disponible <= 0 %} cupo-lleno{% elif actividad.cupo_disponible <= 3 %} cupo-casi{% endif %}"
-               style="width: {{ pct }}%"></div>
+      {% endif %}
+    </article>
+
+    <aside class="detalle-ficha" aria-label="Cuándo y dónde">
+      <div class="ficha-fecha">
+        <div class="destacada-fecha" aria-hidden="true">
+          <span>{{ fecha.dia }}</span><strong>{{ fecha.numero }}</strong><span>{{ fecha.mes }}</span>
         </div>
-        {% if actividad.cupo_disponible <= 0 %}
-          <p class="cupo-estado cupo-estado-completa">Sin lugares disponibles</p>
-        {% elif actividad.cupo_disponible == 1 %}
-          <p class="cupo-estado cupo-estado-casi">¡Último lugar!</p>
-        {% elif actividad.cupo_disponible <= 3 %}
-          <p class="cupo-estado cupo-estado-casi">Quedan {{ actividad.cupo_disponible }} lugares</p>
-        {% else %}
-          <p class="cupo-estado">{{ actividad.cupo_disponible }} lugares disponibles</p>
-        {% endif %}
+        <div>
+          <strong>{{ act.inicio[11:16] }}{% if act.fin %} a {{ act.fin[11:16] }}{% endif %}</strong>
+          {% if act.fin %}<span>{{ act | duracion }}</span>{% endif %}
+        </div>
       </div>
-
-      {# Botones de inscripción solo en actividades aprobadas #}
-      {% if actividad.estado == "aprobada" and actividad.creador_id != g.usuario.id %}
-        {% if inscripto %}
-          <form method="post" action="{{ url_for('actividades.baja', actividad_id=actividad.id) }}"
-                data-confirmar="¿Dar de baja tu inscripción?"
-                data-confirmar-texto="Vas a perder tu lugar. Si la actividad se completa, no vas a poder volverte a inscribir."
-                data-confirmar-boton="Dar de baja">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="boton boton-suave boton-bloque" type="submit" id="btn-baja">
-              Darme de baja
-            </button>
-          </form>
-        {% elif actividad.cupo_disponible > 0 %}
-          <form method="post" action="{{ url_for('actividades.inscribir', actividad_id=actividad.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="boton boton-primario boton-bloque" type="submit" id="btn-inscribir">
-              Inscribirme
-            </button>
-          </form>
-        {% else %}
-          <button class="boton boton-suave boton-bloque" disabled>Actividad completa</button>
-        {% endif %}
-      {% elif actividad.creador_id == g.usuario.id %}
-        <p class="cupo-nota">Sos el organizador de esta actividad.</p>
-        <a class="boton boton-suave boton-bloque" href="{{ url_for('actividades.inscriptos', actividad_id=actividad.id) }}">
-          Ver lista de inscriptos
-        </a>
-      {% endif %}
-
-      {% if g.usuario.rol == "admin" and actividad.estado != "cancelada" %}
-        <div class="panel-admin-acciones">
-          <p class="cupo-nota">Panel de administración</p>
-          {% if actividad.estado == "pendiente" %}
-            <form method="post" action="{{ url_for('actividades.admin_estado', actividad_id=actividad.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="estado" value="aprobada">
-              <button class="boton boton-primario boton-bloque" type="submit">Aprobar</button>
-            </form>
-            <form method="post" action="{{ url_for('actividades.admin_estado', actividad_id=actividad.id) }}" style="margin-top:.5rem">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="estado" value="rechazada">
-              <input class="campo" type="text" name="motivo" placeholder="Motivo del rechazo (opcional)">
-              <button class="boton boton-suave boton-bloque" type="submit" style="margin-top:.4rem">Rechazar</button>
-            </form>
-          {% elif actividad.estado == "aprobada" %}
-            <form method="post" action="{{ url_for('actividades.admin_estado', actividad_id=actividad.id) }}"
-                  data-confirmar="¿Cancelar la actividad?"
-                  data-confirmar-texto="Se notificará a todos los inscriptos."
-                  data-confirmar-boton="Cancelar actividad">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="estado" value="cancelada">
-              <button class="boton boton-suave boton-bloque" type="submit">Cancelar actividad</button>
-            </form>
-          {% endif %}
+      <dl class="ficha-datos">
+        <div>
+          <dt>Lugar</dt>
+          <dd>
+            {% if act.espacio_id and g.usuario %}
+              <a href="{{ url_for('espacios.detalle', espacio_id=act.espacio_id, fecha=act.inicio[:10]) }}">{{ act.ubicacion }}</a>
+            {% else %}{{ act.ubicacion }}{% endif %}
+          </dd>
         </div>
-      {% endif %}
+        <div>
+          <dt>Organiza</dt>
+          <dd>{{ act.creador_nombre }} {{ act.creador_apellido }}</dd>
+        </div>
+      </dl>
+      <div class="cupo">
+        <span class="cupo-barra"><span style="width: {{ (act.inscriptos * 100 / act.cupo_maximo) | round(0) }}%"></span></span>
+        <span class="cupo-texto">{{ libres }} de {{ act.cupo_maximo }} {{ "lugar libre" if libres == 1 else "lugares libres" }}</span>
+      </div>
     </aside>
   </div>
 
+  {% if act.estado == 'aprobada' and otras %}
+    <section class="detalle-otras" aria-labelledby="otras-titulo">
+      <h2 id="otras-titulo">Otras actividades</h2>
+      <div class="actividades-filas">
+        {% for otra in otras %}
+          {% with act = otra, destacar = false %}
+            <a class="actividad-fila" href="{{ url_for('actividades.detalle', actividad_id=act.id) }}" style="--orden: {{ loop.index0 }}">
+              {% include "actividades/_tarjeta.html" %}
+            </a>
+          {% endwith %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
 </section>
-{% include "actividades/_dialogo.html" %}
+{% if g.usuario and g.usuario.rol == 'admin' and act.estado == 'pendiente' %}
+  {% include "espacios/_dialogo.html" %}
+{% endif %}
 {% endblock %}
 
 {% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

@@ -4,6 +4,7 @@
 
 {% block contenido %}
 <section class="contenedor pagina-modulo pagina-admin">
+  <a class="enlace-volver" href="{{ url_for('espacios.catalogo') }}">← Catálogo de espacios</a>
   <div class="cabecera-modulo">
     <h1>Espacios</h1>
     <a class="boton boton-primario" href="{{ url_for('espacios.admin_nuevo') }}">Nuevo espacio</a>

@@ -1,0 +1,14 @@
+<nav class="tira-dias" aria-label="Próximos 7 días">
+  {% for dia in proximos %}
+    {% if dia.abierto %}
+      <a class="dia-chip{% if dia.fecha == fecha %} dia-actual{% endif %}" href="{{ consulta | default('?') }}fecha={{ dia.fecha }}"
+         {% if dia.fecha == fecha %}aria-current="date"{% endif %}>
+        <span>{{ dia.etiqueta }}</span><strong>{{ dia.numero }}</strong>
+      </a>
+    {% else %}
+      <span class="dia-chip dia-cerrado{% if dia.fecha == fecha %} dia-actual{% endif %}" title="Cerrado">
+        <span>{{ dia.etiqueta }}</span><strong>{{ dia.numero }}</strong>
+      </span>
+    {% endif %}
+  {% endfor %}
+</nav>

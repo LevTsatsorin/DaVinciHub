@@ -1,0 +1,7 @@
+{% if act.estado == 'aprobada' %}
+  <span class="badge badge-aprobada">Aprobada</span>
+{% elif act.estado == 'pendiente' %}
+  <span class="badge badge-pendiente">Pendiente</span>
+{% elif act.estado == 'rechazada' %}
+  <span class="badge badge-rechazada">Rechazada</span>
+{% endif %}

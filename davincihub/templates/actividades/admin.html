@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block titulo %}Moderación de actividades — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
+  <div class="cabecera-modulo">
+    <h1>Moderación de actividades</h1>
+  </div>
+
+  <nav class="pestanas" aria-label="Estado de las actividades">
+    <a class="pestana{% if not estado_filtro %} pestana-activa{% endif %}"
+       href="{{ url_for('actividades.admin_panel') }}"
+       {% if not estado_filtro %}aria-current="page"{% endif %}>Todas ({{ totales.values() | sum }})</a>
+    {% for clave, etiqueta in estados.items() %}
+      <a class="pestana{% if estado_filtro == clave %} pestana-activa{% endif %}"
+         href="{{ url_for('actividades.admin_panel', estado=clave) }}"
+         {% if estado_filtro == clave %}aria-current="page"{% endif %}>{{ etiqueta }} ({{ totales.get(clave, 0) }})</a>
+    {% endfor %}
+  </nav>
+
+  {% if actividades %}
+    <ul class="lista-moderacion">
+      {% for act in actividades %}
+        <li class="tarjeta-moderacion">
+          <div class="moderacion-cabecera">
+            {% include "actividades/_estado.html" %}
+            <span class="moderacion-autor">{{ act.creador_nombre }} {{ act.creador_apellido }} · {{ act.creador_email }}</span>
+          </div>
+          <h2><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
+          {% with con_cupo = true %}{% include "actividades/_chips.html" %}{% endwith %}
+          <p class="moderacion-descripcion">{{ act.descripcion | truncate(220) }}</p>
+
+          {% if act.estado == 'rechazada' and act.motivo_rechazo %}
+            <p class="aviso-alerta"><strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}</p>
+          {% endif %}
+
+          {% if act.estado == 'pendiente' %}
+            {% include "actividades/_moderar.html" %}
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+      <h2>{{ "No hay propuestas pendientes" if estado_filtro == 'pendiente' else "No hay actividades en esta vista" }}</h2>
+      <p>Cuando un estudiante proponga una actividad, va a aparecer acá para que la revises.</p>
+    </div>
+  {% endif %}
+</section>
+{% include "espacios/_dialogo.html" %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

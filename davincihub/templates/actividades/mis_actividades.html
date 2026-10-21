@@ -4,69 +4,37 @@
 
 {% block contenido %}
 <section class="contenedor pagina-modulo">
+  <a class="enlace-volver" href="{{ url_for('actividades.index') }}">← Actividades</a>
   <div class="cabecera-modulo">
-    <h1>Mis actividades</h1>
-    <a class="boton boton-primario" href="{{ url_for('actividades.nueva') }}">Proponer actividad</a>
+    <h1>Mis actividades propuestas</h1>
+    {% if actividades %}<a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>{% endif %}
   </div>
 
-  {# Inscripciones #}
-  <h2 class="seccion-titulo">Donde estoy inscripto/a</h2>
-  {% if inscripciones %}
-    <ul class="lista-admin">
-      {% for a in inscripciones %}
-        <li class="fila-admin">
-          <div class="fila-admin-datos">
-            <div class="fila-admin-titulo">
-              <a href="{{ url_for('actividades.detalle', actividad_id=a.id) }}">{{ a.nombre }}</a>
-            </div>
-            <p class="fila-admin-detalle">
-              {{ a.inicio[:16].replace("T", " ") }} · {{ a.ubicacion }}
-              · {{ a.cupo_disponible }} lugar{{ "es" if a.cupo_disponible != 1 }} disponible{{ "s" if a.cupo_disponible != 1 }}
-            </p>
-          </div>
-          <div class="fila-admin-acciones">
-            <form method="post" action="{{ url_for('actividades.baja', actividad_id=a.id) }}"
-                  data-confirmar="¿Dar de baja tu inscripción en «{{ a.nombre }}»?"
-                  data-confirmar-texto="Vas a perder tu lugar."
-                  data-confirmar-boton="Dar de baja">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="boton boton-suave" type="submit">Darme de baja</button>
-            </form>
-          </div>
+  {% if actividades %}
+    <ul class="lista-moderacion">
+      {% for act in actividades %}
+        <li class="tarjeta-moderacion">
+          {% include "actividades/_estado.html" %}
+          <h2><a href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">{{ act.nombre }}</a></h2>
+          {% with con_cupo = true %}{% include "actividades/_chips.html" %}{% endwith %}
+          {% if act.estado == 'pendiente' %}
+            <p class="moderacion-descripcion">La escuela todavía no la revisó. Te avisamos cuando la aprueben o la rechacen.</p>
+          {% elif act.estado == 'aprobada' %}
+            <p class="moderacion-descripcion">Publicada en el listado · {{ act.inscriptos }}/{{ act.cupo_maximo }} cupos ocupados.</p>
+          {% endif %}
+          {% if act.estado == 'rechazada' and act.motivo_rechazo %}
+            <p class="aviso-alerta"><strong>Motivo de rechazo:</strong> {{ act.motivo_rechazo }}</p>
+          {% endif %}
         </li>
       {% endfor %}
     </ul>
   {% else %}
-    <p class="estado-vacio-inline">Todavía no estás inscripto/a en ninguna actividad. <a href="{{ url_for('actividades.lista') }}">Ver actividades disponibles</a>.</p>
-  {% endif %}
-
-  {# Actividades creadas #}
-  <h2 class="seccion-titulo" style="margin-top: 2.5rem">Actividades que propuse</h2>
-  {% if creadas %}
-    <ul class="lista-admin">
-      {% for a in creadas %}
-        <li class="fila-admin">
-          <div class="fila-admin-datos">
-            <div class="fila-admin-titulo">
-              <a href="{{ url_for('actividades.detalle', actividad_id=a.id) }}">{{ a.nombre }}</a>
-              <span class="chip-estado chip-{{ a.estado }}">{{ a.estado | capitalize }}</span>
-            </div>
-            <p class="fila-admin-detalle">
-              {{ a.inicio[:16].replace("T", " ") }} · {{ a.ubicacion }}
-              · {{ a.inscriptos }}/{{ a.cupo_maximo }} inscriptos
-            </p>
-          </div>
-          <div class="fila-admin-acciones">
-            <a class="boton" href="{{ url_for('actividades.inscriptos', actividad_id=a.id) }}">Ver inscriptos</a>
-          </div>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="estado-vacio-inline">Todavía no propusiste ninguna actividad.</p>
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/actividades.png') }}" alt="">
+      <h2>No propusiste ninguna actividad todavía</h2>
+      <p>Cualquier estudiante puede organizar una charla, un grupo de estudio o un torneo.</p>
+      <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
+    </div>
   {% endif %}
 </section>
-{% include "actividades/_dialogo.html" %}
 {% endblock %}
-
-{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

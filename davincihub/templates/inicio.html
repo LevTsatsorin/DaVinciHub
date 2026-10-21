@@ -23,9 +23,11 @@
     <h2>Reservas</h2>
     <p>Espacios y recursos de la escuela, sin superposiciones.</p>
   </article>
-  <article class="modulo-actividades">
-    <h2>Actividades</h2>
-    <p>Encuentros creados por estudiantes, con cupo e inscripción.</p>
-  </article>
+  <a href="{{ url_for('actividades.index') }}" style="text-decoration: none; color: inherit; display: block;">
+    <article class="modulo-actividades">
+      <h2>Actividades</h2>
+      <p>Encuentros creados por estudiantes, con cupo e inscripción.</p>
+    </article>
+  </a>
 </section>
 {% endblock %}
