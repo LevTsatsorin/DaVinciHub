@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from io import BytesIO
 
 from flask import (
@@ -6,7 +5,6 @@ from flask import (
     abort,
     flash,
     g,
-    jsonify,
     redirect,
     render_template,
     request,
@@ -16,13 +14,12 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from davincihub import db, seguridad, validacion
+from davincihub.notificaciones import notificar
+from davincihub.usuarios import datos as usuarios_datos
+from davincihub.utiles import ahora
 
 bp = Blueprint("perfil", __name__, url_prefix="/estudiantes")
 MAX_FOTO_BYTES = 3 * 1024 * 1024
-
-
-def _ahora() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _tipo_foto(contenido: bytes) -> str | None:
@@ -39,7 +36,7 @@ def _tipo_foto(contenido: bytes) -> str | None:
 
 def _estudiante_publico(usuario_id: int) -> dict | None:
     return db.query_one(
-        "SELECT u.id, u.nombre, u.apellido, u.carrera_id, u.anio, u.comision,"
+        "SELECT u.id, u.nombre, u.apellido, u.carrera_id, u.anio, u.comision, u.catedra,"
         " c.nombre AS carrera, CASE WHEN f.usuario_id IS NULL THEN 0 ELSE 1 END AS tiene_foto"
         " FROM usuarios u LEFT JOIN carreras c ON c.id = u.carrera_id"
         " LEFT JOIN fotos_perfil f ON f.usuario_id = u.id"
@@ -78,36 +75,13 @@ def _estado_conexion(otro_id: int) -> dict | None:
     )
 
 
-def _materias_validas(ids: list[str], carrera_id: str) -> list[int] | None:
-    if any(not identificador.isdecimal() for identificador in ids):
-        return None
-    seleccionadas = list(dict.fromkeys(int(identificador) for identificador in ids))
-    if not seleccionadas:
-        return []
-    parametros = {f"id{indice}": identificador for indice, identificador in enumerate(seleccionadas)}
-    placeholders = ", ".join(f":id{indice}" for indice in range(len(seleccionadas)))
-    parametros["carrera"] = int(carrera_id) if carrera_id.isdecimal() else -1
-    filas = db.query(
-        f"SELECT id FROM materias WHERE activa = 1 AND carrera_id = :carrera"
-        f" AND id IN ({placeholders})",
-        **parametros,
-    )
-    if len(filas) != len(seleccionadas):
-        return None
-    return seleccionadas
-
-
 @bp.get("/<int:usuario_id>")
 def ver(usuario_id: int):
     estudiante = _estudiante_publico(usuario_id)
     if estudiante is None:
         abort(404)
 
-    materias = db.query(
-        "SELECT m.nombre FROM catedras c JOIN materias m ON m.id = c.materia_id"
-        " WHERE c.usuario_id = :id AND m.activa = 1 ORDER BY m.nombre",
-        id=usuario_id,
-    )
+    materias = usuarios_datos.materias_con_catedra(estudiante)
     reputacion = db.query_one(
         "SELECT AVG(valor) AS promedio, COUNT(*) AS cantidad FROM valoraciones_operaciones"
         " WHERE receptor_id = :id",
@@ -162,7 +136,7 @@ def editar(usuario_id: int):
     if g.usuario["id"] != usuario_id:
         abort(403)
     estudiante = db.query_one(
-        "SELECT u.id, u.nombre, u.apellido, u.email, u.carrera_id, u.anio, u.comision,"
+        "SELECT u.id, u.nombre, u.apellido, u.email, u.carrera_id, u.anio, u.comision, u.catedra,"
         " CASE WHEN f.usuario_id IS NULL THEN 0 ELSE 1 END AS tiene_foto"
         " FROM usuarios u LEFT JOIN fotos_perfil f ON f.usuario_id = u.id"
         " WHERE u.id = :id AND u.rol = 'estudiante'",
@@ -172,32 +146,17 @@ def editar(usuario_id: int):
         abort(404)
 
     errores = {}
-    seleccionadas = [
-        str(fila["id"])
-        for fila in db.query("SELECT materia_id AS id FROM catedras WHERE usuario_id = :id", id=usuario_id)
-    ]
     if request.method == "POST":
         datos = request.form
         errores = validacion.validar_datos_estudiante(datos)
         for campo in ("nombre", "apellido"):
             if not (datos.get(campo) or "").strip():
                 errores[campo] = "Campo obligatorio."
-        email = (datos.get("email") or estudiante["email"]).strip().lower()
-        if email and ("@" not in email or "." not in email.rsplit("@", 1)[-1]):
-            errores.setdefault("email", "Email inválido.")
-        if email and db.query_one(
-            "SELECT id FROM usuarios WHERE email = :email AND id <> :id", email=email, id=usuario_id
-        ):
-            errores["email"] = "Ese email ya está registrado."
         carrera_id = (datos.get("carrera_id") or "").strip()
         if not errores and not db.query_one(
             "SELECT id FROM carreras WHERE id = :id AND activa = 1", id=int(carrera_id)
         ):
             errores["carrera_id"] = "Elegí una carrera válida."
-        seleccionadas = request.form.getlist("materias_catedra")
-        materias_validas = _materias_validas(seleccionadas, carrera_id)
-        if materias_validas is None:
-            errores["materias_catedra"] = "Elegí materias válidas."
         archivo_foto = request.files.get("foto")
         contenido_foto = archivo_foto.read(MAX_FOTO_BYTES + 1) if archivo_foto and archivo_foto.filename else None
         tipo_foto = _tipo_foto(contenido_foto) if contenido_foto else None
@@ -206,86 +165,48 @@ def editar(usuario_id: int):
         elif contenido_foto and tipo_foto is None:
             errores["foto"] = "Usá una imagen PNG, JPG, GIF o WebP válida."
         if not errores:
-            try:
-                with db.transaccion():
+            with db.transaccion():
+                db.execute(
+                    "UPDATE usuarios SET nombre = :nombre, apellido = :apellido,"
+                    " carrera_id = :carrera, anio = :anio, comision = :comision,"
+                    " catedra = CASE WHEN carrera_id = :carrera THEN catedra ELSE 0 END WHERE id = :id",
+                    nombre=datos["nombre"].strip(),
+                    apellido=datos["apellido"].strip(),
+                    carrera=int(carrera_id),
+                    anio=int(datos["anio"]),
+                    comision=datos["comision"].strip(),
+                    id=usuario_id,
+                )
+                if contenido_foto:
+                    db.execute("DELETE FROM fotos_perfil WHERE usuario_id = :id", id=usuario_id)
                     db.execute(
-                        "UPDATE usuarios SET nombre = :nombre, apellido = :apellido, email = :email,"
-                        " carrera_id = :carrera, anio = :anio, comision = :comision WHERE id = :id",
-                        nombre=datos["nombre"].strip(),
-                        apellido=datos["apellido"].strip(),
-                        email=email,
-                        carrera=int(carrera_id),
-                        anio=int(datos["anio"]),
-                        comision=datos["comision"].strip(),
+                        "INSERT INTO fotos_perfil (usuario_id, tipo, contenido, actualizado)"
+                        " VALUES (:id, :tipo, :contenido, :actualizado)",
                         id=usuario_id,
+                        tipo=tipo_foto,
+                        contenido=contenido_foto,
+                        actualizado=ahora(),
                     )
-                    db.execute("DELETE FROM catedras WHERE usuario_id = :id", id=usuario_id)
-                    for materia_id in materias_validas:
-                        db.execute(
-                            "INSERT INTO catedras (usuario_id, materia_id)"
-                            " VALUES (:usuario, :materia)",
-                            usuario=usuario_id,
-                            materia=materia_id,
-                        )
-                    if contenido_foto:
-                        db.execute("DELETE FROM fotos_perfil WHERE usuario_id = :id", id=usuario_id)
-                        db.execute(
-                            "INSERT INTO fotos_perfil (usuario_id, tipo, contenido, actualizado)"
-                            " VALUES (:id, :tipo, :contenido, :actualizado)",
-                            id=usuario_id,
-                            tipo=tipo_foto,
-                            contenido=contenido_foto,
-                            actualizado=_ahora(),
-                        )
-            except db.ErrorIntegridad:
-                errores["email"] = "Ese email ya está registrado."
-            else:
-                flash("Tu perfil quedó actualizado.")
-                return redirect(url_for("perfil.ver", usuario_id=usuario_id))
+            flash("Tu perfil quedó actualizado.")
+            return redirect(url_for("perfil.ver", usuario_id=usuario_id))
     else:
         datos = estudiante
 
     carreras = db.query("SELECT id, nombre FROM carreras WHERE activa = 1 ORDER BY nombre")
-    carrera_seleccionada = str(datos.get("carrera_id") or "").strip()
-    carrera_materias_id = int(carrera_seleccionada) if carrera_seleccionada.isdecimal() else -1
-    materias_disponibles = db.query(
-        "SELECT m.id, m.nombre, m.carrera_id, c.nombre AS carrera FROM materias m"
-        " JOIN carreras c ON c.id = m.carrera_id"
-        " WHERE m.activa = 1 AND c.activa = 1 AND m.carrera_id = :carrera"
-        " ORDER BY m.nombre",
-        carrera=carrera_materias_id,
-    )
     return render_template(
         "perfil/editar.html",
         estudiante=estudiante,
         datos=datos,
         errores=errores,
         carreras=carreras,
-        materias=materias_disponibles,
-        materias_seleccionadas=seleccionadas,
     )
-
-
-@bp.get("/<int:usuario_id>/materias")
-@seguridad.requiere_login
-def materias_de_carrera(usuario_id: int):
-    if g.usuario["id"] != usuario_id:
-        abort(403)
-    carrera = request.args.get("carrera_id", "")
-    if not carrera.isdecimal():
-        abort(400)
-    filas = db.query(
-        "SELECT m.id, m.nombre FROM materias m JOIN carreras c ON c.id = m.carrera_id"
-        " WHERE m.carrera_id = :carrera AND m.activa = 1 AND c.activa = 1"
-        " ORDER BY m.nombre",
-        carrera=int(carrera),
-    )
-    return jsonify(filas)
 
 
 @bp.post("/<int:usuario_id>/conexiones")
 @seguridad.requiere_login
 def solicitar_conexion(usuario_id: int):
+    if g.usuario["rol"] != "estudiante":
+        abort(403)
     if usuario_id == g.usuario["id"] or _estudiante_publico(usuario_id) is None:
         abort(404)
     if _estado_conexion(usuario_id):
@@ -297,11 +218,17 @@ def solicitar_conexion(usuario_id: int):
                 " VALUES (:solicitante, :receptor, 'pendiente', :creado)",
                 solicitante=g.usuario["id"],
                 receptor=usuario_id,
-                creado=_ahora(),
+                creado=ahora(),
             )
         except db.ErrorIntegridad:
             flash("Ya existe una solicitud o conexión entre ustedes.")
         else:
+            notificar(
+                usuario_id,
+                "conexion",
+                f"{g.usuario['nombre']} {g.usuario['apellido']} quiere conectar con vos.",
+                url_for("perfil.conexiones", usuario_id=usuario_id),
+            )
             flash("Solicitud de conexión enviada.")
     return redirect(url_for("perfil.ver", usuario_id=usuario_id))
 
@@ -322,8 +249,15 @@ def _resolver_solicitud(usuario_id: int, solicitante_id: int, estado: str):
         estado=estado,
         id=solicitud["id"],
     )
+    if estado == "aceptada":
+        notificar(
+            solicitante_id,
+            "conexion",
+            f"{g.usuario['nombre']} {g.usuario['apellido']} aceptó tu solicitud de conexión.",
+            url_for("perfil.ver", usuario_id=usuario_id),
+        )
     flash("Conexión aceptada." if estado == "aceptada" else "Solicitud rechazada.")
-    return redirect(url_for("perfil.ver", usuario_id=usuario_id))
+    return redirect(url_for("perfil.conexiones", usuario_id=usuario_id))
 
 
 @bp.post("/<int:usuario_id>/conexiones/<int:solicitante_id>/aceptar")
@@ -354,9 +288,11 @@ def conexiones(usuario_id: int):
         id=usuario_id,
     )
     enviadas = db.query(
-        "SELECT u.id, u.nombre, u.apellido, c.nombre AS carrera"
+        "SELECT u.id, u.nombre, u.apellido, c.nombre AS carrera,"
+        " CASE WHEN f.usuario_id IS NULL THEN 0 ELSE 1 END AS tiene_foto"
         " FROM conexiones x JOIN usuarios u ON u.id = x.receptor_id"
         " LEFT JOIN carreras c ON c.id = u.carrera_id"
+        " LEFT JOIN fotos_perfil f ON f.usuario_id = u.id"
         " WHERE x.solicitante_id = :id AND x.estado = 'pendiente'"
         " AND u.rol = 'estudiante' AND u.bloqueado = 0 ORDER BY x.creado DESC",
         id=usuario_id,
@@ -385,6 +321,8 @@ def conexiones(usuario_id: int):
 @bp.route("/<int:usuario_id>/chat", methods=("GET", "POST"))
 @seguridad.requiere_login
 def chat(usuario_id: int):
+    if g.usuario["rol"] != "estudiante":
+        abort(403)
     if usuario_id == g.usuario["id"] or _estudiante_publico(usuario_id) is None:
         abort(404)
     error = None
@@ -399,9 +337,26 @@ def chat(usuario_id: int):
                 emisor=g.usuario["id"],
                 receptor=usuario_id,
                 cuerpo=cuerpo,
-                creado=_ahora(),
+                creado=ahora(),
             )
+            enlace = url_for("perfil.chat", usuario_id=g.usuario["id"])
+            if not db.query_one(
+                "SELECT id FROM notificaciones WHERE usuario_id = :u AND enlace = :e AND leida = 0",
+                u=usuario_id,
+                e=enlace,
+            ):
+                notificar(
+                    usuario_id,
+                    "mensaje",
+                    f"{g.usuario['nombre']} {g.usuario['apellido']} te escribió un mensaje.",
+                    enlace,
+                )
             return redirect(url_for("perfil.chat", usuario_id=usuario_id))
+    db.execute(
+        "UPDATE notificaciones SET leida = 1 WHERE usuario_id = :yo AND enlace = :e AND leida = 0",
+        yo=g.usuario["id"],
+        e=url_for("perfil.chat", usuario_id=usuario_id),
+    )
     mensajes = db.query(
         "SELECT m.emisor_id, m.receptor_id, m.cuerpo, m.creado,"
         " emisor.nombre AS emisor_nombre, emisor.apellido AS emisor_apellido"

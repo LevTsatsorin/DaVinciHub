@@ -7,7 +7,6 @@ TABLAS = {
     "materias",
     "usuarios",
     "fotos_perfil",
-    "catedras",
     "bloqueos",
     "conexiones",
     "preguntas",
@@ -49,8 +48,8 @@ def test_demo_tiene_admin(app):
 def test_migracion_fotos_perfil_es_idempotente(app):
     with app.app_context():
         db.execute("DROP TABLE fotos_perfil")
-        db.migrar_fotos_perfil()
-        db.migrar_fotos_perfil()
+        db.migrar()
+        db.migrar()
         tablas = db.query("SELECT name FROM sqlite_master WHERE type = :tipo", tipo="table")
         assert "fotos_perfil" in {fila["name"] for fila in tablas}
 

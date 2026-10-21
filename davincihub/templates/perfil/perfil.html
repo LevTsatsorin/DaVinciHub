@@ -2,76 +2,89 @@
 
 {% block titulo %}{{ estudiante.nombre }} {{ estudiante.apellido }} — Da Vinci Hub{% endblock %}
 
+{% macro avatar(persona, clase) -%}
+  {%- if persona.tiene_foto %}<img class="{{ clase }}" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
+  {%- else %}<span class="{{ clase }}" aria-hidden="true">{{ persona.nombre[:1] }}{{ persona.apellido[:1] }}</span>{% endif -%}
+{%- endmacro %}
+
 {% block contenido %}
-<section class="perfil-pagina">
-  <div class="contenedor perfil-contenido">
-    <header class="perfil-cabecera">
-      {% if estudiante.tiene_foto %}
-        <img class="perfil-foto" src="{{ url_for('perfil.foto', usuario_id=estudiante.id) }}" alt="Foto de {{ estudiante.nombre }} {{ estudiante.apellido }}">
-      {% else %}
-        <div class="perfil-iniciales" aria-hidden="true">{{ estudiante.nombre[0] }}{{ estudiante.apellido[0] }}</div>
-      {% endif %}
-      <div class="perfil-identidad">
-        <p class="perfil-etiqueta">Estudiante Da Vinci</p>
-        <h1>{{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
-        <p>{{ estudiante.carrera or 'Carrera sin completar' }}{% if estudiante.anio %} · {{ estudiante.anio }}° año{% endif %}{% if estudiante.comision %} · Comisión {{ estudiante.comision }}{% endif %}</p>
+{% set es_yo = g.usuario and g.usuario.id == estudiante.id %}
+<section class="contenedor pagina-modulo pagina-perfil">
+  <header class="ficha-usuario perfil-cabecera fondo-oscuro">
+    {{ avatar(estudiante, "ficha-usuario-avatar perfil-avatar") }}
+    <div class="ficha-usuario-datos">
+      <div class="ficha-usuario-estados">
+        <span class="estado estado-activo">Estudiante</span>
+        {% if materias %}<span class="estado estado-catedra">Cátedra</span>{% endif %}
       </div>
-      {% if g.usuario and g.usuario.id == estudiante.id %}
-        <a class="boton boton-primario" href="{{ url_for('perfil.editar', usuario_id=estudiante.id) }}">Editar perfil</a>
-      {% endif %}
-    </header>
-
-    {% if materias %}
-      <section class="perfil-seccion">
-        <h2>Materias de cátedra</h2>
-        <ul class="perfil-materias">
-          {% for materia in materias %}<li>{{ materia.nombre }}</li>{% endfor %}
-        </ul>
-      </section>
-    {% endif %}
-
-    <section class="perfil-seccion">
-      <h2>Actividad y reputación</h2>
-      <dl class="perfil-metricas">
-        <div><dt>Reputación</dt><dd>{% if reputacion.cantidad %}{{ reputacion.promedio|round(1) }} / 5{% else %}Sin valoraciones{% endif %}</dd></div>
-        <div><dt>Intercambios completados</dt><dd>{{ intercambios }}</dd></div>
-        <div><dt>Respuestas útiles</dt><dd>{{ respuestas_utiles }}</dd></div>
-        <div><dt>Actividades</dt><dd>{{ actividades_total }}</dd></div>
-      </dl>
-      <p class="perfil-nota">La reputación se calcula con el promedio de las valoraciones recibidas en operaciones.</p>
-      {% if actividades %}
-        <h3>Actividades recientes</h3>
-        <ul class="perfil-actividades">
-          {% for actividad in actividades %}
-            <li><strong>{{ actividad.nombre }}</strong><span>{{ actividad.inicio }} · {{ actividad.ubicacion }}</span></li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="perfil-vacio">Todavía no participó en actividades.</p>
-      {% endif %}
-    </section>
-
-    {% if g.usuario and g.usuario.id != estudiante.id %}
-      <section class="perfil-seccion perfil-contacto">
-        <h2>Conectar</h2>
-        <div class="perfil-acciones">
+      <h1>{{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
+      <ul class="cifras-cabecera">
+        <li>{{ estudiante.carrera or "Carrera sin completar" }}</li>
+        {% if estudiante.anio %}<li>{{ estudiante.anio }}.º año{% if estudiante.comision %} · Com. {{ estudiante.comision }}{% endif %}</li>{% endif %}
+      </ul>
+      <div class="perfil-acciones">
+        {% if es_yo %}
+          <a class="boton boton-primario" href="{{ url_for('perfil.editar', usuario_id=estudiante.id) }}">Editar perfil</a>
+          <a class="boton boton-ficha" href="{{ url_for('perfil.conexiones', usuario_id=estudiante.id) }}">Mis conexiones</a>
+        {% elif g.usuario and g.usuario.rol == 'estudiante' %}
           {% if conexion and conexion.estado == 'aceptada' %}
-            <p class="perfil-estado-conexion">Ya están conectados.</p>
+            <span class="perfil-estado-conexion perfil-conectados">Ya están conectados</span>
           {% elif conexion and conexion.estado == 'pendiente' %}
-            <p class="perfil-estado-conexion">{% if conexion.solicitante_id == g.usuario.id %}Solicitud enviada.{% else %}Esta persona te envió una solicitud de conexión.{% endif %}</p>
+            {% if conexion.solicitante_id == g.usuario.id %}
+              <span class="perfil-estado-conexion">Solicitud enviada</span>
+            {% else %}
+              <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Responder solicitud</a>
+            {% endif %}
           {% elif conexion %}
-            <p class="perfil-estado-conexion">La solicitud de conexión fue rechazada.</p>
+            <span class="perfil-estado-conexion">La solicitud de conexión fue rechazada</span>
           {% else %}
             <form method="post" action="{{ url_for('perfil.solicitar_conexion', usuario_id=estudiante.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="boton boton-conexion" type="submit">Pedir conexión</button>
+              <button class="boton boton-primario" type="submit">Pedir conexión</button>
             </form>
           {% endif %}
-        </div>
-      </section>
-    {% elif not g.usuario %}
-      <p class="perfil-iniciar"><a href="{{ url_for('auth.login') }}">Ingresá</a> para conectar o escribirle.</p>
-    {% endif %}
-  </div>
+          <a class="boton boton-ficha" href="{{ url_for('perfil.chat', usuario_id=estudiante.id) }}">Escribir mensaje</a>
+        {% elif not g.usuario %}
+          <a class="boton boton-primario" href="{{ url_for('auth.login') }}">Ingresá para conectar</a>
+        {% else %}
+          <a class="boton boton-ficha" href="{{ url_for('usuarios.ficha', usuario_id=estudiante.id) }}">Ver ficha de usuario</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <h2 class="subtitulo">Actividad en el Hub</h2>
+  <dl class="perfil-metricas">
+    <div><dt>Reputación</dt><dd>{% if reputacion.cantidad %}{{ reputacion.promedio | round(1) }}<small> / 5</small>{% else %}<span class="perfil-metrica-vacia">Sin valoraciones todavía</span>{% endif %}</dd></div>
+    <div><dt>Intercambios completados</dt><dd>{{ intercambios }}</dd></div>
+    <div><dt>Respuestas útiles</dt><dd>{{ respuestas_utiles }}</dd></div>
+    <div><dt>Actividades</dt><dd>{{ actividades_total }}</dd></div>
+  </dl>
+  <p class="perfil-nota">La reputación se calcula con el promedio de las valoraciones recibidas en operaciones.</p>
+
+  {% if materias %}
+    <h2 class="subtitulo">Materias de cátedra</h2>
+    <p class="perfil-nota">Ya las cursó y puede ayudar en el foro de cada una.</p>
+    <ul class="perfil-materias">
+      {% for materia in materias %}<li>{{ materia.nombre }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+
+  <h2 class="subtitulo">Actividades recientes</h2>
+  {% if actividades %}
+    <ul class="perfil-actividades">
+      {% for actividad in actividades %}
+        <li>
+          <a href="{{ url_for('actividades.detalle', actividad_id=actividad.id) }}">{{ actividad.nombre }}</a>
+          <span>{{ actividad.inicio | dia_y_fecha }} {{ actividad.inicio[11:16] }}{% if actividad.ubicacion %} · {{ actividad.ubicacion }}{% endif %}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="perfil-vacio">
+      <p>{{ "Todavía no participaste en actividades." if es_yo else "Todavía no participó en actividades." }}</p>
+      <a class="boton boton-suave" href="{{ url_for('actividades.index') }}">Ver actividades</a>
+    </div>
+  {% endif %}
 </section>
 {% endblock %}

@@ -28,6 +28,7 @@
     </div>
     <div class="barra-acciones {% if g.usuario and g.usuario.rol == 'estudiante' %}barra-acciones-perfil{% endif %}">
       {% if g.usuario %}
+        <span class="usuario-nombre">{{ g.usuario.nombre }}</span>
         {% if g.usuario.rol == 'estudiante' %}
           <details class="menu-perfil">
             <summary class="menu-perfil-avatar" aria-label="Abrir menú de perfil" title="Opciones de perfil">

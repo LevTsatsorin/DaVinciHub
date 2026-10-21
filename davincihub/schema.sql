@@ -62,7 +62,6 @@ CREATE TABLE fotos_perfil (
     actualizado TEXT NOT NULL
 );
 
-CREATE TABLE catedras (
 CREATE TABLE bloqueos (
     id {{PK}},
     usuario_id INTEGER NOT NULL REFERENCES usuarios (id),

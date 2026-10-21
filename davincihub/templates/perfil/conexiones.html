@@ -2,85 +2,79 @@
 
 {% block titulo %}Conexiones — Da Vinci Hub{% endblock %}
 
+{% macro persona_fila(persona) -%}
+  <a class="perfil-persona" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
+    {% if persona.tiene_foto %}
+      <img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
+    {% else %}
+      <span class="conexion-avatar" aria-hidden="true">{{ persona.nombre[:1] }}{{ persona.apellido[:1] }}</span>
+    {% endif %}
+    <span class="conexion-persona-datos"><strong>{{ persona.nombre }} {{ persona.apellido }}</strong>{% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}</span>
+  </a>
+{%- endmacro %}
+
 {% block contenido %}
-<section class="perfil-pagina">
-  <div class="contenedor perfil-editor">
-    <p class="perfil-etiqueta">Comunidad</p>
-    <h1 class="pagina-conexiones-titulo">Conexiones</h1>
+<section class="contenedor pagina-modulo pagina-perfil">
+  <a class="enlace-volver" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">← Mi perfil</a>
+  <header class="ficha-usuario fondo-oscuro">
+    <div class="ficha-usuario-datos">
+      <h1>Conexiones</h1>
+      <ul class="cifras-cabecera">
+        <li><strong>{{ conexiones | length }}</strong> {{ "conexión" if conexiones | length == 1 else "conexiones" }}</li>
+        <li><strong>{{ solicitudes_recibidas | length }}</strong> {{ "solicitud nueva" if solicitudes_recibidas | length == 1 else "solicitudes nuevas" }}</li>
+        <li><strong>{{ enviadas | length }}</strong> {{ "enviada" if enviadas | length == 1 else "enviadas" }}</li>
+      </ul>
+    </div>
+  </header>
 
-    <section class="perfil-seccion">
-      <h2>Solicitudes recibidas <span class="contador-conexiones">{{ solicitudes_recibidas|length }}</span></h2>
-      {% if solicitudes_recibidas %}
-        <ul class="perfil-conexiones">
-          {% for persona in solicitudes_recibidas %}
-            <li>
-              <a class="perfil-persona perfil-persona-avatar" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
-                {% if persona.tiene_foto %}
-                  <img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
-                {% else %}
-                  <span class="conexion-avatar conexion-avatar-iniciales" aria-hidden="true">{{ persona.nombre[0] }}{{ persona.apellido[0] }}</span>
-                {% endif %}
-                <span class="conexion-persona-datos"><strong>{{ persona.nombre }} {{ persona.apellido }}</strong>{% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}</span>
-              </a>
-              <div class="perfil-decision">
-                <form method="post" action="{{ url_for('perfil.aceptar_conexion', usuario_id=estudiante.id, solicitante_id=persona.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="boton boton-aceptar" type="submit">Aceptar</button>
-                </form>
-                <form method="post" action="{{ url_for('perfil.rechazar_conexion', usuario_id=estudiante.id, solicitante_id=persona.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="boton boton-rechazar" type="submit">Rechazar</button>
-                </form>
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="perfil-vacio">No tenés solicitudes nuevas.</p>
-      {% endif %}
-    </section>
+  {% if solicitudes_recibidas %}
+    <h2 class="subtitulo">Solicitudes recibidas</h2>
+    <ul class="perfil-conexiones">
+      {% for persona in solicitudes_recibidas %}
+        <li class="conexion-nueva">
+          {{ persona_fila(persona) }}
+          <div class="perfil-decision">
+            <form method="post" action="{{ url_for('perfil.aceptar_conexion', usuario_id=estudiante.id, solicitante_id=persona.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="boton boton-primario" type="submit">Aceptar</button>
+            </form>
+            <form method="post" action="{{ url_for('perfil.rechazar_conexion', usuario_id=estudiante.id, solicitante_id=persona.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="boton boton-suave" type="submit">Rechazar</button>
+            </form>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
 
-    <section class="perfil-seccion">
-      <h2>Mis conexiones <span class="contador-conexiones">{{ conexiones|length }}</span></h2>
-      {% if conexiones %}
-        <ul class="perfil-conexiones">
-          {% for persona in conexiones %}
-            <li>
-              <a class="perfil-persona perfil-persona-avatar" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
-                {% if persona.tiene_foto %}
-                  <img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
-                {% else %}
-                  <span class="conexion-avatar conexion-avatar-iniciales" aria-hidden="true">{{ persona.nombre[0] }}{{ persona.apellido[0] }}</span>
-                {% endif %}
-                <span class="conexion-persona-datos"><strong>{{ persona.nombre }} {{ persona.apellido }}</strong>{% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}</span>
-              </a>
-              <a class="boton boton-chat-pequeno" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Abrir chat</a>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="perfil-vacio">Todavía no tenés conexiones aceptadas.</p>
-      {% endif %}
-    </section>
+  <h2 class="subtitulo">Mis conexiones</h2>
+  {% if conexiones %}
+    <ul class="perfil-conexiones">
+      {% for persona in conexiones %}
+        <li>
+          {{ persona_fila(persona) }}
+          <a class="boton boton-suave" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Abrir chat</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="perfil-vacio">
+      <p>Todavía no tenés conexiones. Entrá al perfil de un compañero, por ejemplo desde los inscriptos de una actividad, y pedile conexión.</p>
+      <a class="boton boton-suave" href="{{ url_for('actividades.index') }}">Ver actividades</a>
+    </div>
+  {% endif %}
 
-    <section class="perfil-seccion">
-      <h2>Solicitudes enviadas <span class="contador-conexiones">{{ enviadas|length }}</span></h2>
-      {% if enviadas %}
-        <ul class="perfil-conexiones">
-          {% for persona in enviadas %}
-            <li>
-              <a class="perfil-persona" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
-                <strong>{{ persona.nombre }} {{ persona.apellido }}</strong>
-                {% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}
-              </a>
-              <span class="estado-solicitud">Pendiente</span>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="perfil-vacio">No tenés solicitudes pendientes.</p>
-      {% endif %}
-    </section>
-  </div>
+  {% if enviadas %}
+    <h2 class="subtitulo">Solicitudes enviadas</h2>
+    <ul class="perfil-conexiones">
+      {% for persona in enviadas %}
+        <li>
+          {{ persona_fila(persona) }}
+          <span class="estado estado-inactivo">Pendiente</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
 </section>
 {% endblock %}

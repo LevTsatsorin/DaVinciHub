@@ -3,28 +3,40 @@
 {% block titulo %}Chat con {{ estudiante.nombre }} — Da Vinci Hub{% endblock %}
 
 {% block contenido %}
-<section class="perfil-pagina">
-  <div class="contenedor perfil-editor">
-    <a class="perfil-volver" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">← Volver al perfil</a>
-    <h1>Chat con {{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
-    <ol class="chat-mensajes" aria-label="Conversación">
-      {% for mensaje in mensajes %}
-        <li class="chat-mensaje {% if mensaje.emisor_id == g.usuario.id %}chat-mensaje-propio{% else %}chat-mensaje-ajeno{% endif %}">
-          <span class="chat-mensaje-autor">{{ mensaje.emisor_nombre }} {{ mensaje.emisor_apellido }}</span>
-          <p>{{ mensaje.cuerpo }}</p>
-          <time>{{ mensaje.creado }}</time>
-        </li>
-      {% else %}
-        <li class="perfil-vacio">Todavía no hay mensajes. Iniciá la conversación.</li>
-      {% endfor %}
-    </ol>
-    <form class="formulario perfil-formulario perfil-mensaje chat-componer" method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<section class="contenedor pagina-modulo pagina-perfil">
+  <a class="enlace-volver" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">← Perfil de {{ estudiante.nombre }}</a>
+  <header class="ficha-usuario chat-cabecera fondo-oscuro">
+    {% if estudiante.tiene_foto %}
+      <img class="ficha-usuario-avatar perfil-avatar" src="{{ url_for('perfil.foto', usuario_id=estudiante.id) }}" alt="">
+    {% else %}
+      <span class="ficha-usuario-avatar perfil-avatar" aria-hidden="true">{{ estudiante.nombre[:1] }}{{ estudiante.apellido[:1] }}</span>
+    {% endif %}
+    <div class="ficha-usuario-datos">
+      <h1>Chat con {{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
+      {% if estudiante.carrera %}<p class="ficha-usuario-email">{{ estudiante.carrera }}</p>{% endif %}
+    </div>
+  </header>
+
+  <ol class="chat-mensajes" aria-label="Conversación">
+    {% for mensaje in mensajes %}
+      <li class="chat-mensaje {% if mensaje.emisor_id == g.usuario.id %}chat-mensaje-propio{% else %}chat-mensaje-ajeno{% endif %}">
+        <span class="chat-mensaje-autor">{{ mensaje.emisor_nombre }} {{ mensaje.emisor_apellido }}</span>
+        <p>{{ mensaje.cuerpo }}</p>
+        <time datetime="{{ mensaje.creado }}">{{ mensaje.creado | fecha_corta }}</time>
+      </li>
+    {% else %}
+      <li class="chat-vacio">Todavía no hay mensajes. Escribile abajo para empezar la conversación.</li>
+    {% endfor %}
+  </ol>
+
+  <form class="formulario chat-componer" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="campo">
       <label for="cuerpo">Mensaje</label>
       <textarea id="cuerpo" name="cuerpo" maxlength="2000" required>{{ cuerpo }}</textarea>
       {% if error %}<p class="error-texto">{{ error }}</p>{% endif %}
-      <button class="boton boton-primario" type="submit">Enviar</button>
-    </form>
-  </div>
+    </div>
+    <button class="boton boton-primario" type="submit">Enviar mensaje</button>
+  </form>
 </section>
 {% endblock %}

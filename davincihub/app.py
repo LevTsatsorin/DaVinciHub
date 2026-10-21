@@ -3,7 +3,7 @@ import os
 from flask import Flask, g, render_template, url_for
 from flask_wtf.csrf import CSRFProtect
 
-from davincihub import academico, actividades, auth, db, notificaciones, seguridad, usuarios, perfil
+from davincihub import academico, actividades, auth, db, notificaciones, perfil, seguridad, usuarios
 from davincihub import inicio as pagina_inicio
 from davincihub.reservas import rutas as reservas_rutas
 
