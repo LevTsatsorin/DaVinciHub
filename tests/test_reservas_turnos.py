@@ -136,3 +136,15 @@ def test_admin_de_espacios_vuelve_al_catalogo(client):
     login(client, "admin@davinci.edu.ar")
     texto = client.get("/admin/espacios/").get_data(as_text=True)
     assert 'class="enlace-volver" href="/espacios/"' in texto
+
+
+def test_reservar_con_personas_enormes_no_rompe(client, app):
+    with app.app_context():
+        sala = datos.crear_espacio("Patio")
+        datos.reemplazar_horarios_espacio(sala, [{"dia_semana": 0, "abre": "09:00", "cierra": "11:00"}])
+    login(client)
+    respuesta = client.post(f"/espacios/{sala}/reservar", data={
+        "fecha": "2030-01-07", "inicio": "09:00", "fin": "10:00", "motivo": "Ensayo", "personas": "3000000000"})
+    assert respuesta.status_code == 302
+    with app.app_context():
+        assert db.query_one("SELECT COUNT(*) AS n FROM reservas WHERE espacio_id = :e", e=sala)["n"] == 0

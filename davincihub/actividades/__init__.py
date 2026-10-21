@@ -60,9 +60,18 @@ def duracion(act: dict) -> str:
 
 def _mes_pedido(valor: str | None, por_defecto: date) -> date:
     try:
-        return datetime.strptime(valor or "", "%Y-%m").date()
+        mes = datetime.strptime(valor or "", "%Y-%m").date()
     except ValueError:
         return por_defecto.replace(day=1)
+    return mes if 2000 <= mes.year <= 2100 else por_defecto.replace(day=1)
+
+
+def _dia_pedido(valor: str | None, mes: date) -> str:
+    try:
+        dia = date.fromisoformat(valor or "")
+    except ValueError:
+        return ""
+    return dia.isoformat() if (dia.year, dia.month) == (mes.year, mes.month) else ""
 
 
 def _mes_siguiente(mes: date) -> date:
@@ -78,9 +87,7 @@ def index():
 
     mes = _mes_pedido(request.args.get("mes"), date.fromisoformat(destacada["inicio"][:10]) if destacada else hoy)
     siguiente = _mes_siguiente(mes)
-    dia = request.args.get("dia", "")
-    if not (dia[:7] == mes.isoformat()[:7] and len(dia) == 10):
-        dia = ""
+    dia = _dia_pedido(request.args.get("dia"), mes)
     desde, hasta = (dia, (date.fromisoformat(dia) + timedelta(days=1)).isoformat()) if dia \
         else (mes.isoformat(), siguiente.isoformat())
     excluir = None if dia or not destacada else destacada["id"]

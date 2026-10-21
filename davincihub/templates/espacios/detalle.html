@@ -69,7 +69,7 @@
                    placeholder="Ej.: grupo de estudio de Programación II">
           </label>
           <label>Personas
-            <input name="personas" type="number" min="1" {% if espacio.capacidad %}max="{{ espacio.capacidad }}" placeholder="Máx. {{ espacio.capacidad }}"{% endif %}
+            <input name="personas" type="number" min="1" {% if espacio.capacidad %}max="{{ espacio.capacidad }}" placeholder="Máx. {{ espacio.capacidad }}"{% else %}max="10000"{% endif %}
                    required inputmode="numeric" value="{{ formulario.personas or '' }}">
           </label>
           <button class="boton boton-primario" type="submit" data-confirmar-reserva>Confirmar reserva</button>

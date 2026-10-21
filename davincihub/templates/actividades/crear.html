@@ -76,7 +76,7 @@
                        placeholder="Ej.: Torneo de Street Fighter">
               </label>
               <label>Cupo
-                <input name="cupo_maximo" type="number" min="1" {% if espacio.capacidad %}max="{{ espacio.capacidad }}" placeholder="Máx. {{ espacio.capacidad }}"{% endif %}
+                <input name="cupo_maximo" type="number" min="1" {% if espacio.capacidad %}max="{{ espacio.capacidad }}" placeholder="Máx. {{ espacio.capacidad }}"{% else %}max="10000"{% endif %}
                        required inputmode="numeric" value="{{ formulario.cupo_maximo or '' }}">
               </label>
               <label class="campo-descripcion">De qué se trata

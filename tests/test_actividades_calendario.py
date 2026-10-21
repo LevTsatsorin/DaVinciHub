@@ -59,3 +59,18 @@ def test_elegir_un_dia_filtra_la_lista(client, doce_en_enero):
 def test_un_mes_invalido_no_rompe_la_pagina(client):
     login(client)
     assert client.get("/actividades/?mes=2030-13&pagina=abc").status_code == 200
+
+
+@pytest.mark.parametrize("consulta", [
+    "mes=2026-11&dia=2026-11-99", "mes=2026-02&dia=2026-02-30", "mes=2026-11&dia=2026-11-1x",
+    "dia=2026-02-30", "mes=9999-12", "mes=0001-01", "mes=9999-12&dia=9999-12-31"])
+def test_parametros_raros_no_rompen_el_listado(client, consulta):
+    login(client)
+    assert client.get(f"/actividades/?{consulta}").status_code == 200
+
+
+def test_el_calendario_no_cuenta_actividades_terminadas(client, app, monkeypatch, doce_en_enero):
+    monkeypatch.setattr(datos, "ahora_local", lambda: "2030-01-10T12:00:00")
+    login(client)
+    texto = client.get("/actividades/?mes=2030-01").get_data(as_text=True)
+    assert texto.count("dia-con-actividad") == 7

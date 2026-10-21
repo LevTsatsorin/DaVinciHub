@@ -46,10 +46,15 @@ def crear_actividad(
         raise ErrorActividad("Elegí a qué hora termina la actividad.")
     try:
         cupo = int(cupo_maximo)
-        if cupo <= 0:
+        if not 0 < cupo <= reservas.MAXIMO_PERSONAS:
             raise ValueError
     except (ValueError, TypeError) as error:
-        raise ErrorActividad("El cupo máximo debe ser un número entero mayor a 0.") from error
+        raise ErrorActividad(
+            f"El cupo máximo tiene que ser un número entre 1 y {reservas.MAXIMO_PERSONAS:,}.".replace(",", ".")
+        ) from error
+    espacio = reservas.obtener_espacio(espacio_id)
+    if espacio and espacio["capacidad"] and cupo > espacio["capacidad"]:
+        raise ErrorActividad(f"El cupo supera la capacidad de {espacio['nombre']} ({espacio['capacidad']} personas).")
 
     try:
         with db.transaccion():
@@ -198,13 +203,15 @@ def contar_actividades_publicas(desde: str | None = None, hasta: str | None = No
 
 
 def dias_con_actividades(desde: str, hasta: str) -> dict[str, int]:
-    """Cantidad de actividades aprobadas por día en un período, para el calendario."""
+    """Cantidad de actividades aprobadas que todavía no terminaron, por día, para el calendario."""
     filas = db.query(
         "SELECT substr(inicio, 1, 10) AS dia, count(*) AS n FROM actividades"
         " WHERE estado = 'aprobada' AND inicio >= :desde AND inicio < :hasta"
+        "   AND COALESCE(fin, inicio) >= :ahora"
         " GROUP BY substr(inicio, 1, 10)",
         desde=desde,
         hasta=hasta,
+        ahora=ahora_local(),
     )
     return {fila["dia"]: fila["n"] for fila in filas}
 

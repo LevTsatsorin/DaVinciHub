@@ -17,6 +17,7 @@ DIAS_SEMANA = {
 LARGO_NOMBRE = 80
 LARGO_DESCRIPCION = 300
 LIMITE_MOTIVO = 120
+MAXIMO_PERSONAS = 10_000
 
 _FORMATO_HORA = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
@@ -479,6 +480,8 @@ def crear_reserva(
         raise ErrorReserva(f"El motivo admite hasta {LIMITE_MOTIVO} caracteres.")
     if personas is not None and personas < 1:
         raise ErrorReserva("Indicá cuántas personas van a usar el espacio.")
+    if personas is not None and personas > MAXIMO_PERSONAS:
+        raise ErrorReserva(f"Una reserva admite hasta {MAXIMO_PERSONAS:,} personas.".replace(",", "."))
 
     if dt_ini < datetime.fromisoformat(ahora_local()):
         raise ErrorHorarioInvalido("No se puede reservar en el pasado.")

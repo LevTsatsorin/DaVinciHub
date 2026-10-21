@@ -142,3 +142,22 @@ def test_el_detalle_muestra_lugar_duracion_y_otras(client, app, sala):
     assert f"/espacios/{sala}?fecha=2030-01-07" in texto
     assert "2 h" in texto
     assert "Otras actividades" in texto and "Club de lectura" in texto
+
+
+@pytest.mark.parametrize("cupo", ["3000000000", "2147483648"])
+def test_un_cupo_enorme_se_rechaza_con_un_mensaje(client, app, cupo):
+    with app.app_context():
+        sin_capacidad = reservas.crear_espacio("Patio")
+        reservas.reemplazar_horarios_espacio(sin_capacidad, [{"dia_semana": 0, "abre": "09:00", "cierra": "21:00"}])
+    login(client)
+    texto = client.post("/actividades/crear", follow_redirects=True, data={
+        "espacio_id": sin_capacidad, "fecha": "2030-01-07", "inicio": "18:00", "fin": "20:00",
+        "nombre": "Recital", "descripcion": "Bandas del instituto.", "cupo_maximo": cupo}).get_data(as_text=True)
+    assert "cupo" in texto.lower() and 'class="aviso aviso-error"' in texto
+    with app.app_context():
+        assert db.query_one("SELECT COUNT(*) AS n FROM actividades WHERE nombre = 'Recital'")["n"] == 0
+
+
+def test_cupo_mayor_a_la_capacidad_habla_de_cupo(app, sala):
+    with app.app_context(), pytest.raises(datos.ErrorActividad, match="cupo"):
+        _proponer(sala, cupo_maximo=41)
