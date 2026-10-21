@@ -6,6 +6,7 @@ TABLAS = {
     "carreras",
     "materias",
     "usuarios",
+    "fotos_perfil",
     "bloqueos",
     "conexiones",
     "preguntas",
@@ -42,6 +43,15 @@ def test_demo_tiene_admin(app):
         admin = db.query_one("SELECT * FROM usuarios WHERE rol = :rol", rol="admin")
         assert admin is not None
         assert admin["bloqueado"] == 0
+
+
+def test_migracion_fotos_perfil_es_idempotente(app):
+    with app.app_context():
+        db.execute("DROP TABLE fotos_perfil")
+        db.migrar()
+        db.migrar()
+        tablas = db.query("SELECT name FROM sqlite_master WHERE type = :tipo", tipo="table")
+        assert "fotos_perfil" in {fila["name"] for fila in tablas}
 
 
 def _insertar_usuario(email):

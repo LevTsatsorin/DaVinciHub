@@ -26,9 +26,24 @@
         <a href="{{ url_for('academico.lista') }}"{% if request.blueprint == 'academico' %} aria-current="page"{% endif %}>Carreras</a>
       {% endif %}
     </div>
-    <div class="barra-acciones">
+    <div class="barra-acciones {% if g.usuario and g.usuario.rol == 'estudiante' %}barra-acciones-perfil{% endif %}">
       {% if g.usuario %}
         <span class="usuario-nombre">{{ g.usuario.nombre }}</span>
+        {% if g.usuario.rol == 'estudiante' %}
+          <details class="menu-perfil">
+            <summary class="menu-perfil-avatar" aria-label="Abrir menú de perfil" title="Opciones de perfil">
+              {% if g.usuario.tiene_foto %}
+                <img src="{{ url_for('perfil.foto', usuario_id=g.usuario.id) }}" alt="">
+              {% else %}
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.5-3.5 3.2-5.5 7-5.5s6.5 2 7 5.5"/></svg>
+              {% endif %}
+            </summary>
+            <nav class="menu-perfil-opciones" aria-label="Opciones de perfil">
+              <a href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
+              <a href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
+            </nav>
+          </details>
+        {% endif %}
         <form method="post" action="{{ url_for('auth.salir') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="boton" type="submit">Salir</button>
@@ -63,6 +78,10 @@
     <p class="menu-usuario">Hola, <strong>{{ g.usuario.nombre }}</strong></p>
   {% endif %}
   <nav class="menu-enlaces">
+    {% if g.usuario and g.usuario.rol == 'estudiante' %}
+      <a class="menu-enlace menu-enlace-perfil" href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
+      <a class="menu-enlace menu-enlace-conexiones" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
+    {% endif %}
     <a class="menu-enlace modulo-foro" href="#">Foro académico</a>
     <a class="menu-enlace modulo-objetos" href="#">Objetos</a>
     <a class="menu-enlace modulo-reservas" href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>

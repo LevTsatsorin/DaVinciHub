@@ -18,6 +18,7 @@ DROP TABLE IF EXISTS respuestas;
 DROP TABLE IF EXISTS preguntas;
 DROP TABLE IF EXISTS conexiones;
 DROP TABLE IF EXISTS catedras;
+DROP TABLE IF EXISTS fotos_perfil;
 DROP TABLE IF EXISTS usuarios;
 DROP TABLE IF EXISTS materias;
 DROP TABLE IF EXISTS carreras;
@@ -52,6 +53,13 @@ CREATE TABLE usuarios (
     bloqueado INTEGER NOT NULL DEFAULT 0 CHECK (bloqueado IN (0, 1)),
     catedra INTEGER NOT NULL DEFAULT 0 CHECK (catedra IN (0, 1)),
     creado TEXT NOT NULL
+);
+
+CREATE TABLE fotos_perfil (
+    usuario_id INTEGER PRIMARY KEY REFERENCES usuarios (id),
+    tipo TEXT NOT NULL,
+    contenido BYTEA NOT NULL,
+    actualizado TEXT NOT NULL
 );
 
 CREATE TABLE bloqueos (
