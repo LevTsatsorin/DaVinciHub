@@ -1,0 +1,5 @@
+<select id="cuatrimestre" name="cuatrimestre" required>
+  {% for n in range(1, (carrera.duracion_anios or 1) * 2 + 1) %}
+    <option value="{{ n }}"{% if elegido | string == n | string %} selected{% endif %}>{{ n }}.º cuatrimestre · {{ (n + 1) // 2 }}.º año</option>
+  {% endfor %}
+</select>

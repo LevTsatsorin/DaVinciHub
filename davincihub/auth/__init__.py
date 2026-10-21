@@ -2,6 +2,7 @@ from flask import Blueprint, flash, g, redirect, render_template, request, sessi
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from davincihub import db, seguridad, validacion
+from davincihub.academico import datos as academico_datos
 from davincihub.utiles import ahora
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -59,7 +60,7 @@ def registro_datos():
             )
             flash("¡Listo! Tu cuenta quedó completa.")
             return redirect(url_for("inicio"))
-    carreras = db.query("SELECT id, nombre FROM carreras WHERE activa = 1 ORDER BY nombre")
+    carreras = academico_datos.carreras_activas()
     return render_template(
         "auth/registro_datos.html", errores=errores, carreras=carreras, datos=request.form
     )

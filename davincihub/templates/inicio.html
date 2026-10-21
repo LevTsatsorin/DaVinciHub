@@ -1,33 +1,141 @@
 {% extends "base.html" %}
 
 {% block contenido %}
-<section class="portada portada-ilustrada">
-  <div class="contenedor portada-contenido">
-    <h1>Da Vinci <span class="acento">Hub</span></h1>
-    <p>Toda la vida estudiantil de la Da Vinci, en un solo lugar.</p>
-    <div class="portada-acciones">
-      <a class="boton boton-grande" href="{{ url_for('auth.login') }}">Ingresar</a>
+{% if g.usuario %}
+  <section class="portada portada-ilustrada portada-compacta">
+    <div class="contenedor portada-contenido">
+      <h1>Hola, {{ g.usuario.nombre }}</h1>
+      <p>Esto es lo que tenés por delante en el Hub.</p>
+      <div class="portada-acciones">
+        <a class="boton boton-grande" href="{{ url_for('espacios.catalogo') }}">Reservar un espacio</a>
+        <a class="boton boton-fantasma" href="{{ url_for('actividades.crear') }}">{{ "Crear actividad" if g.usuario.rol == 'admin' else "Proponer actividad" }}</a>
+      </div>
     </div>
-  </div>
-</section>
-<section class="contenedor modulos">
-  <article class="modulo-foro">
-    <h2>Foro académico</h2>
-    <p>Preguntas y respuestas por materia, con estudiantes de cátedra reconocidos.</p>
-  </article>
-  <article class="modulo-objetos">
-    <h2>Objetos</h2>
-    <p>Vendé, intercambiá o prestá materiales entre estudiantes.</p>
-  </article>
-  <article class="modulo-reservas">
-    <h2>Reservas</h2>
-    <p>Espacios y recursos de la escuela, sin superposiciones.</p>
-  </article>
-  <a href="{{ url_for('actividades.index') }}" style="text-decoration: none; color: inherit; display: block;">
-    <article class="modulo-actividades">
-      <h2>Actividades</h2>
-      <p>Encuentros creados por estudiantes, con cupo e inscripción.</p>
-    </article>
-  </a>
-</section>
+  </section>
+{% else %}
+  <section class="portada portada-ilustrada">
+    <div class="contenedor portada-contenido">
+      <h1>Da Vinci <span class="acento">Hub</span></h1>
+      <p>Toda la vida estudiantil de la Da Vinci, en un solo lugar.</p>
+      <div class="portada-acciones">
+        <a class="boton boton-grande" href="{{ url_for('auth.login') }}">Ingresar</a>
+        <a class="boton boton-fantasma" href="{{ url_for('auth.registro') }}">Crear cuenta</a>
+      </div>
+    </div>
+  </section>
+{% endif %}
+
+<div class="contenedor pagina-inicio">
+  {% if pendientes %}
+    <section class="inicio-bloque" aria-labelledby="titulo-revisar">
+      <h2 id="titulo-revisar">Para revisar</h2>
+      <div class="inicio-pendientes">
+        <a class="pendiente-tarjeta{% if pendientes.actividades %} pendiente-urgente{% endif %}" href="{{ url_for('actividades.admin_panel', estado='pendiente') }}">
+          <strong>{{ pendientes.actividades }}</strong>
+          <span>{{ "actividad por moderar" if pendientes.actividades == 1 else "actividades por moderar" }}</span>
+        </a>
+        <a class="pendiente-tarjeta" href="{{ url_for('espacios.reservas_admin_todas') }}">
+          <strong>{{ pendientes.reservas_semana }}</strong>
+          <span>{{ "reserva" if pendientes.reservas_semana == 1 else "reservas" }} en los próximos 7 días</span>
+        </a>
+        <a class="pendiente-tarjeta" href="{{ url_for('usuarios.lista', estado='bloqueado') }}">
+          <strong>{{ pendientes.bloqueados }}</strong>
+          <span>{{ "cuenta bloqueada" if pendientes.bloqueados == 1 else "cuentas bloqueadas" }}</span>
+        </a>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if g.usuario %}
+    <section class="inicio-bloque" aria-labelledby="titulo-agenda">
+      <h2 id="titulo-agenda">Tu agenda</h2>
+      <div class="inicio-agenda">
+        <article class="agenda-tarjeta agenda-reservas">
+          <header>
+            <h3><svg class="agenda-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M8 2.5v4M16 2.5v4"/></svg>Próximas reservas</h3>
+            <a href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
+          </header>
+          {% if mis_reservas %}
+            <ul>
+              {% for r in mis_reservas %}
+                <li>
+                  <a href="{{ url_for('actividades.detalle', actividad_id=r.actividad_id) if r.actividad_id else url_for('espacios.mis_reservas') }}">
+                    <span class="agenda-cuando"><strong>{{ r.inicio | dia_y_fecha }}</strong> {{ r.inicio[11:16] }}–{{ r.fin[11:16] }}</span>
+                    <span class="agenda-que">{{ r.espacio_nombre }}</span>
+                    {% if r.motivo %}<span class="agenda-detalle">{{ r.motivo }}</span>{% endif %}
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="agenda-vacia">No tenés reservas próximas.</p>
+            <a class="boton boton-suave" href="{{ url_for('espacios.catalogo') }}">Buscar un espacio</a>
+          {% endif %}
+        </article>
+        <article class="agenda-tarjeta agenda-actividades">
+          <header>
+            <h3><svg class="agenda-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>Tus actividades</h3>
+            <a href="{{ url_for('actividades.mis_actividades') }}">Mis actividades</a>
+          </header>
+          {% if mis_actividades %}
+            <ul>
+              {% for a in mis_actividades %}
+                <li>
+                  <a href="{{ url_for('actividades.detalle', actividad_id=a.id) }}">
+                    <span class="agenda-cuando"><strong>{{ a.inicio | dia_y_fecha }}</strong> {{ a.inicio[11:16] }}{% if a.fin %}–{{ a.fin[11:16] }}{% endif %}</span>
+                    <span class="agenda-que">{{ a.nombre }}</span>
+                    <span class="agenda-detalle">{{ a.rol_mio }}{% if a.estado == 'pendiente' %} · en revisión{% endif %}</span>
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="agenda-vacia">Todavía no te anotaste en ninguna actividad.</p>
+            <a class="boton boton-suave" href="{{ url_for('actividades.index') }}">Ver actividades</a>
+          {% endif %}
+        </article>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if proximas %}
+    <section class="inicio-bloque" aria-labelledby="titulo-proximas">
+      <div class="inicio-bloque-cabecera">
+        <h2 id="titulo-proximas">Próximas actividades</h2>
+        <a href="{{ url_for('actividades.index') }}">Ver calendario</a>
+      </div>
+      <div class="actividades-filas">
+        {% for act in proximas %}
+          <a class="actividad-fila" href="{{ url_for('actividades.detalle', actividad_id=act.id) }}">
+            {% include "actividades/_tarjeta.html" %}
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if not g.usuario %}
+  <section class="inicio-bloque" aria-labelledby="titulo-modulos">
+    <h2 id="titulo-modulos">Todo el Hub</h2>
+    <div class="modulos">
+      <article class="modulo-foro modulo-pronto">
+        <h3>Foro académico <span class="etiqueta-pronto">Próximamente</span></h3>
+        <p>Preguntas y respuestas por materia, con estudiantes de cátedra reconocidos.</p>
+      </article>
+      <article class="modulo-objetos modulo-pronto">
+        <h3>Objetos <span class="etiqueta-pronto">Próximamente</span></h3>
+        <p>Vendé, intercambiá o prestá materiales entre estudiantes.</p>
+      </article>
+      <a class="modulo-reservas" href="{{ url_for('espacios.catalogo') }}">
+        <h3>Reservas</h3>
+        <p>Aulas, laboratorios y estudios de la escuela, sin superposiciones.</p>
+      </a>
+      <a class="modulo-actividades" href="{{ url_for('actividades.index') }}">
+        <h3>Actividades</h3>
+        <p>Encuentros creados por estudiantes, con cupo e inscripción.</p>
+      </a>
+    </div>
+  </section>
+  {% endif %}
+</div>
 {% endblock %}

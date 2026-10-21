@@ -7,6 +7,8 @@ from pathlib import Path
 import click
 from flask import current_app, g
 
+from davincihub.utiles import sin_acentos
+
 
 class ErrorIntegridad(Exception):
     pass
@@ -43,6 +45,7 @@ def get_db():
             conexion = sqlite3.connect(ruta, isolation_level=None)
             conexion.row_factory = sqlite3.Row
             conexion.execute("PRAGMA foreign_keys = ON")
+            conexion.create_function("sin_acentos", 1, lambda t: sin_acentos(t) if t else t, deterministic=True)
             g.db = conexion
             g.db_es_pg = False
     return g.db
@@ -68,6 +71,18 @@ def _ejecutar(sql: str, params: dict):
         return conexion.execute(sql, params)
     except sqlite3.IntegrityError as error:
         raise ErrorIntegridad(str(error)) from error
+
+
+_CON_ACENTO = "áàäâãéèëêíìïîóòöôõúùüûñç"
+_SIN_ACENTO = "aaaaaeeeeiiiiooooouuuunc"
+
+
+def sql_sin_acentos(expresion: str) -> str:
+    """Expresión SQL que pasa el texto a minúsculas y sin acentos, igual que utiles.sin_acentos."""
+    get_db()
+    if g.db_es_pg:
+        return f"translate(lower({expresion}), '{_CON_ACENTO}', '{_SIN_ACENTO}')"
+    return f"sin_acentos({expresion})"
 
 
 def _confirmar():
