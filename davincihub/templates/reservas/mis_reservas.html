@@ -39,8 +39,8 @@
             {% include "espacios/_reserva_detalles.html" %}
           </div>
           {% if reserva.actividad_id %}
-            <a class="nota reserva-actividad" href="{{ url_for('actividades.detalle', actividad_id=reserva.actividad_id) }}">
-              Para la actividad{% if reserva.actividad_estado == 'pendiente' %} · en revisión{% endif %}
+            <a class="boton boton-suave" href="{{ url_for('actividades.detalle', actividad_id=reserva.actividad_id) }}">
+              {{ "Actividad en revisión" if reserva.actividad_estado == 'pendiente' else "Ver actividad" }}
             </a>
           {% elif reserva.puede_cancelar %}
             <form method="post" action="{{ url_for('espacios.cancelar', reserva_id=reserva.id) }}"

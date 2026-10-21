@@ -110,7 +110,7 @@ def test_mis_reservas_marca_la_reserva_de_la_actividad(client, app, sala):
         _proponer(sala)
     login(client)
     texto = client.get("/reservas/mis-reservas/").get_data(as_text=True)
-    assert "Para la actividad" in texto
+    assert "Actividad en revisión" in texto and "Cancelar reserva" not in texto
 
 
 def test_la_actividad_del_admin_se_publica_sin_moderacion(client, app, sala):

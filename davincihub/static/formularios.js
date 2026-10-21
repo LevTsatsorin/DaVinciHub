@@ -36,3 +36,20 @@ document.addEventListener("invalid", (evento) => {
 ["input", "change"].forEach((tipo) => document.addEventListener(tipo, (evento) => {
   if (evento.target.setCustomValidity) evento.target.setCustomValidity("");
 }, true));
+
+const clavePosicion = `posicion:${location.pathname}`;
+
+try {
+  const guardada = sessionStorage.getItem(clavePosicion);
+  if (guardada !== null) {
+    sessionStorage.removeItem(clavePosicion);
+    window.scrollTo(0, Number(guardada));
+  }
+} catch {}
+
+document.addEventListener("submit", (evento) => {
+  if (evento.defaultPrevented || !evento.target.matches("[data-mantener-posicion]")) return;
+  try {
+    sessionStorage.setItem(clavePosicion, String(window.scrollY));
+  } catch {}
+});

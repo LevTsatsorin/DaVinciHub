@@ -131,11 +131,27 @@ def _leer_sql(nombre: str) -> str:
         return archivo.read().decode("utf8")
 
 
-# columnas agregadas después del primer deploy: se crean solas al arrancar
+# columnas y tablas agregadas después del primer deploy: se crean solas al arrancar
 COLUMNAS_AGREGADAS = [
     ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
     ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
     ("actividades", "reserva_id", "INTEGER REFERENCES reservas (id)"),
+    ("usuarios", "catedra", "INTEGER NOT NULL DEFAULT 0 CHECK (catedra IN (0, 1))"),
+]
+
+TABLAS_AGREGADAS = {
+    "bloqueos": """CREATE TABLE IF NOT EXISTS bloqueos (
+        id {{PK}},
+        usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+        admin_id INTEGER NOT NULL REFERENCES usuarios (id),
+        accion TEXT NOT NULL CHECK (accion IN ('bloqueo', 'desbloqueo')),
+        motivo TEXT NOT NULL,
+        creado TEXT NOT NULL
+    )""",
+}
+
+INDICES_AGREGADOS = [
+    ("bloqueos", "CREATE INDEX IF NOT EXISTS idx_bloqueos_usuario ON bloqueos (usuario_id, creado)"),
 ]
 
 
@@ -150,7 +166,21 @@ def _columnas(tabla: str) -> set[str]:
     return {f["name"] for f in query(f"PRAGMA table_info({tabla})")}
 
 
+def _clave_primaria() -> str:
+    get_db()
+    if g.db_es_pg:
+        return "INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
+    return "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+
 def migrar():
+    if _columnas("usuarios"):
+        for tabla, definicion in TABLAS_AGREGADAS.items():
+            if not _columnas(tabla):
+                execute(definicion.replace("{{PK}}", _clave_primaria()))
+        for tabla, indice in INDICES_AGREGADOS:
+            if _columnas(tabla):
+                execute(indice)
     for tabla, columna, definicion in COLUMNAS_AGREGADAS:
         existentes = _columnas(tabla)
         if existentes and columna not in existentes:
@@ -160,12 +190,7 @@ def migrar():
 
 def init_db(demo: bool = False):
     conexion = get_db()
-    pk = (
-        "INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
-        if g.db_es_pg
-        else "INTEGER PRIMARY KEY AUTOINCREMENT"
-    )
-    esquema = _leer_sql("schema.sql").replace("{{PK}}", pk)
+    esquema = _leer_sql("schema.sql").replace("{{PK}}", _clave_primaria())
     if g.db_es_pg:
         conexion.execute(esquema)
     else:

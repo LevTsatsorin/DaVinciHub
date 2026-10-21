@@ -1,11 +1,10 @@
-import unicodedata
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
 
 from davincihub import db, seguridad
 from davincihub.reservas import datos
-from davincihub.utiles import ZONA_LOCAL, ahora_local, hoy_local
+from davincihub.utiles import ZONA_LOCAL, ahora_local, hoy_local, sin_acentos
 
 bp = Blueprint("espacios", __name__)
 
@@ -61,10 +60,6 @@ def dia_actual() -> int:
     return datetime.now(ZONA_LOCAL).weekday()
 
 
-def _sin_acentos(texto: str) -> str:
-    return "".join(c for c in unicodedata.normalize("NFD", texto.casefold()) if not unicodedata.combining(c))
-
-
 def _filtros_catalogo(args) -> dict:
     fecha = args.get("fecha", "")
     try:
@@ -88,7 +83,7 @@ def catalogo():
     filtros = _filtros_catalogo(request.args)
     espacios = [
         e for e in todos
-        if _sin_acentos(filtros["q"]) in _sin_acentos(e["nombre"])
+        if sin_acentos(filtros["q"]) in sin_acentos(e["nombre"])
         and (not filtros["personas"] or not e["capacidad"] or e["capacidad"] >= filtros["personas"])
     ]
     if filtros["fecha"]:

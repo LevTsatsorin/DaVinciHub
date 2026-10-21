@@ -2,3 +2,7 @@
   {%- set url = url_perfil(usuario_id, rol) -%}
   {%- if url %}<a class="enlace-persona" href="{{ url }}">{{ nombre }}</a>{% else %}{{ nombre }}{% endif -%}
 {%- endmacro %}
+
+{% macro insignia_catedra(usuario_id, materia_id) -%}
+  {%- if es_catedra(usuario_id, materia_id) %}<span class="insignia-catedra" title="Estudiante de cátedra: ya cursó esta materia">Cátedra</span>{% endif -%}
+{%- endmacro %}
