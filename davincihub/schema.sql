@@ -116,6 +116,7 @@ CREATE TABLE valoraciones_respuestas (
 CREATE TABLE publicaciones (
     id {{PK}},
     autor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    carrera_id INTEGER REFERENCES carreras (id),
     titulo TEXT NOT NULL,
     descripcion TEXT NOT NULL,
     categoria TEXT NOT NULL,

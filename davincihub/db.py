@@ -148,6 +148,7 @@ def _leer_sql(nombre: str) -> str:
 
 # columnas y tablas agregadas después del primer deploy: se crean solas al arrancar
 COLUMNAS_AGREGADAS = [
+    ("publicaciones", "carrera_id", "INTEGER REFERENCES carreras (id)"),
     ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
     ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
     ("actividades", "reserva_id", "INTEGER REFERENCES reservas (id)"),
