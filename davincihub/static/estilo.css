@@ -508,6 +508,19 @@ img.perfil-avatar { border: 2px solid rgba(255, 255, 255, 0.85); }
 .chat-vacio { margin: auto; color: var(--gris-texto); text-align: center; }
 .chat-componer { max-width: none; }
 .chat-componer textarea { min-height: 120px; }
+.chat-bandeja { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.chat-bandeja-conversacion { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--borde); border-radius: 14px; background: var(--fondo); color: inherit; text-decoration: none; transition: border-color 0.15s ease, transform 0.15s ease; }
+.chat-bandeja-conversacion:hover { border-color: var(--magenta); transform: translateY(-1px); }
+.chat-bandeja-avatar { display: grid; flex: 0 0 48px; width: 48px; aspect-ratio: 1; place-items: center; overflow: hidden; border-radius: 50%; background: var(--fondo-suave); color: var(--tinta); font-weight: 700; object-fit: cover; }
+.chat-bandeja-datos { display: grid; min-width: 0; flex: 1; }
+.chat-bandeja-nombre { font-weight: 700; }
+.chat-bandeja-ultimo { overflow: hidden; color: var(--gris-texto); text-overflow: ellipsis; white-space: nowrap; }
+.chat-bandeja-meta { display: grid; justify-items: end; gap: 6px; color: var(--gris-texto); font-size: 12px; }
+.chat-bandeja-no-leidos { min-width: 22px; padding: 1px 6px; border-radius: 12px; background: var(--magenta); color: #ffffff; font-size: 11px; font-weight: 700; text-align: center; }
+.chat-bandeja-vacia { display: grid; justify-items: center; margin: 24px 0; padding: 28px; border: 1px solid var(--borde); border-radius: 16px; background: var(--fondo); text-align: center; }
+.chat-bandeja-vacia img { width: min(100%, 360px); max-height: 240px; object-fit: contain; }
+.chat-bandeja-vacia h2 { margin: 12px 0 4px; font-size: 20px; }
+.chat-bandeja-vacia p { margin: 0; color: var(--gris-texto); }
 
 @media (max-width: 860px) {
   .perfil-metricas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -525,6 +538,9 @@ img.perfil-avatar { border: 2px solid rgba(255, 255, 255, 0.85); }
   .perfil-decision form { align-self: stretch; flex: 1 1 auto; text-align: center; }
   .perfil-decision .boton { width: 100%; }
   .chat-mensaje { max-width: 88%; }
+  .chat-bandeja-conversacion { gap: 10px; padding: 12px; }
+  .chat-bandeja-avatar { flex-basis: 42px; width: 42px; }
+  .chat-bandeja-meta time { max-width: 68px; text-align: right; }
 }
 
 /* --- reservas --- */

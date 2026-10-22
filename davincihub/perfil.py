@@ -318,6 +318,34 @@ def conexiones(usuario_id: int):
     )
 
 
+@bp.get("/chats")
+@seguridad.requiere_login
+def chats():
+    if g.usuario["rol"] != "estudiante":
+        abort(403)
+    conversaciones = db.query(
+        "SELECT u.id, u.nombre, u.apellido,"
+        " CASE WHEN f.usuario_id IS NULL THEN 0 ELSE 1 END AS tiene_foto,"
+        " m.cuerpo AS ultimo_mensaje, m.creado AS ultimo_creado,"
+        " m.emisor_id AS ultimo_emisor_id,"
+        " (SELECT count(*) FROM mensajes sin_leer"
+        "  WHERE sin_leer.emisor_id = u.id AND sin_leer.receptor_id = :yo"
+        "  AND sin_leer.leido = 0) AS sin_leer"
+        " FROM (SELECT DISTINCT CASE WHEN emisor_id = :yo THEN receptor_id"
+        "  ELSE emisor_id END AS otro_id FROM mensajes"
+        "  WHERE emisor_id = :yo OR receptor_id = :yo) pares"
+        " JOIN usuarios u ON u.id = pares.otro_id AND u.rol = 'estudiante' AND u.bloqueado = 0"
+        " LEFT JOIN fotos_perfil f ON f.usuario_id = u.id"
+        " JOIN mensajes m ON m.id = (SELECT ultimo.id FROM mensajes ultimo"
+        "  WHERE (ultimo.emisor_id = :yo AND ultimo.receptor_id = u.id)"
+        "  OR (ultimo.emisor_id = u.id AND ultimo.receptor_id = :yo)"
+        "  ORDER BY ultimo.creado DESC, ultimo.id DESC LIMIT 1)"
+        " ORDER BY m.creado DESC, m.id DESC",
+        yo=g.usuario["id"],
+    )
+    return render_template("perfil/chats.html", conversaciones=conversaciones)
+
+
 @bp.route("/<int:usuario_id>/chat", methods=("GET", "POST"))
 @seguridad.requiere_login
 def chat(usuario_id: int):
@@ -331,32 +359,39 @@ def chat(usuario_id: int):
         if not cuerpo or len(cuerpo) > 2000:
             error = "El mensaje debe tener entre 1 y 2000 caracteres."
         else:
-            db.execute(
-                "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, creado)"
-                " VALUES (:emisor, :receptor, :cuerpo, :creado)",
-                emisor=g.usuario["id"],
-                receptor=usuario_id,
-                cuerpo=cuerpo,
-                creado=ahora(),
-            )
             enlace = url_for("perfil.chat", usuario_id=g.usuario["id"])
-            if not db.query_one(
-                "SELECT id FROM notificaciones WHERE usuario_id = :u AND enlace = :e AND leida = 0",
-                u=usuario_id,
-                e=enlace,
-            ):
-                notificar(
-                    usuario_id,
-                    "mensaje",
-                    f"{g.usuario['nombre']} {g.usuario['apellido']} te escribió un mensaje.",
-                    enlace,
+            with db.transaccion():
+                db.execute(
+                    "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, creado)"
+                    " VALUES (:emisor, :receptor, :cuerpo, :creado)",
+                    emisor=g.usuario["id"],
+                    receptor=usuario_id,
+                    cuerpo=cuerpo,
+                    creado=ahora(),
                 )
+                if not db.query_one(
+                    "SELECT id FROM notificaciones WHERE usuario_id = :u AND enlace = :e AND leida = 0",
+                    u=usuario_id,
+                    e=enlace,
+                ):
+                    notificar(
+                        usuario_id,
+                        "mensaje",
+                        f"{g.usuario['nombre']} {g.usuario['apellido']} te escribió un mensaje.",
+                        enlace,
+                    )
             return redirect(url_for("perfil.chat", usuario_id=usuario_id))
-    db.execute(
-        "UPDATE notificaciones SET leida = 1 WHERE usuario_id = :yo AND enlace = :e AND leida = 0",
-        yo=g.usuario["id"],
-        e=url_for("perfil.chat", usuario_id=usuario_id),
-    )
+    with db.transaccion():
+        db.execute(
+            "UPDATE mensajes SET leido = 1 WHERE receptor_id = :yo AND emisor_id = :otro AND leido = 0",
+            yo=g.usuario["id"],
+            otro=usuario_id,
+        )
+        db.execute(
+            "UPDATE notificaciones SET leida = 1 WHERE usuario_id = :yo AND enlace = :e AND leida = 0",
+            yo=g.usuario["id"],
+            e=url_for("perfil.chat", usuario_id=usuario_id),
+        )
     mensajes = db.query(
         "SELECT m.emisor_id, m.receptor_id, m.cuerpo, m.creado,"
         " emisor.nombre AS emisor_nombre, emisor.apellido AS emisor_apellido"

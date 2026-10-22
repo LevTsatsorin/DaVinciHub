@@ -41,6 +41,7 @@
             <nav class="menu-perfil-opciones" aria-label="Opciones de perfil">
               <a href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
               <a href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
+              <a href="{{ url_for('perfil.chats') }}"{% if request.endpoint == 'perfil.chats' %} aria-current="page"{% endif %}>Mensajes</a>
             </nav>
           </details>
         {% endif %}
@@ -81,6 +82,7 @@
     {% if g.usuario and g.usuario.rol == 'estudiante' %}
       <a class="menu-enlace menu-enlace-perfil" href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
       <a class="menu-enlace menu-enlace-conexiones" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
+      <a class="menu-enlace menu-enlace-mensajes" href="{{ url_for('perfil.chats') }}"{% if request.endpoint == 'perfil.chats' %} aria-current="page"{% endif %}>Mensajes</a>
     {% endif %}
     <a class="menu-enlace modulo-foro" href="#">Foro académico</a>
     <a class="menu-enlace modulo-objetos" href="#">Objetos</a>

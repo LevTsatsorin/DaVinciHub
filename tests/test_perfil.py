@@ -286,6 +286,56 @@ def test_un_mensaje_nuevo_avisa_una_sola_vez_hasta_que_se_lee(client, app):
     assert _avisos_de_chat(app, 2, "/estudiantes/3/chat") == []
 
 
+def test_bandeja_de_chat_muestra_vacio_y_chat_png(client):
+    ingresar(client)
+    contenido = client.get("/estudiantes/chats").get_data(as_text=True)
+    assert "Todavía no tenés conversaciones" in contenido
+    assert 'src="/static/img/chat.png"' in contenido
+
+
+def test_bandeja_ordena_conversaciones_y_marca_no_leidos(client, app):
+    ingresar(client)
+    with app.app_context():
+        db.execute(
+            "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, creado)"
+            " VALUES (2, 3, 'Mensaje anterior', '2026-10-19T10:00:00+00:00')"
+        )
+        db.execute(
+            "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, creado)"
+            " VALUES (4, 2, 'Mensaje más nuevo', '2026-10-20T10:00:00+00:00')"
+        )
+    contenido = client.get("/estudiantes/chats").get_data(as_text=True)
+    assert contenido.index('href="/estudiantes/4/chat"') < contenido.index('href="/estudiantes/3/chat"')
+    assert "Mensaje más nuevo" in contenido
+    assert 'aria-label="1 mensaje sin leer"' in contenido
+
+    client.get("/estudiantes/4/chat")
+    with app.app_context():
+        mensaje = db.query_one("SELECT leido FROM mensajes WHERE emisor_id = 4 AND receptor_id = 2")
+    assert mensaje["leido"] == 1
+
+
+def test_un_tercer_estudiante_no_ve_mensajes_entre_otros_dos(client, app):
+    ingresar(client)
+    client.post("/estudiantes/3/chat", data={"cuerpo": "Mensaje privado"})
+    lucia = app.test_client()
+    ingresar(lucia, email="lucia@davinci.edu.ar")
+    contenido = lucia.get("/estudiantes/3/chat").get_data(as_text=True)
+    assert "Todavía no hay mensajes" in contenido
+    assert "Mensaje privado" not in contenido
+
+
+def test_chat_rechaza_mensaje_vacio_y_cuentas_bloqueadas(client, app):
+    ingresar(client)
+    vacio = client.post("/estudiantes/3/chat", data={"cuerpo": "   "})
+    assert vacio.status_code == 200
+    assert "El mensaje debe tener entre 1 y 2000 caracteres" in vacio.get_data(as_text=True)
+    with app.app_context():
+        db.execute("UPDATE usuarios SET bloqueado = 1 WHERE id = 3")
+    assert client.get("/estudiantes/3/chat").status_code == 404
+    assert client.post("/estudiantes/3/chat", data={"cuerpo": "No enviar"}).status_code == 404
+
+
 def test_la_cabecera_muestra_el_nombre(client):
     ingresar(client)
     assert '<span class="usuario-nombre">Mica</span>' in client.get("/").get_data(as_text=True)
@@ -297,11 +347,17 @@ def test_un_admin_no_pide_conexion_ni_escribe_por_chat(client, app):
     assert "Pedir conexión" not in perfil and "Escribir mensaje" not in perfil
     assert 'href="/admin/usuarios/2"' in perfil
     assert client.post("/estudiantes/2/conexiones").status_code == 403
+    assert client.get("/estudiantes/chats").status_code == 403
     assert client.get("/estudiantes/2/chat").status_code == 403
     assert client.post("/estudiantes/2/chat", data={"cuerpo": "Hola"}).status_code == 403
     with app.app_context():
         assert db.query_one("SELECT count(*) AS n FROM conexiones WHERE solicitante_id = 1")["n"] == 0
         assert db.query_one("SELECT count(*) AS n FROM mensajes WHERE emisor_id = 1")["n"] == 0
+
+
+def test_un_estudiante_no_puede_iniciar_un_chat_con_si_mismo(client):
+    ingresar(client)
+    assert client.get("/estudiantes/2/chat").status_code == 404
 
 
 def test_el_email_no_se_cambia_desde_el_perfil(client, app):
