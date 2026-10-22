@@ -17,7 +17,7 @@
   <nav class="contenedor barra-nav">
     <a class="logo" href="{{ url_for('inicio') }}">Da Vinci <span>Hub</span></a>
     <div class="barra-enlaces">
-      <a href="#">Foro</a>
+      <a href="{{ url_for('foro.index') }}"{% if request.blueprint == 'foro' %} aria-current="page"{% endif %}>Foro</a>
       <a href="#">Objetos</a>
       <a href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
       <a href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
@@ -82,7 +82,7 @@
       <a class="menu-enlace menu-enlace-perfil" href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
       <a class="menu-enlace menu-enlace-conexiones" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
     {% endif %}
-    <a class="menu-enlace modulo-foro" href="#">Foro académico</a>
+    <a class="menu-enlace modulo-foro" href="{{ url_for('foro.index') }}"{% if request.blueprint == 'foro' %} aria-current="page"{% endif %}>Foro académico</a>
     <a class="menu-enlace modulo-objetos" href="#">Objetos</a>
     <a class="menu-enlace modulo-reservas" href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
     <a class="menu-enlace modulo-actividades" href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>

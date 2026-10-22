@@ -16,22 +16,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from davincihub import db, seguridad, validacion
 from davincihub.notificaciones import notificar
 from davincihub.usuarios import datos as usuarios_datos
-from davincihub.utiles import ahora
+from davincihub.utiles import ahora, tipo_imagen
 
 bp = Blueprint("perfil", __name__, url_prefix="/estudiantes")
 MAX_FOTO_BYTES = 3 * 1024 * 1024
 
 
 def _tipo_foto(contenido: bytes) -> str | None:
-    if contenido.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if contenido.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if contenido.startswith((b"GIF87a", b"GIF89a")):
-        return "image/gif"
-    if contenido[:4] == b"RIFF" and contenido[8:12] == b"WEBP":
-        return "image/webp"
-    return None
+    return tipo_imagen(contenido)
 
 
 def _estudiante_publico(usuario_id: int) -> dict | None:

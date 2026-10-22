@@ -401,3 +401,15 @@ INSERT INTO inscripciones (actividad_id, usuario_id, creado) VALUES
     (3, 1, '2026-10-20T21:00:00+00:00'),
     (15, 2, '2026-10-20T22:00:00+00:00'),
     (15, 4, '2026-10-20T23:00:00+00:00');
+
+    -- PREGUNTAS Y RESPUESTAS DEL FORO
+INSERT INTO preguntas (autor_id, materia_id, titulo, cuerpo, creado) VALUES
+    (2, 3, '¿Cómo funciona el bucle while en Python?', 'Estuve practicando con los ejercicios de la guía pero no me queda claro cuándo usar while en lugar de for. ¿Alguien me da una mano?', '2026-10-19T14:30:00+00:00'),
+    (3, 38, 'Problema con las capas en Krita', 'Estoy animando un personaje y cuando muevo una capa, todo el fondo se mueve con él. ¿Cómo puedo fijar la capa de fondo?', '2026-10-20T10:15:00+00:00'),
+    (4, 7, 'Libros recomendados para narrativa', 'Busco recomendaciones de libros o guiones que me sirvan para la materia de Guión y Narrativa. ¿Qué me recomiendan leer?', '2026-10-20T16:45:00+00:00');
+
+INSERT INTO respuestas (pregunta_id, autor_id, cuerpo, aceptada, creado) VALUES
+    (1, 4, 'El while se usa cuando NO sabés cuántas veces vas a repetir el ciclo (por ejemplo, hasta que el usuario ingrese "salir"). El for se usa cuando sabés la cantidad exacta de iteraciones. ¡Espero que te sirva!', 1, '2026-10-19T16:00:00+00:00'),
+    (1, 3, '¡Exacto! Y te agrego un tip: para evitar bucles infinitos con while, acordate de actualizar la variable de control dentro del bucle. En la guía hay un ejemplo de eso.', 0, '2026-10-19T18:20:00+00:00'),
+    (2, 2, 'Fijate en el panel de capas, al lado de la capa de fondo hay un candadito. Si hacés clic ahí, la capa se bloquea y no se mueve cuando arrastrás las otras.', 1, '2026-10-20T11:30:00+00:00'),
+    (3, 2, 'Te recomiendo "El viaje del escritor" de Christopher Vogler. Es un clásico para entender la estructura de los guiones.', 0, '2026-10-20T17:30:00+00:00');
