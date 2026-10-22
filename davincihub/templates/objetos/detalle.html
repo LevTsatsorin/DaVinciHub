@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block titulo %}{{ publicacion.titulo }} — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-objeto-detalle">
+  {% set propia = publicacion.autor_id == g.usuario.id %}
+  <a class="volver" href="{{ url_for('objetos.mis_publicaciones') if propia else url_for('objetos.catalogo') }}">← {{ 'Mis publicaciones' if propia else 'Catálogo de objetos' }}</a>
+  {% if publicacion.estado != 'activa' %}<p class="aviso aviso-advertencia">Esta publicación está {{ publicacion.estado }} y no aparece en el catálogo.</p>{% endif %}
+  <div class="objeto-ficha">
+    <div class="objeto-ilustracion objeto-ilustracion-detalle objeto-{{ publicacion.categoria }}">{% include "objetos/_icono.html" %}</div>
+    <div class="objeto-ficha-datos">
+      <span class="objeto-categoria">{{ categorias.get(publicacion.categoria, publicacion.categoria) }}</span>
+      <h1>{{ publicacion.titulo }}</h1>
+      <span class="objeto-modalidad">{{ modalidades.get(publicacion.modalidad, publicacion.modalidad) }}</span>
+      <p class="objeto-precio">{{ publicacion.precio | precio_pesos if publicacion.modalidad == 'venta' and publicacion.precio is not none else ('Para intercambiar' if publicacion.modalidad == 'intercambio' else 'Para prestar') }}</p>
+      <dl class="objeto-atributos">
+        <div><dt>Estado del objeto</dt><dd>{{ condiciones.get(publicacion.estado_objeto, publicacion.estado_objeto) }}</dd></div>
+        {% if publicacion.carrera %}<div><dt>Carrera</dt><dd>{{ publicacion.carrera }}</dd></div>{% endif %}
+        <div><dt>Publicado por</dt><dd><a href="{{ url_for('perfil.ver', usuario_id=publicacion.autor_id) }}">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</a></dd></div>
+        <div><dt>Fecha de publicación</dt><dd>{{ publicacion.creado | fecha_corta }}</dd></div>
+      </dl>
+      {% if propia %}
+        <span class="objeto-estado objeto-estado-{{ publicacion.estado }}">{{ estados[publicacion.estado] }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <section class="tarjeta objeto-descripcion">
+    <h2 class="titulo-tarjeta">Sobre este material</h2>
+    <p>{{ publicacion.descripcion }}</p>
+  </section>
+  {% if propia and publicacion.estado != 'cerrada' %}
+    <section class="tarjeta objeto-controles" aria-label="Administrar mi publicación">
+      <h2 class="titulo-tarjeta">Tu publicación</h2>
+      <div class="objetos-acciones">
+        <a class="boton boton-primario" href="{{ url_for('objetos.editar', publicacion_id=publicacion.id) }}">Editar</a>
+        <form method="post" action="{{ url_for('objetos.estado', publicacion_id=publicacion.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="estado" value="{{ 'pausada' if publicacion.estado == 'activa' else 'activa' }}">
+          <button class="boton" type="submit">{{ 'Pausar' if publicacion.estado == 'activa' else 'Reactivar' }}</button>
+        </form>
+        <form class="objeto-eliminar" method="post" action="{{ url_for('objetos.estado', publicacion_id=publicacion.id) }}"
+              data-confirmar="¿Eliminar esta publicación?"
+              data-confirmar-texto="Dejará de aparecer en el catálogo y no podrás reactivarla. El registro se conserva en tu historial."
+              data-confirmar-boton="Eliminar">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="estado" value="cerrada">
+          <button class="boton objeto-boton-eliminar" type="submit" aria-describedby="aviso-eliminar">Eliminar</button>
+          <span class="objeto-tooltip" id="aviso-eliminar" role="tooltip">Dejará de aparecer en el catálogo. No podrás reactivarla; se conserva en tu historial.</span>
+        </form>
+      </div>
+    </section>
+  {% endif %}
+</section>
+{% if propia and publicacion.estado != 'cerrada' %}{% include "espacios/_dialogo.html" %}{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}
