@@ -1,8 +1,15 @@
 from io import BytesIO
 
+import pytest
 from werkzeug.security import check_password_hash
 
 from davincihub import db
+
+
+@pytest.fixture(autouse=True)
+def sin_mensajes_demo(app):
+    with app.app_context():
+        db.execute("DELETE FROM mensajes")
 
 
 def ingresar(client, email="mica@davinci.edu.ar"):
@@ -180,14 +187,14 @@ def test_solicitud_conexion_y_chat(client, app):
     assert respuesta.status_code == 302
     conversacion = client.get("/estudiantes/3/chat").get_data(as_text=True)
     assert "¡Hola, Tomás!" in conversacion
-    assert '<span class="chat-mensaje-autor">Mica Suárez</span>' in conversacion
+    assert '<span class="chat-mensaje-autor">Yo</span>' in conversacion
     assert 'class="chat-mensaje chat-mensaje-propio"' in conversacion
 
     tomas = app.test_client()
     ingresar(tomas, email="tomas@davinci.edu.ar")
     tomas.post("/estudiantes/2/chat", data={"cuerpo": "Hola, Mica"})
     conversacion = client.get("/estudiantes/3/chat").get_data(as_text=True)
-    assert '<span class="chat-mensaje-autor">Tomás Vega</span>' in conversacion
+    assert '<span class="chat-mensaje-autor">Tomás</span>' in conversacion
     assert 'class="chat-mensaje chat-mensaje-ajeno"' in conversacion
     with app.app_context():
         conexion = db.query_one(
@@ -237,7 +244,7 @@ def test_menu_de_usuario_muestra_avatar_y_opciones(client):
     ingresar(client)
     contenido = client.get("/").get_data(as_text=True)
     assert 'class="menu-perfil-avatar"' in contenido
-    assert "Abrir menú de perfil" in contenido
+    assert "Abrir menú de la cuenta" in contenido
     assert "Mi perfil" in contenido
     assert "Conexiones" in contenido
 
@@ -315,6 +322,41 @@ def test_bandeja_ordena_conversaciones_y_marca_no_leidos(client, app):
     assert mensaje["leido"] == 1
 
 
+def test_bandeja_resume_conversaciones_y_destaca_no_leidas(client, app):
+    ingresar(client)
+    with app.app_context():
+        db.execute(
+            "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, creado)"
+            " VALUES (4, 2, 'Hola', '2026-10-20T10:00:00+00:00')"
+        )
+        db.execute(
+            "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, creado)"
+            " VALUES (2, 3, 'Chau', '2026-10-19T10:00:00+00:00')"
+        )
+    contenido = client.get("/estudiantes/chats").get_data(as_text=True)
+    assert "fondo-oscuro" in contenido
+    assert "<strong>2</strong> conversaciones" in contenido
+    assert "<strong>1</strong> sin leer" in contenido
+    assert contenido.count("chat-bandeja-nueva") == 1
+
+
+def test_el_chat_vuelve_a_la_bandeja(client):
+    ingresar(client)
+    contenido = client.get("/estudiantes/3/chat").get_data(as_text=True)
+    assert 'class="chat-volver" href="/estudiantes/chats"' in contenido
+    assert 'href="/estudiantes/3"' in contenido
+    assert 'src="/static/img/chat.png"' in contenido
+
+
+def test_el_chat_cuenta_saltos_de_linea_como_el_navegador(client, app):
+    ingresar(client)
+    cuerpo = "linea\r\n" * 300
+    assert client.post("/estudiantes/3/chat", data={"cuerpo": cuerpo}).status_code == 302
+    with app.app_context():
+        guardado = db.query_one("SELECT cuerpo FROM mensajes WHERE emisor_id = 2")["cuerpo"]
+    assert "\r" not in guardado and len(guardado) == 1799
+
+
 def test_un_tercer_estudiante_no_ve_mensajes_entre_otros_dos(client, app):
     ingresar(client)
     client.post("/estudiantes/3/chat", data={"cuerpo": "Mensaje privado"})
@@ -369,3 +411,21 @@ def test_el_email_no_se_cambia_desde_el_perfil(client, app):
     )
     with app.app_context():
         assert db.query_one("SELECT email FROM usuarios WHERE id = 2")["email"] == "mica@davinci.edu.ar"
+
+
+def test_el_chat_usa_la_gamma_elegida(client, app):
+    ingresar(client)
+    assert 'class="chat-panel chat-tema-davinci"' in client.get("/estudiantes/3/chat").get_data(as_text=True)
+    respuesta = client.post("/estudiantes/3/chat/tema", data={"tema": "noche"})
+    assert respuesta.status_code == 302 and respuesta.location == "/estudiantes/3/chat"
+    contenido = client.get("/estudiantes/4/chat").get_data(as_text=True)
+    assert 'class="chat-panel chat-tema-noche"' in contenido
+    assert 'value="noche" aria-pressed="true"' in contenido
+    assert client.post("/estudiantes/3/chat/tema", data={"tema": "rojo"}).status_code == 400
+    with app.app_context():
+        assert db.query_one("SELECT chat_tema FROM usuarios WHERE id = 2")["chat_tema"] == "noche"
+
+
+def test_un_admin_no_elige_gamma_de_chat(client):
+    ingresar(client, email="admin@davinci.edu.ar")
+    assert client.post("/estudiantes/3/chat/tema", data={"tema": "noche"}).status_code == 403

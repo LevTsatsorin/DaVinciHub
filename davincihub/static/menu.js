@@ -14,3 +14,15 @@ document.querySelectorAll("[data-menu-cerrar]").forEach((el) => {
 document.addEventListener("keydown", (evento) => {
   if (evento.key === "Escape") alternarMenu(false);
 });
+
+document.addEventListener("click", (evento) => {
+  document.querySelectorAll(".menu-perfil[open], .chat-temas[open]").forEach((menu) => {
+    if (!menu.contains(evento.target)) menu.open = false;
+  });
+});
+document.addEventListener("keydown", (evento) => {
+  if (evento.key !== "Escape") return;
+  document.querySelectorAll(".menu-perfil[open], .chat-temas[open]").forEach((menu) => {
+    menu.open = false;
+  });
+});

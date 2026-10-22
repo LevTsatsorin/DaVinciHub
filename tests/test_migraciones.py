@@ -54,3 +54,27 @@ def test_al_arrancar_crea_los_indices_nuevos(tmp_path):
     with sqlite3.connect(ruta) as conexion:
         indices = {fila[1] for fila in conexion.execute("PRAGMA index_list(bloqueos)")}
     assert "idx_bloqueos_usuario" in indices
+
+
+def test_al_arrancar_indexa_los_mensajes_existentes(tmp_path):
+    ruta = tmp_path / "mensajes_sin_indice.db"
+    with sqlite3.connect(ruta) as conexion:
+        conexion.execute("CREATE TABLE usuarios (id INTEGER PRIMARY KEY, bloqueado INTEGER)")
+        conexion.execute(
+            "CREATE TABLE mensajes (id INTEGER PRIMARY KEY, emisor_id INTEGER, receptor_id INTEGER,"
+            " cuerpo TEXT, leido INTEGER, creado TEXT)"
+        )
+    create_app({"DATABASE_URL": f"sqlite:///{ruta}"})
+    with sqlite3.connect(ruta) as conexion:
+        indices = {fila[1] for fila in conexion.execute("PRAGMA index_list(mensajes)")}
+    assert "idx_mensajes_conversacion" in indices
+
+
+def test_al_arrancar_agrega_la_gamma_del_chat(tmp_path):
+    ruta = tmp_path / "usuarios_viejos.db"
+    with sqlite3.connect(ruta) as conexion:
+        conexion.execute("CREATE TABLE usuarios (id INTEGER PRIMARY KEY, bloqueado INTEGER)")
+        conexion.execute("INSERT INTO usuarios VALUES (1, 0)")
+    create_app({"DATABASE_URL": f"sqlite:///{ruta}"})
+    with sqlite3.connect(ruta) as conexion:
+        assert conexion.execute("SELECT chat_tema FROM usuarios").fetchone() == ("davinci",)

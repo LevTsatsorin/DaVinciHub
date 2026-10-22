@@ -20,6 +20,7 @@ from davincihub.utiles import ahora
 
 bp = Blueprint("perfil", __name__, url_prefix="/estudiantes")
 MAX_FOTO_BYTES = 3 * 1024 * 1024
+TEMAS_CHAT = {"davinci": "Da Vinci", "menta": "Menta", "violeta": "Violeta", "ambar": "Ámbar", "noche": "Noche"}
 
 
 def _tipo_foto(contenido: bytes) -> str | None:
@@ -354,7 +355,7 @@ def chat(usuario_id: int):
     if usuario_id == g.usuario["id"] or _estudiante_publico(usuario_id) is None:
         abort(404)
     error = None
-    cuerpo = (request.form.get("cuerpo") or "").strip()
+    cuerpo = (request.form.get("cuerpo") or "").replace("\r\n", "\n").strip()
     if request.method == "POST":
         if not cuerpo or len(cuerpo) > 2000:
             error = "El mensaje debe tener entre 1 y 2000 caracteres."
@@ -403,11 +404,24 @@ def chat(usuario_id: int):
     )
     return render_template(
         "perfil/chat.html",
+        temas=TEMAS_CHAT,
         estudiante=_estudiante_publico(usuario_id),
         mensajes=mensajes,
         error=error,
         cuerpo=cuerpo,
     )
+
+
+@bp.post("/<int:usuario_id>/chat/tema")
+@seguridad.requiere_login
+def tema_chat(usuario_id: int):
+    if g.usuario["rol"] != "estudiante":
+        abort(403)
+    tema = request.form.get("tema")
+    if tema not in TEMAS_CHAT:
+        abort(400)
+    db.execute("UPDATE usuarios SET chat_tema = :tema WHERE id = :id", tema=tema, id=g.usuario["id"])
+    return redirect(url_for("perfil.chat", usuario_id=usuario_id))
 
 
 @bp.post("/<int:usuario_id>/contrasena")
