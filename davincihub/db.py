@@ -153,6 +153,7 @@ COLUMNAS_AGREGADAS = [
     ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
     ("actividades", "reserva_id", "INTEGER REFERENCES reservas (id)"),
     ("usuarios", "catedra", "INTEGER NOT NULL DEFAULT 0 CHECK (catedra IN (0, 1))"),
+    ("usuarios", "chat_tema", "TEXT NOT NULL DEFAULT 'davinci'"),
 ]
 
 TABLAS_AGREGADAS = {
@@ -174,6 +175,7 @@ TABLAS_AGREGADAS = {
 
 INDICES_AGREGADOS = [
     ("bloqueos", "CREATE INDEX IF NOT EXISTS idx_bloqueos_usuario ON bloqueos (usuario_id, creado)"),
+    ("mensajes", "CREATE INDEX IF NOT EXISTS idx_mensajes_conversacion ON mensajes (receptor_id, emisor_id, creado)"),
 ]
 
 

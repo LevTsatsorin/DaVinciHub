@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from davincihub import db
 from davincihub.actividades import datos as actividades
 from davincihub.reservas import datos as reservas
 from davincihub.utiles import hoy_local
@@ -87,3 +88,25 @@ def test_el_pie_no_tiene_salir(client):
     login(client)
     texto = client.get("/").get_data(as_text=True)
     assert "Salir" not in texto[texto.index('class="pie"'):]
+
+
+def test_salir_esta_dentro_del_menu_de_la_cuenta(client):
+    for email in ("mica@davinci.edu.ar", "admin@davinci.edu.ar"):
+        client.post("/auth/login", data={"email": email, "password": "davinci123"})
+        texto = client.get("/").get_data(as_text=True)
+        menu = texto[texto.index('class="menu-perfil-opciones"'):texto.index("</details>")]
+        assert 'action="/auth/salir"' in menu
+        cabecera = texto[:texto.index('class="menu-movil"')]
+        assert cabecera.count('action="/auth/salir"') == 1
+        client.post("/auth/salir")
+
+
+def test_los_avisos_demo_llevan_a_una_pagina_real(client, app):
+    client.post("/auth/login", data={"email": "mica@davinci.edu.ar", "password": "davinci123"})
+    with app.app_context():
+        avisos = db.query("SELECT id FROM notificaciones WHERE usuario_id = 2")
+    for aviso in avisos:
+        respuesta = client.get(f"/notificaciones/{aviso['id']}")
+        assert respuesta.status_code == 302
+        assert respuesta.location != "/"
+        assert client.get(respuesta.location).status_code == 200

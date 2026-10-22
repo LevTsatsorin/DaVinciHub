@@ -52,6 +52,7 @@ CREATE TABLE usuarios (
     comision TEXT,
     bloqueado INTEGER NOT NULL DEFAULT 0 CHECK (bloqueado IN (0, 1)),
     catedra INTEGER NOT NULL DEFAULT 0 CHECK (catedra IN (0, 1)),
+    chat_tema TEXT NOT NULL DEFAULT 'davinci',
     creado TEXT NOT NULL
 );
 
@@ -249,6 +250,7 @@ CREATE TABLE mensajes (
     leido INTEGER NOT NULL DEFAULT 0 CHECK (leido IN (0, 1)),
     creado TEXT NOT NULL
 );
+CREATE INDEX idx_mensajes_conversacion ON mensajes (receptor_id, emisor_id, creado);
 
 CREATE TABLE notificaciones (
     id {{PK}},

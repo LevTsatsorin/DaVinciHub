@@ -20,6 +20,8 @@
       </dl>
       {% if propia %}
         <span class="objeto-estado objeto-estado-{{ publicacion.estado }}">{{ estados[publicacion.estado] }}</span>
+      {% elif g.usuario.rol == 'estudiante' %}
+        <a class="boton boton-primario" href="{{ url_for('perfil.chat', usuario_id=publicacion.autor_id) }}">Escribirle a {{ publicacion.autor_nombre }}</a>
       {% endif %}
     </div>
   </div>

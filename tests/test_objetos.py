@@ -247,3 +247,11 @@ def test_migracion_conserva_publicaciones_existentes(tmp_path):
         assert conexion.execute("SELECT titulo, carrera_id FROM publicaciones").fetchone() == (
             "Libro existente", None,
         )
+
+
+def test_detalle_permite_escribirle_al_autor(client, publicacion):
+    for usuario_id, ve_chat in ((3, True), (2, False), (1, False)):
+        with client.session_transaction() as sesion:
+            sesion["usuario_id"] = usuario_id
+        contenido = client.get(f"/objetos/{publicacion}").get_data(as_text=True)
+        assert ('href="/estudiantes/2/chat"' in contenido) is ve_chat

@@ -4,39 +4,89 @@
 
 {% block contenido %}
 <section class="contenedor pagina-modulo pagina-perfil">
-  <a class="enlace-volver" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">← Perfil de {{ estudiante.nombre }}</a>
-  <header class="ficha-usuario chat-cabecera fondo-oscuro">
-    {% if estudiante.tiene_foto %}
-      <img class="ficha-usuario-avatar perfil-avatar" src="{{ url_for('perfil.foto', usuario_id=estudiante.id) }}" alt="">
-    {% else %}
-      <span class="ficha-usuario-avatar perfil-avatar" aria-hidden="true">{{ estudiante.nombre[:1] }}{{ estudiante.apellido[:1] }}</span>
-    {% endif %}
-    <div class="ficha-usuario-datos">
-      <h1>Chat con {{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
-      {% if estudiante.carrera %}<p class="ficha-usuario-email">{{ estudiante.carrera }}</p>{% endif %}
-    </div>
-  </header>
+  <div class="chat-panel chat-tema-{{ g.usuario.chat_tema }}">
+    <header class="chat-cabecera fondo-oscuro">
+      <a class="chat-volver" href="{{ url_for('perfil.chats') }}" aria-label="Volver a Mensajes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </a>
+      <a class="chat-cabecera-persona" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">
+        {% if estudiante.tiene_foto %}
+          <img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=estudiante.id) }}" alt="">
+        {% else %}
+          <span class="conexion-avatar" aria-hidden="true">{{ estudiante.nombre[:1] }}{{ estudiante.apellido[:1] }}</span>
+        {% endif %}
+        <div class="chat-cabecera-datos">
+          <h1>{{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
+          {% if estudiante.carrera %}<span>{{ estudiante.carrera }}</span>{% endif %}
+        </div>
+      </a>
+      <details class="chat-temas">
+        <summary aria-label="Elegir colores del chat" title="Colores del chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5c0-4-4-7.2-9-7.2z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/><circle cx="15" cy="7.5" r="1" fill="currentColor"/></svg>
+        </summary>
+        <form class="chat-temas-opciones" method="post" action="{{ url_for('perfil.tema_chat', usuario_id=estudiante.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <p>Colores del chat</p>
+          {% for clave, nombre in temas.items() %}
+            <button class="chat-tema-{{ clave }}" type="submit" name="tema" value="{{ clave }}" aria-pressed="{{ 'true' if g.usuario.chat_tema == clave else 'false' }}">
+              <span class="chat-tema-muestra" aria-hidden="true"><span></span><span></span></span>
+              {{ nombre }}
+            </button>
+          {% endfor %}
+        </form>
+      </details>
+      <a class="boton boton-ficha" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">Ver perfil</a>
+    </header>
 
-  <ol class="chat-mensajes" aria-label="Conversación">
-    {% for mensaje in mensajes %}
-      <li class="chat-mensaje {% if mensaje.emisor_id == g.usuario.id %}chat-mensaje-propio{% else %}chat-mensaje-ajeno{% endif %}">
-        <span class="chat-mensaje-autor">{{ mensaje.emisor_nombre }} {{ mensaje.emisor_apellido }}</span>
-        <p>{{ mensaje.cuerpo }}</p>
-        <time datetime="{{ mensaje.creado }}">{{ mensaje.creado | fecha_corta }}</time>
-      </li>
-    {% else %}
-      <li class="chat-vacio">Todavía no hay mensajes. Escribile abajo para empezar la conversación.</li>
-    {% endfor %}
-  </ol>
+    <ol class="chat-mensajes" aria-label="Conversación">
+      {% for mensaje in mensajes %}
+        {% set propio = mensaje.emisor_id == g.usuario.id %}
+        <li class="chat-mensaje {{ 'chat-mensaje-propio' if propio else 'chat-mensaje-ajeno' }}">
+          <span class="chat-mensaje-autor">{{ "Yo" if propio else mensaje.emisor_nombre }}</span>
+          <p>{{ mensaje.cuerpo }}</p>
+          <time datetime="{{ mensaje.creado }}">{{ mensaje.creado | fecha_corta }}</time>
+        </li>
+      {% else %}
+        <li class="chat-vacio">
+          <img src="{{ url_for('static', filename='img/chat.png') }}" alt="">
+          <strong>Todavía no hay mensajes</strong>
+          <span>Saludá a {{ estudiante.nombre }} para empezar la conversación.</span>
+        </li>
+      {% endfor %}
+    </ol>
 
-  <form class="formulario chat-componer" method="post">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="campo">
-      <label for="cuerpo">Mensaje</label>
-      <textarea id="cuerpo" name="cuerpo" maxlength="2000" required>{{ cuerpo }}</textarea>
+    <form class="chat-componer" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% if error %}<p class="error-texto">{{ error }}</p>{% endif %}
-    </div>
-    <button class="boton boton-primario" type="submit">Enviar mensaje</button>
-  </form>
+      <div class="chat-componer-campo">
+        <label class="visualmente-oculto" for="cuerpo">Mensaje</label>
+        <textarea id="cuerpo" name="cuerpo" rows="1" maxlength="2000" placeholder="Escribí un mensaje…" required>{{ cuerpo }}</textarea>
+        <button class="chat-enviar" type="submit" aria-label="Enviar mensaje">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </form>
+  </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const conversacion = document.querySelector(".chat-mensajes");
+  const campo = document.getElementById("cuerpo");
+  conversacion.scrollTop = conversacion.scrollHeight;
+  const ajustar = () => {
+    campo.style.height = "auto";
+    campo.style.height = Math.min(campo.scrollHeight, 160) + "px";
+  };
+  campo.addEventListener("input", ajustar);
+  campo.addEventListener("keydown", (evento) => {
+    if (evento.key === "Enter" && !evento.shiftKey && !evento.isComposing) {
+      evento.preventDefault();
+      if (campo.value.trim()) campo.form.requestSubmit();
+    }
+  });
+  ajustar();
+  campo.focus();
+</script>
 {% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block titulo %}Mensajes — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+{% set sin_leer = conversaciones | selectattr("sin_leer") | list | length %}
+<section class="contenedor pagina-modulo pagina-perfil">
+  <header class="ficha-usuario fondo-oscuro">
+    <div class="ficha-usuario-datos">
+      <h1>Mensajes</h1>
+      <ul class="cifras-cabecera">
+        <li><strong>{{ conversaciones | length }}</strong> {{ "conversación" if conversaciones | length == 1 else "conversaciones" }}</li>
+        <li><strong>{{ sin_leer }}</strong> sin leer</li>
+      </ul>
+    </div>
+  </header>
+
+  {% if conversaciones %}
+    <ul class="chat-bandeja">
+      {% for conversacion in conversaciones %}
+        <li>
+          <a class="chat-bandeja-conversacion{% if conversacion.sin_leer %} chat-bandeja-nueva{% endif %}" href="{{ url_for('perfil.chat', usuario_id=conversacion.id) }}">
+            {% if conversacion.tiene_foto %}
+              <img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=conversacion.id) }}" alt="">
+            {% else %}
+              <span class="conexion-avatar" aria-hidden="true">{{ conversacion.nombre[:1] }}{{ conversacion.apellido[:1] }}</span>
+            {% endif %}
+            <span class="chat-bandeja-datos">
+              <strong>{{ conversacion.nombre }} {{ conversacion.apellido }}</strong>
+              <span class="chat-bandeja-ultimo">{% if conversacion.ultimo_emisor_id == g.usuario.id %}Vos: {% endif %}{{ conversacion.ultimo_mensaje }}</span>
+            </span>
+            <span class="chat-bandeja-meta">
+              <time datetime="{{ conversacion.ultimo_creado }}">{{ conversacion.ultimo_creado | fecha_corta }}</time>
+              {% if conversacion.sin_leer %}
+                <span class="chat-bandeja-no-leidos" aria-label="{{ conversacion.sin_leer }} mensaje{{ 's' if conversacion.sin_leer != 1 }} sin leer">{{ conversacion.sin_leer }}</span>
+              {% endif %}
+            </span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/chat.png') }}" alt="">
+      <h2>Todavía no tenés conversaciones</h2>
+      <p>Escribile a un compañero desde su perfil, tus conexiones o una publicación del catálogo y la charla aparece acá.</p>
+      <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Ver mis conexiones</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
