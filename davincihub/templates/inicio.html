@@ -122,10 +122,10 @@
         <h3>Foro académico <span class="etiqueta-pronto">Próximamente</span></h3>
         <p>Preguntas y respuestas por materia, con estudiantes de cátedra reconocidos.</p>
       </article>
-      <article class="modulo-objetos modulo-pronto">
-        <h3>Objetos <span class="etiqueta-pronto">Próximamente</span></h3>
+      <a class="modulo-objetos" href="{{ url_for('objetos.catalogo') }}">
+        <h3>Objetos</h3>
         <p>Vendé, intercambiá o prestá materiales entre estudiantes.</p>
-      </article>
+      </a>
       <a class="modulo-reservas" href="{{ url_for('espacios.catalogo') }}">
         <h3>Reservas</h3>
         <p>Aulas, laboratorios y estudios de la escuela, sin superposiciones.</p>

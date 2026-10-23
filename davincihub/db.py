@@ -148,6 +148,7 @@ def _leer_sql(nombre: str) -> str:
 
 # columnas y tablas agregadas después del primer deploy: se crean solas al arrancar
 COLUMNAS_AGREGADAS = [
+    ("publicaciones", "carrera_id", "INTEGER REFERENCES carreras (id)"),
     ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
     ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
     ("actividades", "reserva_id", "INTEGER REFERENCES reservas (id)"),
@@ -155,6 +156,7 @@ COLUMNAS_AGREGADAS = [
     ("preguntas", "imagen_tipo", "TEXT"),
     ("preguntas", "imagen", "BYTEA"),
     ("respuestas", "respuesta_padre_id", "INTEGER REFERENCES respuestas (id)"),
+    ("usuarios", "chat_tema", "TEXT NOT NULL DEFAULT 'davinci'"),
 ]
 
 TABLAS_AGREGADAS = {
@@ -181,6 +183,7 @@ INDICES_AGREGADOS = [
         ("CREATE UNIQUE INDEX IF NOT EXISTS idx_respuesta_aceptada"
          " ON respuestas (pregunta_id) WHERE aceptada = 1"),
     ),
+    ("mensajes", "CREATE INDEX IF NOT EXISTS idx_mensajes_conversacion ON mensajes (receptor_id, emisor_id, creado)"),
 ]
 
 

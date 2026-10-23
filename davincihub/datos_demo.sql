@@ -342,9 +342,15 @@ INSERT INTO horarios_espacios (espacio_id, dia_semana, abre, cierra) VALUES
     (12, 3, '12:00', '20:00'),
     (12, 4, '12:00', '20:00');
 
+INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, leido, creado) VALUES
+    (3, 2, '¡Hola Mica! ¿Vas al grupo de estudio de Lógica del martes?', 1, '2026-10-20T21:10:00+00:00'),
+    (2, 3, 'Sí, llevo los ejercicios de recursividad que no nos salieron.', 1, '2026-10-20T21:14:00+00:00'),
+    (3, 2, 'Genial, nos vemos ahí.', 1, '2026-10-20T21:15:00+00:00'),
+    (4, 2, '¡Hola! ¿Te sumás al taller de ilustración digital? Busco compañera para el ejercicio en parejas.', 0, '2026-10-21T14:30:00+00:00');
+
 INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, leida, creado) VALUES
-    (2, 'bienvenida', '¡Bienvenida a Da Vinci Hub! Completá tu perfil para que tus compañeros te encuentren.', '/', 1, '2026-10-18T12:00:00+00:00'),
-    (2, 'catedra', 'Lucía Paz respondió tu pregunta de Lógica de la Programación.', '/', 0, '2026-10-19T15:20:00+00:00'),
+    (2, 'bienvenida', '¡Bienvenida a Da Vinci Hub! Completá tu perfil para que tus compañeros te encuentren.', '/estudiantes/2/editar', 1, '2026-10-18T12:00:00+00:00'),
+    (2, 'mensaje', 'Lucía Paz te escribió un mensaje.', '/estudiantes/4/chat', 0, '2026-10-21T14:30:00+00:00'),
     (2, 'reservas', 'Tu reserva del Estudio de Sonido 1 quedó confirmada.', '/reservas/mis-reservas/', 0, '2026-10-20T13:05:00+00:00');
 
 -- cada actividad tiene su reserva: el espacio queda tomado desde que se propone

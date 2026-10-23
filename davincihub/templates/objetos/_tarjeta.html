@@ -1,0 +1,26 @@
+<article class="objeto-tarjeta">
+  <a class="objeto-enlace" href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">
+    <div class="objeto-ilustracion objeto-{{ publicacion.categoria }}">
+      {% include "objetos/_icono.html" %}
+      <span class="objeto-modalidad">{{ modalidades.get(publicacion.modalidad, publicacion.modalidad) }}</span>
+    </div>
+    <div class="objeto-tarjeta-cuerpo">
+      <span class="objeto-categoria">{{ categorias.get(publicacion.categoria, publicacion.categoria) }}</span>
+      <h2>{{ publicacion.titulo }}</h2>
+      <p class="objeto-condicion">{{ condiciones.get(publicacion.estado_objeto, publicacion.estado_objeto) }}</p>
+      {% if publicacion.carrera %}<p class="objeto-carrera">{{ publicacion.carrera }}</p>{% endif %}
+      <div class="objeto-tarjeta-pie">
+        <strong>{{ publicacion.precio | precio_pesos if publicacion.modalidad == 'venta' and publicacion.precio is not none else ('Para intercambiar' if publicacion.modalidad == 'intercambio' else 'Para prestar') }}</strong>
+        <span aria-hidden="true">↗</span>
+      </div>
+      <p class="objeto-autor">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</p>
+    </div>
+  </a>
+  {% if mias %}
+    <div class="objeto-gestion">
+      <span class="objeto-estado objeto-estado-{{ publicacion.estado }}">{{ estados[publicacion.estado] }}</span>
+      {% if publicacion.estado != 'cerrada' %}<a href="{{ url_for('objetos.editar', publicacion_id=publicacion.id) }}">Editar</a>{% endif %}
+      <a href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">Gestionar</a>
+    </div>
+  {% endif %}
+</article>

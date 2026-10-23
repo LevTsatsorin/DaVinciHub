@@ -18,7 +18,7 @@
     <a class="logo" href="{{ url_for('inicio') }}">Da Vinci <span>Hub</span></a>
     <div class="barra-enlaces">
       <a href="{{ url_for('foro.index') }}"{% if request.blueprint == 'foro' %} aria-current="page"{% endif %}>Foro</a>
-      <a href="#">Objetos</a>
+      <a href="{{ url_for('objetos.catalogo') }}"{% if request.blueprint == 'objetos' %} aria-current="page"{% endif %}>Objetos</a>
       <a href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
       <a href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
       {% if g.usuario and g.usuario.rol == 'admin' %}
@@ -29,25 +29,30 @@
     <div class="barra-acciones {% if g.usuario and g.usuario.rol == 'estudiante' %}barra-acciones-perfil{% endif %}">
       {% if g.usuario %}
         <span class="usuario-nombre">{{ g.usuario.nombre }}</span>
-        {% if g.usuario.rol == 'estudiante' %}
-          <details class="menu-perfil">
-            <summary class="menu-perfil-avatar" aria-label="Abrir menú de perfil" title="Opciones de perfil">
-              {% if g.usuario.tiene_foto %}
-                <img src="{{ url_for('perfil.foto', usuario_id=g.usuario.id) }}" alt="">
-              {% else %}
-                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.5-3.5 3.2-5.5 7-5.5s6.5 2 7 5.5"/></svg>
-              {% endif %}
-            </summary>
-            <nav class="menu-perfil-opciones" aria-label="Opciones de perfil">
+        <details class="menu-perfil">
+          <summary class="menu-perfil-avatar" aria-label="Abrir menú de la cuenta" title="Mi cuenta">
+            {% if g.usuario.rol == 'estudiante' and g.usuario.tiene_foto %}
+              <img src="{{ url_for('perfil.foto', usuario_id=g.usuario.id) }}" alt="">
+            {% else %}
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.5-3.5 3.2-5.5 7-5.5s6.5 2 7 5.5"/></svg>
+            {% endif %}
+          </summary>
+          <nav class="menu-perfil-opciones" aria-label="Mi cuenta">
+            {% if g.usuario.rol == 'estudiante' %}
               <a href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
               <a href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
-            </nav>
-          </details>
-        {% endif %}
-        <form method="post" action="{{ url_for('auth.salir') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="boton" type="submit">Salir</button>
-        </form>
+              <a href="{{ url_for('perfil.chats') }}"{% if request.endpoint == 'perfil.chats' %} aria-current="page"{% endif %}>Mensajes</a>
+              <a href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a>
+            {% else %}
+              <a href="{{ url_for('actividades.admin_panel') }}">Moderación</a>
+              <a href="{{ url_for('espacios.admin_lista') }}">Espacios</a>
+            {% endif %}
+            <form class="menu-perfil-salir" method="post" action="{{ url_for('auth.salir') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit">Salir</button>
+            </form>
+          </nav>
+        </details>
       {% else %}
         <a class="boton" href="{{ url_for('auth.login') }}">Ingresar</a>
         <a class="boton boton-primario" href="{{ url_for('auth.registro') }}">Crear cuenta</a>
@@ -81,9 +86,10 @@
     {% if g.usuario and g.usuario.rol == 'estudiante' %}
       <a class="menu-enlace menu-enlace-perfil" href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
       <a class="menu-enlace menu-enlace-conexiones" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
+      <a class="menu-enlace menu-enlace-mensajes" href="{{ url_for('perfil.chats') }}"{% if request.endpoint == 'perfil.chats' %} aria-current="page"{% endif %}>Mensajes</a>
     {% endif %}
     <a class="menu-enlace modulo-foro" href="{{ url_for('foro.index') }}"{% if request.blueprint == 'foro' %} aria-current="page"{% endif %}>Foro académico</a>
-    <a class="menu-enlace modulo-objetos" href="#">Objetos</a>
+    <a class="menu-enlace modulo-objetos" href="{{ url_for('objetos.catalogo') }}"{% if request.blueprint == 'objetos' %} aria-current="page"{% endif %}>Objetos</a>
     <a class="menu-enlace modulo-reservas" href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
     <a class="menu-enlace modulo-actividades" href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
     {% if g.usuario and g.usuario.rol == 'admin' %}
@@ -141,7 +147,7 @@
     <nav class="pie-columna pie-col-magenta">
       <h3>Módulos</h3>
       <a href="#">Foro académico</a>
-      <a href="#">Objetos</a>
+      <a href="{{ url_for('objetos.catalogo') }}">Objetos</a>
       <a href="{{ url_for('espacios.catalogo') }}">Reservas</a>
       <a href="{{ url_for('actividades.index') }}">Actividades</a>
     </nav>
