@@ -26,12 +26,13 @@
         {% if es_yo %}
           <a class="boton boton-primario" href="{{ url_for('perfil.editar', usuario_id=estudiante.id) }}">Editar perfil</a>
           <a class="boton boton-ficha" href="{{ url_for('perfil.conexiones', usuario_id=estudiante.id) }}">Mis conexiones</a>
+          <!-- <a class="boton boton-ficha" href="{{ url_for('perfil.buscar_estudiantes') }}">Buscar estudiantes</a> -->
         {% elif g.usuario and g.usuario.rol == 'estudiante' %}
           {% if conexion and conexion.estado == 'aceptada' %}
             <span class="perfil-estado-conexion perfil-conectados">Ya están conectados</span>
           {% elif conexion and conexion.estado == 'pendiente' %}
             {% if conexion.solicitante_id == g.usuario.id %}
-              <span class="perfil-estado-conexion">Solicitud enviada</span>
+              <span class="perfil-estado-conexion perfil-solicitud-enviada">Solicitud enviada</span>
             {% else %}
               <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Responder solicitud</a>
             {% endif %}

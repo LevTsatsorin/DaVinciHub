@@ -179,6 +179,109 @@ def test_la_solicitud_y_la_aceptacion_avisan(client, app):
     assert aviso_mica["enlace"] == "/estudiantes/3" and "aceptó" in aviso_mica["cuerpo"]
 
 
+def test_busqueda_filtra_por_nombre_carrera_anio_y_comision(client, app):
+    ingresar(client)
+    contenido = client.get("/estudiantes/buscar?q=lucia&carrera=1&anio=3&comision=a").get_data(as_text=True)
+    assert "Lucía Paz" in contenido
+    assert "Mica Suárez" not in contenido
+    assert "Tomás Vega" not in contenido
+
+    contenido = client.get("/estudiantes/buscar?carrera=2&anio=1&comision=B").get_data(as_text=True)
+    assert "Tomás Vega" in contenido
+    assert "Lucía Paz" not in contenido
+
+
+def test_busqueda_excluye_al_usuario_actual_y_a_las_cuentas_bloqueadas(client):
+    ingresar(client)
+    contenido = client.get("/estudiantes/buscar").get_data(as_text=True)
+    assert "Mica Suárez" not in contenido
+    assert "Bruno Ferreyra" not in contenido
+
+
+def test_solicitudes_rechazadas_no_se_muestran_como_conexion(client, app):
+    ingresar(client)
+    client.post("/estudiantes/4/conexiones")
+    lucia = app.test_client()
+    ingresar(lucia, email="lucia@davinci.edu.ar")
+    lucia.post("/estudiantes/4/conexiones/2/rechazar")
+    contenido = client.get("/estudiantes/2/conexiones").get_data(as_text=True)
+    perfil = client.get("/estudiantes/4").get_data(as_text=True)
+    with app.app_context():
+        assert db.query_one(
+            "SELECT count(*) AS n FROM conexiones WHERE solicitante_id = 2 AND receptor_id = 4"
+            " AND estado = 'aceptada'"
+        )["n"] == 0
+    assert "Lucía Paz" not in contenido
+    assert "La solicitud de conexión fue rechazada" in perfil
+
+
+def test_solicitud_mutua_se_convierte_en_una_conexion_aceptada(client, app):
+    ingresar(client)
+    client.post("/estudiantes/3/conexiones")
+    tomas = app.test_client()
+    ingresar(tomas, email="tomas@davinci.edu.ar")
+    respuesta = tomas.post("/estudiantes/2/conexiones")
+    assert respuesta.status_code == 302
+    with app.app_context():
+        filas = db.query(
+            "SELECT solicitante_id, receptor_id, estado FROM conexiones"
+            " WHERE (solicitante_id = 2 AND receptor_id = 3)"
+            " OR (solicitante_id = 3 AND receptor_id = 2)"
+        )
+        aviso = db.query_one(
+            "SELECT cuerpo FROM notificaciones WHERE usuario_id = 2 AND tipo = 'conexion'"
+        )
+    assert filas == [{"solicitante_id": 2, "receptor_id": 3, "estado": "aceptada"}]
+    assert "aceptó" in aviso["cuerpo"]
+
+
+def test_no_permite_autosolicitud_duplicados_o_pares_invertidos(client, app):
+    ingresar(client)
+    assert client.post("/estudiantes/2/conexiones").status_code == 404
+    client.post("/estudiantes/3/conexiones")
+    client.post("/estudiantes/3/conexiones")
+    with app.app_context():
+        assert db.query_one(
+            "SELECT count(*) AS n FROM conexiones WHERE solicitante_id = 2 AND receptor_id = 3"
+        )["n"] == 1
+        assert db.query_one(
+            "SELECT count(*) AS n FROM notificaciones WHERE usuario_id = 3 AND tipo = 'conexion'"
+        )["n"] == 1
+        with pytest.raises(db.ErrorIntegridad):
+            db.execute(
+                "INSERT INTO conexiones (solicitante_id, receptor_id, estado, creado)"
+                " VALUES (3, 2, 'pendiente', '2026-10-23')"
+            )
+
+
+def test_solicitudes_a_usuarios_bloqueados_se_rechazan_y_no_se_buscan(client, app):
+    ingresar(client)
+    with app.app_context():
+        db.execute("UPDATE usuarios SET bloqueado = 1 WHERE id = 3")
+    assert client.post("/estudiantes/3/conexiones").status_code == 404
+    assert "Tomás Vega" not in client.get("/estudiantes/buscar").get_data(as_text=True)
+
+
+def test_puede_cancelar_solicitud_y_eliminar_conexion(client, app):
+    ingresar(client)
+    client.post("/estudiantes/3/conexiones")
+    assert client.post("/estudiantes/2/conexiones/3/cancelar").status_code == 302
+    with app.app_context():
+        assert db.query_one(
+            "SELECT id FROM conexiones WHERE solicitante_id = 2 AND receptor_id = 3"
+        ) is None
+
+    client.post("/estudiantes/3/conexiones")
+    tomas = app.test_client()
+    ingresar(tomas, email="tomas@davinci.edu.ar")
+    tomas.post("/estudiantes/3/conexiones/2/aceptar")
+    assert client.post("/estudiantes/2/conexiones/3/eliminar").status_code == 302
+    with app.app_context():
+        assert db.query_one(
+            "SELECT id FROM conexiones WHERE solicitante_id = 2 AND receptor_id = 3"
+        ) is None
+
+
 def test_solicitud_conexion_y_chat(client, app):
     ingresar(client)
     respuesta = client.post("/estudiantes/3/conexiones")
@@ -247,6 +350,22 @@ def test_menu_de_usuario_muestra_avatar_y_opciones(client):
     assert "Abrir menú de la cuenta" in contenido
     assert "Mi perfil" in contenido
     assert "Conexiones" in contenido
+    assert "Estudiantes" in contenido
+
+
+def test_menu_estudiantes_y_conexiones_muestran_boton_destacado(client):
+    ingresar(client)
+    busqueda = client.get("/estudiantes/buscar").get_data(as_text=True)
+    conexiones = client.get("/estudiantes/2/conexiones").get_data(as_text=True)
+    assert 'href="/estudiantes/buscar" aria-current="page">Estudiantes</a>' in busqueda
+    assert 'class="boton boton-grande" href="/estudiantes/buscar">Buscar estudiantes</a>' in conexiones
+
+
+def test_estado_solicitud_enviada_usa_color_destacado(client):
+    ingresar(client)
+    client.post("/estudiantes/3/conexiones")
+    perfil = client.get("/estudiantes/3").get_data(as_text=True)
+    assert 'class="perfil-estado-conexion perfil-solicitud-enviada">Solicitud enviada</span>' in perfil
 
 
 def test_cambio_contrasena_exige_la_actual(client, app):

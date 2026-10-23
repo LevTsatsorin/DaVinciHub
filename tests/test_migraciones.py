@@ -102,3 +102,34 @@ def test_al_arrancar_agrega_la_gamma_del_chat(tmp_path):
     create_app({"DATABASE_URL": f"sqlite:///{ruta}"})
     with sqlite3.connect(ruta) as conexion:
         assert conexion.execute("SELECT chat_tema FROM usuarios").fetchone() == ("davinci",)
+
+
+def test_al_arrancar_consolida_solicitudes_mutuas_y_evitas_pares_duplicados(tmp_path):
+    ruta = tmp_path / "conexiones_anteriores.db"
+    with sqlite3.connect(ruta) as conexion:
+        conexion.execute("CREATE TABLE usuarios (id INTEGER PRIMARY KEY, bloqueado INTEGER)")
+        conexion.execute(
+            "CREATE TABLE conexiones (id INTEGER PRIMARY KEY, solicitante_id INTEGER, receptor_id INTEGER,"
+            " estado TEXT, creado TEXT, UNIQUE (solicitante_id, receptor_id))"
+        )
+        conexion.executemany(
+            "INSERT INTO conexiones VALUES (?, ?, ?, 'pendiente', '2026-10-20')",
+            [(1, 2, 3), (2, 3, 2)],
+        )
+    create_app({"DATABASE_URL": f"sqlite:///{ruta}"})
+    with sqlite3.connect(ruta) as conexion:
+        filas = conexion.execute(
+            "SELECT solicitante_id, receptor_id, estado FROM conexiones"
+        ).fetchall()
+        indices = {fila[1] for fila in conexion.execute("PRAGMA index_list(conexiones)")}
+    assert filas == [(2, 3, "aceptada")]
+    assert "idx_conexiones_par" in indices
+    with sqlite3.connect(ruta) as conexion:
+        try:
+            conexion.execute(
+                "INSERT INTO conexiones VALUES (3, 3, 2, 'pendiente', '2026-10-21')"
+            )
+        except sqlite3.IntegrityError:
+            pass
+        else:
+            raise AssertionError("El índice debe impedir pares de conexión invertidos duplicados.")

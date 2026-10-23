@@ -21,6 +21,9 @@
       <a href="{{ url_for('objetos.catalogo') }}"{% if request.blueprint == 'objetos' %} aria-current="page"{% endif %}>Objetos</a>
       <a href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
       <a href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
+      {% if g.usuario and g.usuario.rol == 'estudiante' %}
+        <a href="{{ url_for('perfil.buscar_estudiantes') }}"{% if request.endpoint == 'perfil.buscar_estudiantes' %} aria-current="page"{% endif %}>Estudiantes</a>
+      {% endif %}
       {% if g.usuario and g.usuario.rol == 'admin' %}
         <a href="{{ url_for('usuarios.lista') }}"{% if request.blueprint == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
         <a href="{{ url_for('academico.lista') }}"{% if request.blueprint == 'academico' %} aria-current="page"{% endif %}>Carreras</a>
@@ -87,6 +90,7 @@
     {% if g.usuario and g.usuario.rol == 'estudiante' %}
       <a class="menu-enlace menu-enlace-perfil" href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
       <a class="menu-enlace menu-enlace-conexiones" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
+      <a class="menu-enlace menu-enlace-estudiantes" href="{{ url_for('perfil.buscar_estudiantes') }}"{% if request.endpoint == 'perfil.buscar_estudiantes' %} aria-current="page"{% endif %}>Estudiantes</a>
       <a class="menu-enlace menu-enlace-mensajes" href="{{ url_for('perfil.chats') }}"{% if request.endpoint == 'perfil.chats' %} aria-current="page"{% endif %}>Mensajes</a>
     {% endif %}
     <a class="menu-enlace modulo-foro" href="{{ url_for('foro.index') }}"{% if request.blueprint == 'foro' %} aria-current="page"{% endif %}>Foro académico</a>

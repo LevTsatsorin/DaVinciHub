@@ -15,8 +15,7 @@
 
 {% block contenido %}
 <section class="contenedor pagina-modulo pagina-perfil">
-  <a class="enlace-volver" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">← Mi perfil</a>
-  <header class="ficha-usuario fondo-oscuro">
+  <header class="ficha-usuario conexiones-cabecera fondo-oscuro">
     <div class="ficha-usuario-datos">
       <h1>Conexiones</h1>
       <ul class="cifras-cabecera">
@@ -25,6 +24,7 @@
         <li><strong>{{ enviadas | length }}</strong> {{ "enviada" if enviadas | length == 1 else "enviadas" }}</li>
       </ul>
     </div>
+    <a class="boton boton-grande" href="{{ url_for('perfil.buscar_estudiantes') }}">Buscar estudiantes</a>
   </header>
 
   {% if solicitudes_recibidas %}
@@ -54,7 +54,13 @@
       {% for persona in conexiones %}
         <li>
           {{ persona_fila(persona) }}
-          <a class="boton boton-suave" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Abrir chat</a>
+          <div class="perfil-decision">
+            <a class="boton boton-suave" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Abrir chat</a>
+            <form method="post" action="{{ url_for('perfil.eliminar_conexion', usuario_id=estudiante.id, otro_id=persona.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="boton boton-rojo" type="submit">Eliminar conexión</button>
+            </form>
+          </div>
         </li>
       {% endfor %}
     </ul>
@@ -71,7 +77,13 @@
       {% for persona in enviadas %}
         <li>
           {{ persona_fila(persona) }}
-          <span class="estado estado-inactivo">Pendiente</span>
+          <div class="perfil-decision">
+            <span class="estado estado-solicitud-pendiente">Pendiente</span>
+            <form method="post" action="{{ url_for('perfil.cancelar_conexion', usuario_id=estudiante.id, otro_id=persona.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="boton boton-suave" type="submit">Cancelar solicitud</button>
+            </form>
+          </div>
         </li>
       {% endfor %}
     </ul>

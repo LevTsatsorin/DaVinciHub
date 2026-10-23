@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block titulo %}Buscar estudiantes — Da Vinci Hub{% endblock %}
+
+{% macro avatar(persona) -%}
+  {%- if persona.tiene_foto %}<img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
+  {%- else %}<span class="conexion-avatar" aria-hidden="true">{{ persona.nombre[:1] }}{{ persona.apellido[:1] }}</span>{% endif -%}
+{%- endmacro %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-perfil">
+  <a class="enlace-volver" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">← Mis conexiones</a>
+  <header class="ficha-usuario fondo-oscuro">
+    <div class="ficha-usuario-datos">
+      <h1>Buscar estudiantes</h1>
+      <p>Encontrá compañeros por nombre, carrera, año o comisión.</p>
+    </div>
+  </header>
+  <form class="filtros-espacios filtros-usuarios" method="get" role="search">
+    <label class="filtro-buscar">Buscar
+      <input type="search" name="q" value="" placeholder="¿Quién buscas?" maxlength="100">
+    </label>
+    <label>Carrera
+      <select name="carrera">
+    <option value="">Todas las carreras</option>
+        {% for carrera in carreras %}
+          <option value="{{ carrera.id }}" 
+          {% if filtros.carrera == carrera.id %}selected{% endif %}>{{ carrera.nombre }}</option>
+        {% endfor %}
+    
+      </select>
+    </label>
+     <label class="estudiantes-filtro">
+      Año
+      <select name="anio">
+        <option value="">Todos los años</option>
+        {% for anio in range(1, 7) %}
+          <option value="{{ anio }}" {% if filtros.anio == anio %}selected{% endif %}>{{ anio }}.º año</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="estudiantes-filtro">
+      Comisión
+      <input name="comision" value="{{ filtros.comision }}" maxlength="40" placeholder="Ej. A">
+    </label>
+    <button class="boton boton-primario" type="submit">Filtrar</button>
+      <a class="boton boton-suave" href="{{ url_for('perfil.buscar_estudiantes') }}">Limpiar</a>
+    
+    
+  </form>
+  
+
+  <h2 class="subtitulo">{{ estudiantes | length }} {{ "estudiante encontrado" if estudiantes | length == 1 else "estudiantes encontrados" }}</h2>
+  {% if estudiantes %}
+    <ul class="estudiantes-resultados">
+      {% for persona in estudiantes %}
+        <li class="estudiante-tarjeta">
+          {{ avatar(persona) }}
+          <div class="estudiante-tarjeta-datos">
+            <a href="{{ url_for('perfil.ver', usuario_id=persona.id) }}"><strong>{{ persona.nombre }} {{ persona.apellido }}</strong></a>
+            <span>{{ persona.carrera or "Carrera sin completar" }}</span>
+            {% if persona.anio %}<span>{{ persona.anio }}.º año{% if persona.comision %} · Comisión {{ persona.comision }}{% endif %}</span>{% endif %}
+          </div>
+          <div class="estudiante-tarjeta-accion">
+            {% if persona.conexion_estado == "aceptada" %}
+              <span class="perfil-estado-conexion perfil-conectados">Conectados</span>
+            {% elif persona.conexion_estado == "pendiente" and persona.solicitante_id == g.usuario.id %}
+              <form method="post" action="{{ url_for('perfil.cancelar_conexion', usuario_id=g.usuario.id, otro_id=persona.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="boton boton-suave" type="submit">Cancelar solicitud</button>
+              </form>
+            {% elif persona.conexion_estado == "pendiente" %}
+              <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Responder solicitud</a>
+            {% elif persona.conexion_estado == "rechazada" %}
+              <span class="perfil-estado-conexion">Solicitud rechazada</span>
+            {% else %}
+              <form method="post" action="{{ url_for('perfil.solicitar_conexion', usuario_id=persona.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="boton boton-primario" type="submit">Conectar</button>
+              </form>
+            {% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="perfil-vacio">
+      <p>No encontramos estudiantes con esos filtros.</p>
+      <a class="boton boton-suave" href="{{ url_for('perfil.buscar_estudiantes') }}">Ver todos</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
