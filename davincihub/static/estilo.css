@@ -337,6 +337,46 @@ a { color: inherit; }
 
 .campo { margin-bottom: 14px; }
 
+/* Campo de contraseña con botón para mostrarla */
+.password-contenedor {
+    position: relative;
+    width: 100%;
+}
+
+.password-contenedor input {
+    width: 100%;
+    box-sizing: border-box;
+    padding-right: 45px;
+}
+
+.password-ojo {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: none;
+    background: transparent;
+    color: #555;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.password-ojo:hover,
+.password-ojo:focus-visible {
+    color: #d63384;
+}
+
+.password-ojo:focus-visible {
+    outline: 2px solid #d63384;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+
 .campo label {
   display: block;
   font-weight: 500;
@@ -3666,7 +3706,6 @@ a.enlace-ficha:hover { color: #ffffff; }
 .foro-contestar h2 { margin-bottom: 14px; }
 
 .foro-listado { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.foro-filtros { grid-template-columns: minmax(0, 1.5fr) minmax(150px, 1fr) minmax(150px, 1fr) auto auto; }
 .foro-pregunta {
   min-height: 220px;
   align-items: stretch;
@@ -3680,8 +3719,10 @@ a.enlace-ficha:hover { color: #ffffff; }
   display: flex; 
   justify-content: space-between; 
   justify-items: stretch; width: 100%; }
-.foro-filtros {
-  grid-template-columns: minmax(240px, 1.45fr) minmax(180px, 1fr) minmax(240px, 1.35fr) auto auto;
+ .foro-filtros {
+    grid-template-columns: minmax(240px, 1.45fr) minmax(180px, 1fr) minmax(240px, 1.35fr) auto auto;
+    padding: 12px;
+    gap: 12px;
 }
 .foro-filtros .enlace-limpiar { 
   text-align: center; }
