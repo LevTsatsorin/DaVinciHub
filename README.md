@@ -11,6 +11,10 @@ pip install -e '.[dev]'
 flask --app davincihub.app run --debug
 ```
 
+## Foro académico
+
+El acceso al listado y al contenido de las preguntas requiere iniciar sesión. Se pueden buscar preguntas por carrera, materia o texto; cada pregunta permite adjuntar una imagen de hasta 3 MB. Las respuestas y comentarios quedan en un hilo, con notificaciones para la persona a quien responden. Las respuestas pueden marcarse como útiles una sola vez por usuario y el autor de la pregunta puede aceptar una respuesta ajena, que queda destacada en el historial. Las personas de cátedra reciben la insignia únicamente en las materias que ya cursaron.
+
 ## Tests y lint
 
 ```bash

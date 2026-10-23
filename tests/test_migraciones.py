@@ -56,6 +56,30 @@ def test_al_arrancar_crea_los_indices_nuevos(tmp_path):
     assert "idx_bloqueos_usuario" in indices
 
 
+def test_al_arrancar_garantiza_una_respuesta_aceptada_por_pregunta(tmp_path):
+    ruta = tmp_path / "foro_sin_indice.db"
+    with sqlite3.connect(ruta) as conexion:
+        conexion.execute("CREATE TABLE usuarios (id INTEGER PRIMARY KEY, bloqueado INTEGER)")
+        conexion.execute(
+            "CREATE TABLE respuestas (id INTEGER PRIMARY KEY, pregunta_id INTEGER, aceptada INTEGER)"
+        )
+    create_app({"DATABASE_URL": f"sqlite:///{ruta}"})
+    with sqlite3.connect(ruta) as conexion:
+        indices = {fila[1] for fila in conexion.execute("PRAGMA index_list(respuestas)")}
+    assert "idx_respuesta_aceptada" in indices
+
+
+def test_al_arrancar_agrega_imagenes_y_respuestas_en_hilo(tmp_path):
+    ruta = tmp_path / "foro_anterior.db"
+    with sqlite3.connect(ruta) as conexion:
+        conexion.execute("CREATE TABLE usuarios (id INTEGER PRIMARY KEY, bloqueado INTEGER)")
+        conexion.execute("CREATE TABLE preguntas (id INTEGER PRIMARY KEY)")
+        conexion.execute(
+            "CREATE TABLE respuestas (id INTEGER PRIMARY KEY, pregunta_id INTEGER, aceptada INTEGER)"
+        )
+    create_app({"DATABASE_URL": f"sqlite:///{ruta}"})
+    assert {"imagen_tipo", "imagen"} <= _columnas(ruta, "preguntas")
+    assert "respuesta_padre_id" in _columnas(ruta, "respuestas")
 def test_al_arrancar_indexa_los_mensajes_existentes(tmp_path):
     ruta = tmp_path / "mensajes_sin_indice.db"
     with sqlite3.connect(ruta) as conexion:

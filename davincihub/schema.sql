@@ -91,7 +91,9 @@ CREATE TABLE preguntas (
     materia_id INTEGER NOT NULL REFERENCES materias (id),
     titulo TEXT NOT NULL,
     cuerpo TEXT NOT NULL,
-    creado TEXT NOT NULL
+    creado TEXT NOT NULL,
+    imagen_tipo TEXT,
+    imagen BYTEA
 );
 
 CREATE TABLE respuestas (
@@ -100,7 +102,8 @@ CREATE TABLE respuestas (
     autor_id INTEGER NOT NULL REFERENCES usuarios (id),
     cuerpo TEXT NOT NULL,
     aceptada INTEGER NOT NULL DEFAULT 0 CHECK (aceptada IN (0, 1)),
-    creado TEXT NOT NULL
+    creado TEXT NOT NULL,
+    respuesta_padre_id INTEGER REFERENCES respuestas (id)
 );
 
 CREATE UNIQUE INDEX idx_respuesta_aceptada ON respuestas (pregunta_id) WHERE aceptada = 1;
