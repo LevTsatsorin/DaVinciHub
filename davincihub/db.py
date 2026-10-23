@@ -6,6 +6,7 @@ from pathlib import Path
 
 import click
 from flask import current_app, g
+from flask.cli import with_appcontext
 
 from davincihub.utiles import sin_acentos
 
@@ -148,6 +149,7 @@ def _leer_sql(nombre: str) -> str:
 
 # columnas y tablas agregadas después del primer deploy: se crean solas al arrancar
 COLUMNAS_AGREGADAS = [
+    ("solicitudes", "modalidad", "TEXT NOT NULL DEFAULT 'cualquiera' CHECK (modalidad IN ('cualquiera', 'venta', 'intercambio', 'prestamo'))"),
     ("publicaciones", "carrera_id", "INTEGER REFERENCES carreras (id)"),
     ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
     ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
@@ -157,6 +159,13 @@ COLUMNAS_AGREGADAS = [
 ]
 
 TABLAS_AGREGADAS = {
+    "coincidencias": """CREATE TABLE IF NOT EXISTS coincidencias (
+        id {{PK}},
+        solicitud_id INTEGER NOT NULL REFERENCES solicitudes (id),
+        publicacion_id INTEGER NOT NULL REFERENCES publicaciones (id),
+        creado TEXT NOT NULL,
+        UNIQUE (solicitud_id, publicacion_id)
+    )""",
     "bloqueos": """CREATE TABLE IF NOT EXISTS bloqueos (
         id {{PK}},
         usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
@@ -226,17 +235,42 @@ def init_db(demo: bool = False):
         else:
             conexion.executescript(datos)
     conexion.commit()
+    if demo:
+        cargar_publicaciones_demo()
+
+
+def cargar_publicaciones_demo() -> int:
+    """Agrega ejemplos a los estudiantes demo existentes, sin borrar ni actualizar datos."""
+    if not _columnas("usuarios") or not _columnas("publicaciones"):
+        raise click.ClickException("La base debe estar inicializada antes de cargar publicaciones demo.")
+    with transaccion():
+        from davincihub.objetos import busquedas
+
+        filas = query(_leer_sql("publicaciones_demo.sql"))
+        for fila in filas:
+            busquedas.detectar_para_publicacion(fila["id"])
+        return len(filas)
 
 
 @click.command("init-db")
 @click.option("--demo", is_flag=True, help="Carga datos de demostración.")
+@with_appcontext
 def comando_init_db(demo: bool):
     init_db(demo)
     click.echo("Base de datos inicializada." + (" Datos demo cargados." if demo else ""))
 
 
+@click.command("seed-objetos")
+@with_appcontext
+def comando_seed_objetos():
+    """Agrega publicaciones a los usuarios demo existentes sin reiniciar la base."""
+    cantidad = cargar_publicaciones_demo()
+    click.echo(f"Publicaciones demo agregadas: {cantidad}. No se borraron ni modificaron datos existentes.")
+
+
 def registrar(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(comando_init_db)
+    app.cli.add_command(comando_seed_objetos)
     with app.app_context():
         migrar()

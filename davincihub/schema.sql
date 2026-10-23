@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS valoraciones_operaciones;
 DROP TABLE IF EXISTS ventas;
 DROP TABLE IF EXISTS intercambios;
 DROP TABLE IF EXISTS prestamos;
+DROP TABLE IF EXISTS coincidencias;
 DROP TABLE IF EXISTS solicitudes;
 DROP TABLE IF EXISTS publicaciones;
 DROP TABLE IF EXISTS valoraciones_respuestas;
@@ -134,9 +135,19 @@ CREATE TABLE solicitudes (
     titulo TEXT NOT NULL,
     descripcion TEXT,
     categoria TEXT NOT NULL,
+    modalidad TEXT NOT NULL DEFAULT 'cualquiera'
+        CHECK (modalidad IN ('cualquiera', 'venta', 'intercambio', 'prestamo')),
     presupuesto_max REAL,
     estado TEXT NOT NULL DEFAULT 'activa' CHECK (estado IN ('activa', 'cerrada')),
     creado TEXT NOT NULL
+);
+
+CREATE TABLE coincidencias (
+    id {{PK}},
+    solicitud_id INTEGER NOT NULL REFERENCES solicitudes (id),
+    publicacion_id INTEGER NOT NULL REFERENCES publicaciones (id),
+    creado TEXT NOT NULL,
+    UNIQUE (solicitud_id, publicacion_id)
 );
 
 CREATE TABLE prestamos (
