@@ -11,6 +11,8 @@
         <a class="boton boton-primario" href="{{ url_for('objetos.publicar') }}">Publicar objeto</a>
         <div class="enlaces-admin">
           <a class="enlace-admin" href="{{ url_for('objetos.catalogo') if mias else url_for('objetos.mis_publicaciones') }}">{{ 'Ver catálogo' if mias else 'Mis publicaciones' }}</a>
+          <a class="enlace-admin" href="{{ url_for('objetos.nueva_busqueda') }}">Busco un objeto</a>
+          <a class="enlace-admin" href="{{ url_for('objetos.mis_busquedas') }}">Mis búsquedas</a>
         </div>
       {% endif %}
     </div>
@@ -51,6 +53,12 @@
       </select>
     </div>
     <div class="objetos-filtro-acciones">
+      {% if g.usuario.rol == 'estudiante' %}
+        <label class="objetos-mostrar-mias" for="mostrar_mias">
+          <input type="checkbox" id="mostrar_mias" name="mostrar_mias" value="1"{% if filtros.mostrar_mias %} checked{% endif %}>
+          Mostrar mis publicaciones
+        </label>
+      {% endif %}
       <button class="boton boton-primario" type="submit">Buscar</button>
       {% if filtros.q or filtros.categoria or filtros.carrera_id or filtros.modalidad or filtros.estado %}<a class="enlace-limpiar" href="{{ url_for('objetos.mis_publicaciones') if mias else url_for('objetos.catalogo') }}">Limpiar</a>{% endif %}
     </div>

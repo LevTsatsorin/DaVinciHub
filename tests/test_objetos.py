@@ -17,6 +17,13 @@ FORM = {
 }
 
 
+@pytest.fixture(autouse=True)
+def catalogo_vacio(app):
+    # Cada escenario de C1 controla sus publicaciones, independientemente de los ejemplos demo.
+    with app.app_context():
+        db.execute("DELETE FROM publicaciones")
+
+
 @pytest.fixture
 def estudiante(client):
     with client.session_transaction() as sesion:
@@ -48,7 +55,7 @@ def test_crear_y_ver_publicacion(estudiante, app):
         p = db.query_one("SELECT * FROM publicaciones")
         assert p["autor_id"] == 2
         assert p["carrera_id"] == 1
-    assert FORM["titulo"] in estudiante.get("/objetos/").text
+    assert FORM["titulo"] in estudiante.get("/objetos/?mostrar_mias=1").text
 
 
 @pytest.mark.parametrize("precio", ["", "0", "-1", "NaN", "Infinity", "abc", "1.001", "1000000000"])
@@ -94,7 +101,7 @@ def test_filtros_combinados_y_busqueda_sin_acentos(estudiante, app, publicacion)
         datos.crear(3, FORM | {"titulo": "Libro de cine", "categoria": "libros_apuntes",
                               "modalidad": "prestamo", "carrera_id": "2"})
     respuesta = estudiante.get("/objetos/", query_string={
-        "q": "GRAFICA", "categoria": "dibujo_diseno", "modalidad": "venta", "carrera_id": "1",
+        "mostrar_mias": "1", "q": "GRAFICA", "categoria": "dibujo_diseno", "modalidad": "venta", "carrera_id": "1",
     })
     assert FORM["titulo"] in respuesta.text
     assert "Libro de cine" not in respuesta.text
@@ -105,7 +112,7 @@ def test_filtros_combinados_y_busqueda_sin_acentos(estudiante, app, publicacion)
 
 @pytest.mark.parametrize("texto", ["%", "_", "!", "' OR 1=1 --"])
 def test_busqueda_no_interpreta_comodines_ni_sql(estudiante, publicacion, texto):
-    assert FORM["titulo"] not in estudiante.get("/objetos/", query_string={"q": texto}).text
+    assert FORM["titulo"] not in estudiante.get("/objetos/", query_string={"q": texto, "mostrar_mias": "1"}).text
 
 
 def test_dueno_edita_y_quita_precio_al_cambiar_modalidad(estudiante, app, publicacion):
@@ -146,7 +153,7 @@ def test_pausa_reactivacion_y_cierre(estudiante, app, publicacion):
     assert FORM["titulo"] in estudiante.get("/objetos/mis-publicaciones?estado=pausada").text
     assert estudiante.get(url).status_code == 200
     assert estudiante.post(url + "/estado", data={"estado": "activa"}).status_code == 302
-    assert FORM["titulo"] in estudiante.get("/objetos/").text
+    assert FORM["titulo"] in estudiante.get("/objetos/?mostrar_mias=1").text
     assert estudiante.post(url + "/estado", data={"estado": "cerrada"}).status_code == 302
     assert estudiante.post(url + "/estado", data={"estado": "activa"}).status_code == 409
     assert estudiante.post(url + "/editar", data=FORM).status_code == 409
@@ -212,7 +219,7 @@ def test_paginacion_y_filtros_malformados(estudiante, app):
         assert len(pagina["publicaciones"]) == 2
         assert pagina["total"] == 14
         assert datos.listar({}, pagina=999)["pagina"] == 2
-    respuesta = estudiante.get("/objetos/?pagina=2&categoria=dibujo_diseno")
+    respuesta = estudiante.get("/objetos/?pagina=2&categoria=dibujo_diseno&mostrar_mias=1")
     assert respuesta.status_code == 200
     assert "Página 2 de 2" in respuesta.text
     assert "categoria=dibujo_diseno" in respuesta.text
@@ -255,3 +262,24 @@ def test_detalle_permite_escribirle_al_autor(client, publicacion):
             sesion["usuario_id"] = usuario_id
         contenido = client.get(f"/objetos/{publicacion}").get_data(as_text=True)
         assert ('href="/estudiantes/2/chat"' in contenido) is ve_chat
+
+
+def test_catalogo_oculta_propias_y_permite_incluirlas(estudiante, app, publicacion):
+    with app.app_context():
+        datos.crear(3, FORM | {"titulo": "Cámara de otro estudiante"})
+    ocultas = estudiante.get("/objetos/")
+    assert FORM["titulo"] not in ocultas.text
+    assert "Cámara de otro estudiante" in ocultas.text
+    visibles = estudiante.get("/objetos/?mostrar_mias=1")
+    assert FORM["titulo"] in visibles.text
+    assert 'value="1" checked' in visibles.text
+    assert FORM["titulo"] in estudiante.get("/objetos/mis-publicaciones").text
+
+
+def test_paginacion_conserva_opcion_mostrar_propias(estudiante, app):
+    with app.app_context():
+        for n in range(14):
+            datos.crear(2, FORM | {"titulo": f"Objeto propio {n}"})
+    respuesta = estudiante.get("/objetos/?mostrar_mias=1")
+    assert "mostrar_mias=1" in respuesta.text
+    assert "Página 1 de 2" in respuesta.text

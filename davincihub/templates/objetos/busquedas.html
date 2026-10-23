@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block titulo %}Mis búsquedas — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="cabecera-seccion fondo-oscuro cabecera-objetos">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/objetos.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    <h1>Mis búsquedas</h1>
+    <p>Los materiales que necesitás y las posibles coincidencias encontradas para vos.</p>
+    <div class="acciones-cabecera">
+      <a class="boton boton-primario" href="{{ url_for('objetos.nueva_busqueda') }}">Busco un objeto</a>
+      <div class="enlaces-admin"><a class="enlace-admin" href="{{ url_for('objetos.catalogo') }}">Ver catálogo</a></div>
+    </div>
+  </div>
+</section>
+<section class="contenedor pagina-modulo pagina-objetos">
+  <nav class="objetos-estados" aria-label="Estado de mis búsquedas">
+    {% for valor, nombre in [('activa', 'Activas'), ('cerrada', 'Cerradas')] %}
+      <a href="{{ url_for('objetos.mis_busquedas', estado=valor) }}"{% if estado == valor %} aria-current="page"{% endif %}>{{ nombre }}</a>
+    {% endfor %}
+  </nav>
+  <p class="resultado-filtros"><strong>{{ total }}</strong> {{ 'búsqueda' if total == 1 else 'búsquedas' }} {{ ('activa' if estado == 'activa' else 'cerrada') if total == 1 else ('activas' if estado == 'activa' else 'cerradas') }}</p>
+  {% if solicitudes %}
+    <div class="busquedas-lista">
+      {% for s in solicitudes %}
+        <a class="tarjeta busqueda-tarjeta" href="{{ url_for('objetos.detalle_busqueda', solicitud_id=s.id) }}">
+          <div>
+            <span class="objeto-categoria">{{ categorias_busqueda.get(s.categoria, s.categoria) }}</span>
+            <h2>{{ s.titulo }}</h2>
+            <p>{{ modalidades_busqueda.get(s.modalidad, s.modalidad) }}{% if s.presupuesto_max is not none %} · Hasta {{ s.presupuesto_max | precio_pesos }}{% endif %}</p>
+            <span class="busqueda-fecha">Creada el {{ s.creado | fecha_corta }}</span>
+          </div>
+          <span class="busqueda-cantidad{% if not s.coincidencias %} sin-coincidencias{% endif %}">{{ s.coincidencias }} {{ 'coincidencia disponible' if s.coincidencias == 1 else 'coincidencias disponibles' }} <span aria-hidden="true">→</span></span>
+        </a>
+      {% endfor %}
+    </div>
+    {% if paginas > 1 %}
+      <nav class="objetos-paginacion" aria-label="Páginas de búsquedas">
+        {% if pagina > 1 %}<a class="boton" href="{{ url_for('objetos.mis_busquedas', estado=estado, pagina=pagina - 1) }}">← Anterior</a>{% endif %}
+        <span>Página {{ pagina }} de {{ paginas }}</span>
+        {% if pagina < paginas %}<a class="boton" href="{{ url_for('objetos.mis_busquedas', estado=estado, pagina=pagina + 1) }}">Siguiente →</a>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="estado-vacio">
+      <h2>{{ 'Todavía no tenés búsquedas activas' if estado == 'activa' else 'No tenés búsquedas cerradas' }}</h2>
+      <p>Creá una búsqueda y te avisamos cuando aparezca un material compatible.</p>
+      <a class="boton boton-suave" href="{{ url_for('objetos.nueva_busqueda') }}">Busco un objeto</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

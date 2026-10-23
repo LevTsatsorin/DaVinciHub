@@ -90,15 +90,19 @@ def _validar(form, carrera_actual: int | None = None) -> dict:
 
 
 def crear(usuario_id: int, form) -> int:
+    from davincihub.objetos import busquedas
+
     _estudiante(usuario_id)
     campos = _validar(form)
-    fila = db.query_one(
-        "INSERT INTO publicaciones (autor_id, carrera_id, titulo, descripcion, categoria,"
-        " estado_objeto, modalidad, precio, creado)"
-        " VALUES (:autor, :carrera_id, :titulo, :descripcion, :categoria, :estado_objeto,"
-        " :modalidad, :precio, :creado) RETURNING id",
-        autor=usuario_id, creado=ahora(), **campos,
-    )
+    with db.transaccion():
+        fila = db.query_one(
+            "INSERT INTO publicaciones (autor_id, carrera_id, titulo, descripcion, categoria,"
+            " estado_objeto, modalidad, precio, creado)"
+            " VALUES (:autor, :carrera_id, :titulo, :descripcion, :categoria, :estado_objeto,"
+            " :modalidad, :precio, :creado) RETURNING id",
+            autor=usuario_id, creado=ahora(), **campos,
+        )
+        busquedas.detectar_para_publicacion(fila["id"])
     return fila["id"]
 
 
@@ -123,6 +127,8 @@ def _propia(publicacion_id: int, usuario_id: int) -> dict:
 
 
 def editar(publicacion_id: int, usuario_id: int, form):
+    from davincihub.objetos import busquedas
+
     with db.transaccion():
         publicacion = _propia(publicacion_id, usuario_id)
         if publicacion["estado"] == "cerrada":
@@ -134,9 +140,12 @@ def editar(publicacion_id: int, usuario_id: int, form):
             " modalidad = :modalidad, precio = :precio WHERE id = :id",
             id=publicacion_id, **campos,
         )
+        busquedas.detectar_para_publicacion(publicacion_id)
 
 
 def cambiar_estado(publicacion_id: int, usuario_id: int, estado: str):
+    from davincihub.objetos import busquedas
+
     with db.transaccion():
         publicacion = _propia(publicacion_id, usuario_id)
         if estado not in ESTADOS:
@@ -145,6 +154,8 @@ def cambiar_estado(publicacion_id: int, usuario_id: int, estado: str):
             raise ErrorPublicacion({"general": "La publicación ya está cerrada."})
         db.execute("UPDATE publicaciones SET estado = :estado WHERE id = :id",
                    estado=estado, id=publicacion_id)
+        if estado == "activa":
+            busquedas.detectar_para_publicacion(publicacion_id)
 
 
 def carreras_disponibles(actual: int | None = None) -> list[dict]:
@@ -154,11 +165,15 @@ def carreras_disponibles(actual: int | None = None) -> list[dict]:
     )
 
 
-def listar(filtros: dict, pagina: int = 1, autor_id: int | None = None) -> dict:
+def listar(filtros: dict, pagina: int = 1, autor_id: int | None = None,
+           excluir_autor_id: int | None = None) -> dict:
     condiciones = ["p.autor_id = :autor"] if autor_id is not None else [
         "p.estado = 'activa'", "u.bloqueado = 0"
     ]
     params = {"autor": autor_id} if autor_id is not None else {}
+    if autor_id is None and excluir_autor_id is not None:
+        condiciones.append("p.autor_id != :excluir_autor")
+        params["excluir_autor"] = excluir_autor_id
     if autor_id is not None and filtros.get("estado") in ESTADOS:
         condiciones.append("p.estado = :estado")
         params["estado"] = filtros["estado"]
