@@ -3,7 +3,17 @@ import os
 from flask import Flask, g, render_template, url_for
 from flask_wtf.csrf import CSRFProtect
 
-from davincihub import academico, actividades, auth, db, notificaciones, perfil, seguridad, usuarios
+from davincihub import (
+    academico,
+    actividades,
+    auth,
+    db,
+    foro,
+    notificaciones,
+    perfil,
+    seguridad,
+    usuarios,
+)
 from davincihub import inicio as pagina_inicio
 from davincihub.objetos import rutas as objetos_rutas
 from davincihub.reservas import rutas as reservas_rutas
@@ -32,6 +42,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(notificaciones.bp)
     app.register_blueprint(reservas_rutas.bp)
     app.register_blueprint(actividades.bp)
+    app.register_blueprint(foro.bp)
     app.register_blueprint(usuarios.bp)
     app.register_blueprint(academico.bp)
     app.register_blueprint(objetos_rutas.bp)

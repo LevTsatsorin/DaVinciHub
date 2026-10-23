@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ "Editar pregunta" if pregunta else "Nueva pregunta" }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="formulario-pagina pagina-foro">
+  <div class="tarjeta-propuesta foro-editor">
+
+    <img class="propuesta-imagen"
+         src="{{ url_for('static', filename='img/foro.png') }}"
+         alt="">
+
+    <div class="propuesta-formulario">
+
+      <a class="enlace-volver foro-volver"
+         href="{{ url_for('foro.detalle', pregunta_id=pregunta.id) if pregunta else url_for('foro.index') }}">
+        ‹ Volver al foro
+      </a>
+
+      <h1>{{ "Editar pregunta" if pregunta else "Hacer una pregunta" }}</h1>
+
+      <p class="propuesta-intro">
+        Elegí la carrera y la materia para que tu consulta llegue a la comunidad correcta.
+      </p>
+
+      {% if error %}
+        <p class="error-texto" role="alert">{{ error }}</p>
+      {% endif %}
+
+      {% set carrera_actual = datos_form.get('carrera_id', pregunta.carrera_id if pregunta else '') | string %}
+      {% set materia_actual = datos_form.get('materia_id', pregunta.materia_id if pregunta else '') | string %}
+
+      <form method="post"
+            enctype="multipart/form-data"
+            class="formulario foro-formulario">
+
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="campo">
+          <label for="carrera_id">Carrera</label>
+          <select id="carrera_id" name="carrera_id" required data-foro-carrera>
+            <option value="">Elegí una carrera</option>
+            {% for carrera in materias | map(attribute='carrera_id') | unique %}
+              {% set nombre_carrera = (materias | selectattr('carrera_id', 'equalto', carrera) | first).carrera %}
+              <option value="{{ carrera }}" {% if carrera_actual == carrera | string %}selected{% endif %}>
+                {{ nombre_carrera }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="materia_id">Materia</label>
+          <select id="materia_id" name="materia_id" required data-foro-materia>
+            <option value="">Elegí una materia</option>
+            {% for materia in materias %}
+              <option value="{{ materia.id }}"
+                      data-carrera="{{ materia.carrera_id }}"
+                      {% if materia_actual == materia.id | string %}selected{% endif %}>
+                {{ materia.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="titulo">Título</label>
+          <input id="titulo"
+                 name="titulo"
+                 maxlength="160"
+                 minlength="10"
+                 required
+                 value="{{ datos_form.get('titulo', pregunta.titulo if pregunta else '') }}"
+                 placeholder="Ej.: ¿Cómo resolver este ejercicio?">
+        </div>
+
+        <div class="campo">
+          <label for="cuerpo">Descripción</label>
+          <textarea id="cuerpo"
+                    name="cuerpo"
+                    rows="7"
+                    maxlength="5000"
+                    minlength="10"
+                    required
+                    placeholder="Explicá tu duda y agregá los detalles necesarios para que otros estudiantes puedan ayudarte.">{{ datos_form.get('cuerpo', pregunta.cuerpo if pregunta else '') }}</textarea>
+        </div>
+
+        <div class="campo">
+          <label for="imagen">
+            Imagen de referencia
+            <span class="foro-opcional">(opcional, hasta 3 MB)</span>
+          </label>
+
+          {% if pregunta and pregunta.tiene_imagen %}
+            <p class="foro-imagen-existente">
+              Ya hay una imagen adjunta. Si elegís otra, se reemplaza.
+            </p>
+          {% endif %}
+
+          <input id="imagen"
+                 name="imagen"
+                 type="file"
+                 accept="image/png,image/jpeg,image/gif,image/webp">
+        </div>
+
+        <div class="foro-form-acciones">
+          <button class="boton boton-primario" type="submit">
+            {{ "Guardar cambios" if pregunta else "Publicar pregunta" }}
+          </button>
+
+          <a class="boton boton-suave"
+             href="{{ url_for('foro.detalle', pregunta_id=pregunta.id) if pregunta else url_for('foro.index') }}">
+            Cancelar
+          </a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='foro.js') }}" defer></script>
+{% endblock %}
