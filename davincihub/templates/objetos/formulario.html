@@ -55,8 +55,8 @@
           {{ error('modalidad') }}
         </div>
         <div class="campo" data-campo-precio>
-          <label for="precio">Precio en pesos argentinos <span data-precio-obligatorio>*</span></label>
-          <input id="precio" name="precio" type="number" min="0.01" max="999999999.99" step="0.01" inputmode="decimal" value="{{ datos_form.get('precio') if datos_form.get('precio') is not none else '' }}" placeholder="25000" aria-describedby="ayuda-precio{% if errores.get('precio') %} error-precio{% endif %}"{% if errores.get('precio') %} aria-invalid="true"{% endif %}>
+          <label for="precio">Precio en pesos <span data-precio-obligatorio>*</span></label>
+          <input id="precio" name="precio" type="number" min="0.01" max="999999999.99" step="0.01" inputmode="decimal" value="{% set precio = datos_form.get('precio') %}{{ precio | int if precio is number and precio == precio | int else (precio if precio is not none else '') }}" placeholder="25000" aria-describedby="ayuda-precio{% if errores.get('precio') %} error-precio{% endif %}"{% if errores.get('precio') %} aria-invalid="true"{% endif %}>
           <p class="ayuda" id="ayuda-precio">Obligatorio solo para venta. La plataforma no procesa pagos.</p>
           {{ error('precio') }}
         </div>

@@ -8,7 +8,7 @@
     <p>{{ 'Editá tus anuncios y decidí cuáles aparecen en el catálogo.' if mias else 'Libros, herramientas y equipos para tu carrera. Vendé, intercambiá o prestá entre estudiantes.' }}</p>
     <div class="acciones-cabecera">
       {% if g.usuario.rol == 'estudiante' %}
-        <a class="boton boton-primario" href="{{ url_for('objetos.publicar') }}">Publicar objeto</a>
+        <a class="boton boton-grande" href="{{ url_for('objetos.publicar') }}">Publicar objeto</a>
         <div class="enlaces-admin">
           <a class="enlace-admin" href="{{ url_for('objetos.catalogo') if mias else url_for('objetos.mis_publicaciones') }}">{{ 'Ver catálogo' if mias else 'Mis publicaciones' }}</a>
           <a class="enlace-admin" href="{{ url_for('objetos.nueva_busqueda') }}">Busco un objeto</a>
@@ -26,53 +26,52 @@
       {% endfor %}
     </nav>
   {% else %}
-  <form class="objetos-filtros" method="get" role="search" aria-label="Buscar materiales de estudio">
+  <form class="objetos-filtros filtros-fijos" id="filtros-objetos" method="get" role="search" aria-label="Buscar materiales de estudio">
     <div class="campo objeto-buscar">
       <label for="q">Buscar por nombre</label>
-      <input type="search" id="q" name="q" value="{{ filtros.q }}" maxlength="120" placeholder="Un libro, una cámara, una tableta…">
+      <input type="search" id="q" name="q" value="{{ filtros.q }}" maxlength="120" placeholder="Libro, cámara, tableta…">
     </div>
     <div class="campo">
       <label for="categoria">Categoría</label>
       <select id="categoria" name="categoria">
-        <option value="">Todas las categorías</option>
+        <option value="">Todas</option>
         {% for valor, nombre in categorias.items() %}<option value="{{ valor }}"{% if filtros.categoria == valor %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
       </select>
     </div>
     <div class="campo">
       <label for="carrera_id">Carrera</label>
       <select id="carrera_id" name="carrera_id">
-        <option value="">Todas las carreras</option>
+        <option value="">Todas</option>
         {% for carrera in carreras %}<option value="{{ carrera.id }}"{% if filtros.carrera_id == carrera.id %} selected{% endif %}>{{ carrera.nombre }}</option>{% endfor %}
       </select>
     </div>
     <div class="campo">
       <label for="modalidad">Modalidad</label>
       <select id="modalidad" name="modalidad">
-        <option value="">Todas las modalidades</option>
+        <option value="">Todas</option>
         {% for valor, nombre in modalidades.items() %}<option value="{{ valor }}"{% if filtros.modalidad == valor %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
       </select>
     </div>
-    <div class="objetos-filtro-acciones">
-      {% if g.usuario.rol == 'estudiante' %}
-        <label class="objetos-mostrar-mias" for="mostrar_mias">
-          <input type="checkbox" id="mostrar_mias" name="mostrar_mias" value="1"{% if filtros.mostrar_mias %} checked{% endif %}>
-          Mostrar mis publicaciones
-        </label>
-      {% endif %}
-      <button class="boton boton-primario" type="submit">Buscar</button>
-      {% if filtros.q or filtros.categoria or filtros.carrera_id or filtros.modalidad or filtros.estado %}<a class="enlace-limpiar" href="{{ url_for('objetos.mis_publicaciones') if mias else url_for('objetos.catalogo') }}">Limpiar</a>{% endif %}
-    </div>
+    <button class="boton boton-primario objetos-filtro-buscar" type="submit">Buscar</button>
   </form>
   {% endif %}
-  <p class="resultado-filtros"><strong>{{ total }}</strong> {{ 'publicación encontrada' if total == 1 else 'publicaciones encontradas' }}</p>
+  <div class="objetos-resultado">
+    <p class="resultado-filtros"><strong>{{ total }}</strong> {{ 'publicación encontrada' if total == 1 else 'publicaciones encontradas' }}</p>
+    {% if not mias %}
+      {% if g.usuario.rol == 'estudiante' %}
+        <label class="objetos-mostrar-mias" for="mostrar_mias">
+          <input type="checkbox" id="mostrar_mias" name="mostrar_mias" form="filtros-objetos" value="1"{% if filtros.mostrar_mias %} checked{% endif %}>
+          Incluir mis publicaciones
+        </label>
+      {% endif %}
+      {% if filtros.q or filtros.categoria or filtros.carrera_id or filtros.modalidad or filtros.mostrar_mias %}<a class="enlace-limpiar" href="{{ url_for('objetos.catalogo') }}">Limpiar filtros</a>{% endif %}
+    {% endif %}
+  </div>
   {% if publicaciones %}
     <div class="objetos-grilla">{% for publicacion in publicaciones %}{% include "objetos/_tarjeta.html" %}{% endfor %}</div>
     {% if paginas > 1 %}
-      <nav class="objetos-paginacion" aria-label="Páginas de publicaciones">
-        {% if pagina > 1 %}<a class="boton" href="{{ enlaces.anterior }}">← Anterior</a>{% endif %}
-        <span>Página {{ pagina }} de {{ paginas }}</span>
-        {% if pagina < paginas %}<a class="boton" href="{{ enlaces.siguiente }}">Siguiente →</a>{% endif %}
-      </nav>
+      {% set etiqueta_paginacion = "Páginas de publicaciones" %}
+      {% include "_paginacion.html" %}
     {% endif %}
   {% else %}
     <div class="estado-vacio">
@@ -87,4 +86,10 @@
     </div>
   {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("mostrar_mias")?.addEventListener("change", (evento) => evento.target.form.requestSubmit());
+</script>
 {% endblock %}

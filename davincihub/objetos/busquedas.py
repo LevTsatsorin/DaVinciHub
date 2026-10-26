@@ -23,7 +23,9 @@ _IGNORADAS = frozenset(
      "la", "las", "lo", "los", "mas", "me", "mi", "mis", "muy", "necesito", "no", "o", "otra",
      "otro", "para", "pero", "por", "que", "quiero", "se", "sin", "sobre", "su", "sus", "te",
      "tengo", "tu", "tus", "un", "una", "unas", "uno", "unos", "usado", "usada", "nuevo", "nueva",
-     "y", "ya"]
+     "y", "ya", "anda", "bien", "completa", "completo", "correctamente", "correcto", "estado",
+     "excelente", "funciona", "funcionando", "funcione", "impecable", "incluye", "original",
+     "perfecta", "perfecto", "poco", "sirve", "toda", "todo", "uso"]
 )
 
 
@@ -31,11 +33,25 @@ class ErrorBusqueda(datos.ErrorPublicacion):
     pass
 
 
+def _singular(palabra: str) -> str:
+    if len(palabra) > 4 and palabra.endswith("ces"):
+        return palabra[:-3] + "z"
+    if len(palabra) > 3 and palabra.endswith("s"):
+        return palabra[:-1]
+    return palabra
+
+
 def palabras(texto: str) -> set[str]:
     return {
-        p for p in re.findall(r"[^\W_]+", sin_acentos(texto or ""))
-        if (len(p) >= 3 or p in {"pc", "vr", "a3", "a4", "2d", "3d"}) and p not in _IGNORADAS
+        _singular(p) for p in re.findall(r"[^\W_]+", sin_acentos(texto or ""))
+        if (len(p) >= 3 or p in {"pc", "vr", "a3", "a4", "2d", "3d"})
+        and not p.isdigit() and p not in _IGNORADAS and _singular(p) not in _IGNORADAS
     }
+
+
+def _parecidas(una: str, otra: str) -> bool:
+    corta, larga = sorted((una, otra), key=len)
+    return corta == larga or (len(corta) >= 5 and larga.startswith(corta))
 
 
 def coincide(solicitud: dict, publicacion: dict) -> bool:
@@ -54,10 +70,7 @@ def coincide(solicitud: dict, publicacion: dict) -> bool:
             return False
     buscadas = palabras(solicitud["titulo"] + " " + (solicitud.get("descripcion") or ""))
     ofrecidas = palabras(publicacion["titulo"] + " " + (publicacion.get("descripcion") or ""))
-    return any(
-        buscada == ofrecida or (len(buscada) >= 4 and ofrecida.startswith(buscada))
-        for buscada in buscadas for ofrecida in ofrecidas
-    )
+    return any(_parecidas(buscada, ofrecida) for buscada in buscadas for ofrecida in ofrecidas)
 
 
 def _validar(form) -> dict:

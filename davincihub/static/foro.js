@@ -19,3 +19,23 @@ if (selectorCarrera && selectorMateria) {
   selectorCarrera.addEventListener("change", filtrarMaterias);
   filtrarMaterias();
 }
+
+const campoArchivo = document.querySelector("[data-archivo]");
+
+if (campoArchivo) {
+  const entrada = campoArchivo.querySelector("input[type=file]");
+  const nombre = campoArchivo.querySelector("[data-archivo-nombre]");
+  const vista = campoArchivo.querySelector("[data-archivo-vista]");
+  const textoInicial = nombre.textContent;
+
+  entrada.addEventListener("change", () => {
+    const archivo = entrada.files[0];
+    if (vista.src) URL.revokeObjectURL(vista.src);
+    nombre.textContent = archivo ? archivo.name : textoInicial;
+    campoArchivo.classList.toggle("campo-archivo-lleno", Boolean(archivo));
+    vista.hidden = !archivo;
+    if (archivo) vista.src = URL.createObjectURL(archivo);
+  });
+  ["dragenter", "dragover"].forEach((evento) => campoArchivo.addEventListener(evento, () => campoArchivo.classList.add("campo-archivo-arrastrando")));
+  ["dragleave", "drop"].forEach((evento) => campoArchivo.addEventListener(evento, () => campoArchivo.classList.remove("campo-archivo-arrastrando")));
+}

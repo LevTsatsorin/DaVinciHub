@@ -3,7 +3,7 @@
 {% block titulo %}Chat con {{ estudiante.nombre }} — Da Vinci Hub{% endblock %}
 
 {% block contenido %}
-<section class="contenedor pagina-modulo pagina-perfil">
+<section class="contenedor pagina-modulo pagina-perfil pagina-chat">
   <div class="chat-panel chat-tema-{{ g.usuario.chat_tema }}">
     <header class="chat-cabecera fondo-oscuro">
       <a class="chat-volver" href="{{ url_for('perfil.chats') }}" aria-label="Volver a Mensajes">

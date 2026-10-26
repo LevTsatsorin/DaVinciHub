@@ -10,7 +10,7 @@
     <p>Encuentros, grupos de estudio, torneos y charlas organizados por y para estudiantes de la Da Vinci.</p>
     <div class="acciones-cabecera">
       {% if g.usuario %}
-        <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">{{ "Nueva actividad" if g.usuario.rol == 'admin' else "Proponer actividad" }}</a>
+        <a class="boton boton-grande" href="{{ url_for('actividades.crear') }}">{{ "Nueva actividad" if g.usuario.rol == 'admin' else "Proponer actividad" }}</a>
         <div class="enlaces-admin">
           <a class="enlace-admin" href="{{ url_for('actividades.mis_actividades') }}">Mis actividades</a>
           {% if g.usuario.rol == 'admin' %}
@@ -20,7 +20,7 @@
           {% endif %}
         </div>
       {% else %}
-        <a class="boton boton-primario" href="{{ url_for('auth.login', siguiente=request.path) }}">Ingresá para proponer</a>
+        <a class="boton boton-grande" href="{{ url_for('auth.login', siguiente=request.path) }}">Ingresá para proponer</a>
       {% endif %}
     </div>
   </div>
@@ -92,15 +92,9 @@
         {% endfor %}
       </div>
       {% if paginas > 1 %}
-        <nav class="paginacion" aria-label="Páginas">
-          {% if pagina > 1 %}
-            <a class="boton boton-suave" href="{{ url_for('actividades.index', mes=mes.isoformat()[:7], dia=dia or None, pagina=pagina - 1) }}#lista-titulo">Anteriores</a>
-          {% endif %}
-          <span>Página {{ pagina }} de {{ paginas }}</span>
-          {% if pagina < paginas %}
-            <a class="boton boton-suave" href="{{ url_for('actividades.index', mes=mes.isoformat()[:7], dia=dia or None, pagina=pagina + 1) }}#lista-titulo">Siguientes</a>
-          {% endif %}
-        </nav>
+        {% set enlaces = paginacion('actividades.index', pagina, paginas, '#lista-titulo', mes=mes.isoformat()[:7], dia=dia) %}
+        {% set etiqueta_paginacion = "Páginas de actividades" %}
+        {% include "_paginacion.html" %}
       {% endif %}
     {% elif not destacada %}
       <div class="estado-vacio">
@@ -108,7 +102,7 @@
         <h2>No hay actividades próximas por ahora</h2>
         <p>¿Tenés una idea para un taller, un grupo de estudio o un torneo? Proponé el primer encuentro.</p>
         {% if g.usuario %}
-          <a class="boton boton-primario" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
+          <a class="boton boton-grande" href="{{ url_for('actividades.crear') }}">Proponer actividad</a>
         {% endif %}
       </div>
     {% else %}

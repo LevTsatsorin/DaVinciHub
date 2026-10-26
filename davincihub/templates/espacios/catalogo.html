@@ -19,7 +19,7 @@
       </li>
     </ul>
     <div class="acciones-cabecera">
-      <a class="boton boton-primario" href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
+      <a class="boton boton-grande" href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
       {% if g.usuario and g.usuario.rol == "admin" %}
         <div class="enlaces-admin">
           <a class="enlace-admin" href="{{ url_for('espacios.reservas_admin_todas') }}">Todas las reservas</a>
@@ -32,7 +32,7 @@
 
 <section class="contenedor pagina-espacios">
   {% set filtrando = filtros.q or filtros.fecha or filtros.personas %}
-  <form class="filtros-espacios" method="get" role="search">
+  <form class="filtros-espacios filtros-fijos" method="get" role="search">
     <label class="filtro-buscar">Buscar
       <input type="search" name="q" value="{{ filtros.q }}" placeholder="Nombre del espacio">
     </label>

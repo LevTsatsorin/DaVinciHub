@@ -1,0 +1,18 @@
+<a class="objeto-compacto" href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">
+  <span class="objeto-compacto-imagen objeto-{{ publicacion.categoria }}" aria-hidden="true">{% include "objetos/_icono.html" %}</span>
+  <span class="objeto-compacto-datos">
+    <span class="objeto-compacto-fila">
+      <span class="objeto-modalidad objeto-modalidad-{{ publicacion.modalidad }}">{{ modalidades.get(publicacion.modalidad, publicacion.modalidad) }}</span>
+      <span class="objeto-categoria">{{ categorias.get(publicacion.categoria, publicacion.categoria) }}</span>
+    </span>
+    <strong class="objeto-compacto-titulo" title="{{ publicacion.titulo }}">{{ publicacion.titulo }}</strong>
+    <span class="objeto-compacto-fila objeto-compacto-pie">
+      {% if publicacion.modalidad == 'venta' and publicacion.precio is not none %}
+        <span class="objeto-compacto-precio">{{ publicacion.precio | precio_corto }}</span>
+      {% else %}
+        <span class="objeto-compacto-precio objeto-precio-{{ publicacion.modalidad }}">Sin costo</span>
+      {% endif %}
+      <span class="objeto-compacto-autor">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</span>
+    </span>
+  </span>
+</a>

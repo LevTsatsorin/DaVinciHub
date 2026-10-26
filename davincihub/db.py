@@ -188,6 +188,14 @@ TABLAS_AGREGADAS = {
 INDICES_AGREGADOS = [
     ("bloqueos", "CREATE INDEX IF NOT EXISTS idx_bloqueos_usuario ON bloqueos (usuario_id, creado)"),
     (
+        "conexiones",
+        (
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_conexiones_par"
+            " ON conexiones ((CASE WHEN solicitante_id < receptor_id THEN solicitante_id ELSE receptor_id END),"
+            " (CASE WHEN solicitante_id < receptor_id THEN receptor_id ELSE solicitante_id END))"
+        ),
+    ),
+    (
         "respuestas",
         ("CREATE UNIQUE INDEX IF NOT EXISTS idx_respuesta_aceptada"
          " ON respuestas (pregunta_id) WHERE aceptada = 1"),
@@ -219,6 +227,8 @@ def migrar():
         for tabla, definicion in TABLAS_AGREGADAS.items():
             if not _columnas(tabla):
                 execute(definicion.replace("{{PK}}", _clave_primaria()))
+        if _columnas("conexiones") and not _existe_indice_conexiones():
+            _normalizar_conexiones()
         for tabla, indice in INDICES_AGREGADOS:
             if _columnas(tabla):
                 execute(indice)
@@ -227,6 +237,54 @@ def migrar():
         if existentes and columna not in existentes:
             si_falta = " IF NOT EXISTS" if g.db_es_pg else ""
             execute(f"ALTER TABLE {tabla} ADD COLUMN{si_falta} {columna} {definicion}")
+
+
+def _existe_indice_conexiones() -> bool:
+    if g.db_es_pg:
+        return query_one(
+            "SELECT 1 AS existe FROM pg_indexes WHERE schemaname = current_schema()"
+            " AND tablename = 'conexiones' AND indexname = 'idx_conexiones_par'"
+        ) is not None
+    return any(fila["name"] == "idx_conexiones_par" for fila in query("PRAGMA index_list(conexiones)"))
+
+
+def _normalizar_conexiones():
+    if not {"id", "solicitante_id", "receptor_id", "estado", "creado"} <= _columnas("conexiones"):
+        return
+    filas = query(
+        "SELECT id, solicitante_id, receptor_id, estado FROM conexiones"
+        " ORDER BY CASE WHEN solicitante_id < receptor_id THEN solicitante_id ELSE receptor_id END,"
+        " CASE WHEN solicitante_id < receptor_id THEN receptor_id ELSE solicitante_id END, id"
+    )
+    pares: dict[tuple[int, int], list[dict]] = {}
+    for fila in filas:
+        par = tuple(sorted((fila["solicitante_id"], fila["receptor_id"])))
+        pares.setdefault(par, []).append(fila)
+    duplicados = [filas_par for filas_par in pares.values() if len(filas_par) > 1]
+    if not duplicados:
+        return
+
+    with transaccion():
+        for filas_par in duplicados:
+            ids = [fila["id"] for fila in filas_par]
+            estados = {fila["estado"] for fila in filas_par}
+            if "aceptada" in estados or (
+                len(estados) == 1
+                and estados == {"pendiente"}
+                and len({fila["solicitante_id"] for fila in filas_par}) > 1
+            ):
+                estado = "aceptada"
+            elif "pendiente" in estados:
+                estado = "pendiente"
+            else:
+                estado = "rechazada"
+            superviviente = next(
+                (fila for fila in filas_par if fila["estado"] == estado), filas_par[0]
+            )
+            execute("UPDATE conexiones SET estado = :estado WHERE id = :id", estado=estado, id=superviviente["id"])
+            for fila_id in ids:
+                if fila_id != superviviente["id"]:
+                    execute("DELETE FROM conexiones WHERE id = :id", id=fila_id)
 
 
 def init_db(demo: bool = False):
@@ -280,5 +338,8 @@ def registrar(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(comando_init_db)
     app.cli.add_command(comando_seed_objetos)
+    from davincihub.demo_amplio import comando_seed_amplio
+
+    app.cli.add_command(comando_seed_amplio)
     with app.app_context():
         migrar()

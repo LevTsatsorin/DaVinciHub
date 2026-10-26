@@ -21,6 +21,9 @@
       <a href="{{ url_for('objetos.catalogo') }}"{% if request.blueprint == 'objetos' %} aria-current="page"{% endif %}>Objetos</a>
       <a href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
       <a href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
+      {% if g.usuario and g.usuario.rol == 'estudiante' %}
+        <a href="{{ url_for('perfil.buscar_estudiantes') }}"{% if request.endpoint == 'perfil.buscar_estudiantes' %} aria-current="page"{% endif %}>Estudiantes</a>
+      {% endif %}
       {% if g.usuario and g.usuario.rol == 'admin' %}
         <a href="{{ url_for('usuarios.lista') }}"{% if request.blueprint == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
         <a href="{{ url_for('academico.lista') }}"{% if request.blueprint == 'academico' %} aria-current="page"{% endif %}>Carreras</a>
@@ -81,14 +84,27 @@
     </button>
   </div>
   {% if g.usuario %}
-    <p class="menu-usuario">Hola, <strong>{{ g.usuario.nombre }}</strong></p>
+    <div class="menu-cuenta">
+      <div class="menu-persona">
+        {% if g.usuario.tiene_foto %}<img class="menu-persona-avatar" src="{{ url_for('perfil.foto', usuario_id=g.usuario.id) }}" alt="">
+        {% else %}<span class="menu-persona-avatar" aria-hidden="true">{{ g.usuario.nombre[:1] }}{{ g.usuario.apellido[:1] }}</span>{% endif %}
+        <p class="menu-usuario">Hola, <strong>{{ g.usuario.nombre }}</strong></p>
+      </div>
+      <nav class="menu-cuenta-enlaces" aria-label="Tu cuenta">
+        {% if g.usuario.rol == 'estudiante' %}
+          <a class="menu-chip" href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}"{% if request.endpoint in ('perfil.ver', 'perfil.editar') and request.view_args.usuario_id == g.usuario.id %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg> Mi perfil</a>
+          <a class="menu-chip" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}"{% if request.endpoint == 'perfil.conexiones' %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><path d="M2 20c1-3 3.5-5 6-5s5 2 6 5M14 15.5c1-.3 2-.5 3-.5 2.5 0 4.5 2 5 5"/></svg> Conexiones</a>
+          <a class="menu-chip" href="{{ url_for('perfil.buscar_estudiantes') }}"{% if request.endpoint == 'perfil.buscar_estudiantes' %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg> Estudiantes</a>
+          <a class="menu-chip" href="{{ url_for('perfil.chats') }}"{% if request.endpoint in ('perfil.chats', 'perfil.chat') %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg> Mensajes</a>
+        {% endif %}
+        <a class="menu-chip menu-avisos" href="{{ url_for('notificaciones.bandeja') }}"{% if request.blueprint == 'notificaciones' %} aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg> Notificaciones{% if avisos_sin_leer %} <span class="campana-cantidad">{{ avisos_sin_leer }}</span>{% endif %}
+        </a>
+      </nav>
+    </div>
   {% endif %}
+  <p class="menu-titulo">Módulos</p>
   <nav class="menu-enlaces">
-    {% if g.usuario and g.usuario.rol == 'estudiante' %}
-      <a class="menu-enlace menu-enlace-perfil" href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
-      <a class="menu-enlace menu-enlace-conexiones" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
-      <a class="menu-enlace menu-enlace-mensajes" href="{{ url_for('perfil.chats') }}"{% if request.endpoint == 'perfil.chats' %} aria-current="page"{% endif %}>Mensajes</a>
-    {% endif %}
     <a class="menu-enlace modulo-foro" href="{{ url_for('foro.index') }}"{% if request.blueprint == 'foro' %} aria-current="page"{% endif %}>Foro académico</a>
     <a class="menu-enlace modulo-objetos" href="{{ url_for('objetos.catalogo') }}"{% if request.blueprint == 'objetos' %} aria-current="page"{% endif %}>Objetos</a>
     <a class="menu-enlace modulo-reservas" href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
@@ -96,11 +112,6 @@
     {% if g.usuario and g.usuario.rol == 'admin' %}
       <a class="menu-enlace modulo-usuarios" href="{{ url_for('usuarios.lista') }}"{% if request.blueprint == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
       <a class="menu-enlace modulo-carreras" href="{{ url_for('academico.lista') }}"{% if request.blueprint == 'academico' %} aria-current="page"{% endif %}>Carreras</a>
-    {% endif %}
-    {% if g.usuario %}
-      <a class="menu-enlace menu-avisos" href="{{ url_for('notificaciones.bandeja') }}">
-        Notificaciones{% if avisos_sin_leer %} <span class="campana-cantidad">{{ avisos_sin_leer }}</span>{% endif %}
-      </a>
     {% endif %}
   </nav>
   <div class="menu-acciones">
@@ -129,7 +140,7 @@
 </main>
 <footer class="pie">
   {% set es_admin = g.usuario and g.usuario.rol == 'admin' %}
-  <div class="contenedor pie-superior{% if es_admin %} pie-con-admin{% endif %}">
+  <div class="contenedor pie-superior{% if es_admin %} pie-con-admin{% elif g.usuario %} pie-con-cuenta{% endif %}">
     <div class="pie-marca">
       <a class="logo" href="{{ url_for('inicio') }}">Da Vinci <span>Hub</span></a>
       <p>La comunidad online de los estudiantes de la Escuela Da Vinci.</p>
@@ -147,24 +158,40 @@
     </div>
     <nav class="pie-columna pie-col-magenta">
       <h3>Módulos</h3>
-      <a href="#">Foro académico</a>
+      <a href="{{ url_for('foro.index') }}">Foro académico</a>
       <a href="{{ url_for('objetos.catalogo') }}">Objetos</a>
       <a href="{{ url_for('espacios.catalogo') }}">Reservas</a>
       <a href="{{ url_for('actividades.index') }}">Actividades</a>
+      {% if g.usuario and g.usuario.rol == 'estudiante' %}<a href="{{ url_for('perfil.buscar_estudiantes') }}">Estudiantes</a>{% endif %}
     </nav>
     <nav class="pie-columna pie-col-cian">
       <h3>Tu cuenta</h3>
       {% if g.usuario %}
-        <a href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
-        <a href="{{ url_for('actividades.mis_actividades') }}">Mis actividades</a>
+        {% if g.usuario.rol == 'estudiante' %}
+          <a href="{{ url_for('perfil.ver', usuario_id=g.usuario.id) }}">Mi perfil</a>
+          <a href="{{ url_for('perfil.chats') }}">Mensajes</a>
+          <a href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
+        {% endif %}
         <a href="{{ url_for('notificaciones.bandeja') }}">Notificaciones</a>
       {% else %}
         <a href="{{ url_for('auth.login') }}">Ingresar</a>
         <a href="{{ url_for('auth.registro') }}">Crear cuenta</a>
       {% endif %}
     </nav>
-    {% if es_admin %}
+    {% if g.usuario %}
       <nav class="pie-columna pie-col-ambar">
+        <h3>Lo tuyo</h3>
+        <a href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
+        <a href="{{ url_for('actividades.mis_actividades') }}">Mis actividades</a>
+        {% if g.usuario.rol == 'estudiante' %}
+          <a href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a>
+          <a href="{{ url_for('objetos.mis_busquedas') }}">Mis búsquedas</a>
+          <a href="{{ url_for('foro.index', mis_dudas=1) }}">Mis preguntas</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+    {% if es_admin %}
+      <nav class="pie-columna pie-col-violeta">
         <h3>Administración</h3>
         <a href="{{ url_for('usuarios.lista') }}">Usuarios</a>
         <a href="{{ url_for('academico.lista') }}">Carreras</a>
@@ -172,7 +199,7 @@
         <a href="{{ url_for('actividades.admin_panel') }}">Moderación</a>
       </nav>
     {% endif %}
-    <nav class="pie-columna pie-col-violeta">
+    <nav class="pie-columna pie-col-gris">
       <h3>La escuela</h3>
       <a href="https://davinci.edu.ar" rel="noopener">Sitio oficial</a>
       <a href="https://davinci.edu.ar/carreras" rel="noopener">Carreras</a>

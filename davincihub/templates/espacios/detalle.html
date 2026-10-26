@@ -14,7 +14,7 @@
       {% if not espacio.activo %}<li>Espacio deshabilitado</li>{% endif %}
     </ul>
     {% if es_admin %}
-      <a class="enlace-admin" href="{{ url_for('espacios.reservas_admin', espacio_id=espacio.id) }}">Ver todas las reservas</a>
+      <div class="acciones-cabecera"><div class="enlaces-admin"><a class="enlace-admin" href="{{ url_for('espacios.reservas_admin', espacio_id=espacio.id) }}">Ver todas las reservas</a></div></div>
     {% endif %}
   </div>
 </section>

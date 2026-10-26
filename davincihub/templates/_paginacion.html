@@ -1,0 +1,24 @@
+<nav class="paginacion" aria-label="{{ etiqueta_paginacion }}">
+  <span class="visualmente-oculto">Página {{ pagina }} de {{ paginas }}</span>
+  {% if pagina > 1 %}
+    <a class="paginacion-flecha" href="{{ enlaces.anterior }}" aria-label="Página anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+  {% else %}
+    <span class="paginacion-flecha" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></span>
+  {% endif %}
+  <ol>
+    {% for numero, enlace in enlaces.paginas %}
+      {% if not numero %}
+        <li class="paginacion-salto" aria-hidden="true">…</li>
+      {% elif numero == pagina %}
+        <li><span class="paginacion-numero" aria-current="page">{{ numero }}</span></li>
+      {% else %}
+        <li><a class="paginacion-numero" href="{{ enlace }}" aria-label="Página {{ numero }}">{{ numero }}</a></li>
+      {% endif %}
+    {% endfor %}
+  </ol>
+  {% if pagina < paginas %}
+    <a class="paginacion-flecha paginacion-siguiente" href="{{ enlaces.siguiente }}">Siguiente<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+  {% else %}
+    <span class="paginacion-flecha" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+  {% endif %}
+</nav>

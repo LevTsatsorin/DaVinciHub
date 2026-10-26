@@ -1,0 +1,43 @@
+{% macro avatar(persona, clase="foro-avatar") -%}
+  {%- if persona.tiene_foto %}<img class="{{ clase }}" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
+  {%- else %}<span class="{{ clase }}" aria-hidden="true">{{ persona.nombre[:1] }}{{ persona.apellido[:1] }}</span>{% endif -%}
+{%- endmacro %}
+
+{% macro autor(persona, con_avatar=True) %}
+  <span class="foro-autor">
+    {% if con_avatar %}{{ avatar(persona) }}{% endif %}
+    {% if persona.rol == 'estudiante' %}
+      <a class="foro-autor-enlace" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">{{ persona.nombre }} {{ persona.apellido }}</a>
+      <div class="foro-autor-tarjeta" role="group" aria-label="Sobre {{ persona.nombre }}">
+        <span class="foro-autor-tarjeta-cabecera">
+          {{ avatar(persona, "foro-avatar foro-avatar-grande") }}
+          <span>
+            <strong>{{ persona.nombre }} {{ persona.apellido }}</strong>
+            {% if persona.carrera %}<span>{{ persona.carrera }}</span>{% endif %}
+            {% if persona.anio %}<span>{{ persona.anio }}.º año{% if persona.comision %} · Comisión {{ persona.comision }}{% endif %}</span>{% endif %}
+          </span>
+        </span>
+        <span class="foro-autor-tarjeta-acciones">
+          <a class="boton boton-suave" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">Ver perfil</a>
+          {% if g.usuario.rol == 'estudiante' and persona.id != g.usuario.id %}
+            {% if persona.conexion_estado == 'aceptada' %}
+              <a class="boton boton-primario" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Escribir</a>
+            {% elif persona.conexion_estado and persona.conexion_solicitante == g.usuario.id %}
+              <span class="foro-autor-estado">Solicitud enviada</span>
+            {% elif persona.conexion_estado == 'pendiente' %}
+              <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Responder solicitud</a>
+            {% else %}
+              <form method="post" action="{{ url_for('perfil.solicitar_conexion', usuario_id=persona.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="volver" value="{{ request.path }}">
+                <button class="boton boton-primario" type="submit">Conectar</button>
+              </form>
+            {% endif %}
+          {% endif %}
+        </span>
+      </div>
+    {% else %}
+      <strong class="foro-autor-enlace">{{ persona.nombre }} {{ persona.apellido }}</strong>
+    {% endif %}
+  </span>
+{% endmacro %}

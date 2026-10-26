@@ -16,10 +16,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from davincihub import db, seguridad, validacion
 from davincihub.notificaciones import notificar
 from davincihub.usuarios import datos as usuarios_datos
-from davincihub.utiles import ahora, tipo_imagen
+from davincihub.utiles import ahora, ahora_local, paginas_visibles, sin_acentos, tipo_imagen
 
 bp = Blueprint("perfil", __name__, url_prefix="/estudiantes")
 MAX_FOTO_BYTES = 3 * 1024 * 1024
+ESTUDIANTES_POR_PAGINA = 12
 TEMAS_CHAT = {"davinci": "Da Vinci", "menta": "Menta", "violeta": "Violeta", "ambar": "Ámbar", "noche": "Noche"}
 
 
@@ -55,6 +56,84 @@ def foto(usuario_id: int):
     )
     respuesta.headers["X-Content-Type-Options"] = "nosniff"
     return respuesta
+
+
+@bp.get("/buscar")
+@seguridad.requiere_login
+def buscar_estudiantes():
+    if g.usuario["rol"] != "estudiante":
+        abort(403)
+    filtros = {
+        "q": (request.args.get("q") or "").strip()[:100],
+        "carrera": request.args.get("carrera", type=int),
+        "anio": request.args.get("anio", type=int),
+        "comision": (request.args.get("comision") or "").strip()[:40],
+    }
+    condiciones = ["u.rol = 'estudiante'", "u.bloqueado = 0", "u.id <> :yo"]
+    params = {"yo": g.usuario["id"]}
+    buscado = sin_acentos(filtros["q"])
+    if buscado:
+        nombre = db.sql_sin_acentos("u.nombre || ' ' || u.apellido")
+        escapado = buscado.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        condiciones.append(f"{nombre} LIKE :buscado ESCAPE '\\'")
+        params["buscado"] = f"%{escapado}%"
+    if filtros["carrera"]:
+        condiciones.append("u.carrera_id = :carrera")
+        params["carrera"] = filtros["carrera"]
+    else:
+        filtros["carrera"] = None
+    if filtros["anio"] and 1 <= filtros["anio"] <= 6:
+        condiciones.append("u.anio = :anio")
+        params["anio"] = filtros["anio"]
+    else:
+        filtros["anio"] = None
+    if filtros["comision"]:
+        condiciones.append("lower(trim(u.comision)) = :comision")
+        params["comision"] = filtros["comision"].lower()
+    desde_sql = (
+        " FROM usuarios u LEFT JOIN carreras c ON c.id = u.carrera_id"
+        " LEFT JOIN conexiones x ON (x.solicitante_id = :yo AND x.receptor_id = u.id)"
+        " OR (x.solicitante_id = u.id AND x.receptor_id = :yo)"
+        f" WHERE {' AND '.join(condiciones)}"
+    )
+    conteo = db.query_one(
+        "SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN x.estado = 'aceptada' THEN 1 ELSE 0 END), 0) AS conexiones"
+        + desde_sql,
+        **params,
+    )
+    cantidades = {"conexiones": conteo["conexiones"], "otros": conteo["total"] - conteo["conexiones"]}
+    vista = "conexiones" if request.args.get("vista") == "conexiones" else "otros"
+    paginas = max(1, -(-cantidades[vista] // ESTUDIANTES_POR_PAGINA))
+    pagina = min(max(request.args.get("pagina", 1, type=int) or 1, 1), paginas)
+    pestana = "x.estado = 'aceptada'" if vista == "conexiones" else "(x.estado IS NULL OR x.estado <> 'aceptada')"
+    estudiantes = db.query(
+        "SELECT u.id, u.nombre, u.apellido, u.anio, u.comision, c.nombre AS carrera,"
+        " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = u.id) AS tiene_foto,"
+        " x.estado AS conexion_estado, x.solicitante_id"
+        + desde_sql + f" AND {pestana}"
+        " ORDER BY u.apellido, u.nombre, u.id LIMIT :limite OFFSET :desde",
+        limite=ESTUDIANTES_POR_PAGINA, desde=(pagina - 1) * ESTUDIANTES_POR_PAGINA, **params,
+    )
+    argumentos = {k: v for k, v in request.args.items() if k != "pagina" and v}
+    enlaces = {
+        "anterior": url_for("perfil.buscar_estudiantes", **argumentos, pagina=pagina - 1),
+        "siguiente": url_for("perfil.buscar_estudiantes", **argumentos, pagina=pagina + 1),
+        "paginas": [
+            (numero, url_for("perfil.buscar_estudiantes", **argumentos, pagina=numero) if numero else None)
+            for numero in paginas_visibles(pagina, paginas)
+        ],
+    }
+    return render_template(
+        "perfil/buscar.html",
+        estudiantes=estudiantes,
+        cantidades=cantidades,
+        vista=vista,
+        filtros=filtros,
+        pagina=pagina,
+        paginas=paginas,
+        enlaces=enlaces,
+        carreras=db.query("SELECT id, nombre FROM carreras WHERE activa = 1 ORDER BY nombre"),
+    )
 
 
 def _estado_conexion(otro_id: int) -> dict | None:
@@ -99,16 +178,17 @@ def ver(usuario_id: int):
     actividades = db.query(
         "SELECT a.id, a.nombre, a.inicio, a.ubicacion FROM inscripciones i"
         " JOIN actividades a ON a.id = i.actividad_id"
-        " WHERE i.usuario_id = :id AND a.estado = 'aprobada'"
-        " ORDER BY a.inicio DESC LIMIT 5",
-        id=usuario_id,
+        " WHERE i.usuario_id = :id AND a.estado = 'aprobada' AND a.inicio >= :ahora"
+        " ORDER BY a.inicio LIMIT 4",
+        id=usuario_id, ahora=ahora_local(),
     )
-    actividades_total = db.query_one(
-        "SELECT COUNT(*) AS total FROM inscripciones i"
-        " JOIN actividades a ON a.id = i.actividad_id"
+    totales = db.query_one(
+        "SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN a.inicio < :ahora THEN 1 ELSE 0 END), 0) AS pasadas"
+        " FROM inscripciones i JOIN actividades a ON a.id = i.actividad_id"
         " WHERE i.usuario_id = :id AND a.estado = 'aprobada'",
-        id=usuario_id,
-    )["total"]
+        id=usuario_id, ahora=ahora_local(),
+    )
+    actividades_total = totales["total"]
     conexion = _estado_conexion(usuario_id) if g.usuario and g.usuario["id"] != usuario_id else None
     return render_template(
         "perfil/perfil.html",
@@ -119,6 +199,8 @@ def ver(usuario_id: int):
         respuestas_utiles=respuestas_utiles["total"],
         actividades=actividades,
         actividades_total=actividades_total,
+        actividades_pasadas=totales["pasadas"],
+        proximas_total=totales["total"] - totales["pasadas"],
         conexion=conexion,
     )
 
@@ -202,55 +284,111 @@ def solicitar_conexion(usuario_id: int):
         abort(403)
     if usuario_id == g.usuario["id"] or _estudiante_publico(usuario_id) is None:
         abort(404)
-    if _estado_conexion(usuario_id):
-        flash("Ya existe una solicitud o conexión entre ustedes.")
-    else:
-        try:
-            db.execute(
-                "INSERT INTO conexiones (solicitante_id, receptor_id, estado, creado)"
-                " VALUES (:solicitante, :receptor, 'pendiente', :creado)",
-                solicitante=g.usuario["id"],
-                receptor=usuario_id,
-                creado=ahora(),
-            )
-        except db.ErrorIntegridad:
-            flash("Ya existe una solicitud o conexión entre ustedes.")
-        else:
-            notificar(
-                usuario_id,
-                "conexion",
-                f"{g.usuario['nombre']} {g.usuario['apellido']} quiere conectar con vos.",
-                url_for("perfil.conexiones", usuario_id=usuario_id),
-            )
-            flash("Solicitud de conexión enviada.")
-    return redirect(url_for("perfil.ver", usuario_id=usuario_id))
+    mensaje = None
+    try:
+        with db.transaccion():
+            if not _bloquear_par(g.usuario["id"], usuario_id):
+                abort(404)
+            if _estudiante_publico(g.usuario["id"]) is None or _estudiante_publico(usuario_id) is None:
+                abort(404)
+            conexion = _conexion_par(g.usuario["id"], usuario_id)
+            if conexion and conexion["estado"] == "pendiente" and conexion["solicitante_id"] == usuario_id:
+                db.execute(
+                    "UPDATE conexiones SET estado = 'aceptada' WHERE id = :id AND estado = 'pendiente'",
+                    id=conexion["id"],
+                )
+                notificar(
+                    usuario_id,
+                    "conexion",
+                    f"{g.usuario['nombre']} {g.usuario['apellido']} aceptó tu solicitud de conexión.",
+                    url_for("perfil.ver", usuario_id=g.usuario["id"]),
+                )
+                mensaje = "La solicitud mutua se convirtió en una conexión."
+            elif conexion and conexion["estado"] == "rechazada" and conexion["receptor_id"] == g.usuario["id"]:
+                db.execute("DELETE FROM conexiones WHERE id = :id", id=conexion["id"])
+                mensaje = _crear_solicitud(usuario_id)
+            elif conexion:
+                mensaje = "Ya existe una solicitud o conexión entre ustedes."
+            else:
+                mensaje = _crear_solicitud(usuario_id)
+    except db.ErrorIntegridad:
+        mensaje = "Ya existe una solicitud o conexión entre ustedes."
+    if mensaje:
+        flash(mensaje)
+    return redirect(_volver_local() or url_for("perfil.ver", usuario_id=usuario_id))
+
+
+def _volver_local() -> str | None:
+    destino = request.form.get("volver") or ""
+    seguro = destino.startswith("/") and not destino.startswith("//") and "\\" not in destino
+    return destino if seguro else None
+
+
+def _bloquear_par(uno_id: int, otro_id: int) -> bool:
+    return all(db.bloquear_fila("usuarios", usuario_id) for usuario_id in sorted((uno_id, otro_id)))
+
+
+def _conexion_par(uno_id: int, otro_id: int) -> dict | None:
+    return db.query_one(
+        "SELECT id, solicitante_id, receptor_id, estado FROM conexiones"
+        " WHERE (solicitante_id = :uno AND receptor_id = :otro)"
+        " OR (solicitante_id = :otro AND receptor_id = :uno)",
+        uno=uno_id,
+        otro=otro_id,
+    )
+
+
+def _crear_solicitud(otro_id: int):
+    db.execute(
+        "INSERT INTO conexiones (solicitante_id, receptor_id, estado, creado)"
+        " VALUES (:solicitante, :receptor, 'pendiente', :creado)",
+        solicitante=g.usuario["id"],
+        receptor=otro_id,
+        creado=ahora(),
+    )
+    notificar(
+        otro_id,
+        "conexion",
+        f"{g.usuario['nombre']} {g.usuario['apellido']} quiere conectar con vos.",
+        url_for("perfil.conexiones", usuario_id=otro_id),
+    )
+    return "Solicitud de conexión enviada."
 
 
 def _resolver_solicitud(usuario_id: int, solicitante_id: int, estado: str):
     if g.usuario["id"] != usuario_id:
         abort(403)
-    solicitud = db.query_one(
-        "SELECT id FROM conexiones WHERE solicitante_id = :solicitante"
-        " AND receptor_id = :receptor AND estado = 'pendiente'",
-        solicitante=solicitante_id,
-        receptor=usuario_id,
-    )
-    if solicitud is None:
-        abort(404)
-    db.execute(
-        "UPDATE conexiones SET estado = :estado WHERE id = :id AND estado = 'pendiente'",
-        estado=estado,
-        id=solicitud["id"],
-    )
-    if estado == "aceptada":
-        notificar(
-            solicitante_id,
-            "conexion",
-            f"{g.usuario['nombre']} {g.usuario['apellido']} aceptó tu solicitud de conexión.",
-            url_for("perfil.ver", usuario_id=usuario_id),
+    if g.usuario["rol"] != "estudiante":
+        abort(403)
+    with db.transaccion():
+        if not _bloquear_par(usuario_id, solicitante_id):
+            abort(404)
+        if _estudiante_publico(usuario_id) is None or _estudiante_publico(solicitante_id) is None:
+            abort(404)
+        solicitud = db.query_one(
+            "SELECT id FROM conexiones WHERE solicitante_id = :solicitante"
+            " AND receptor_id = :receptor AND estado = 'pendiente'",
+            solicitante=solicitante_id,
+            receptor=usuario_id,
         )
-    flash("Conexión aceptada." if estado == "aceptada" else "Solicitud rechazada.")
-    return redirect(url_for("perfil.conexiones", usuario_id=usuario_id))
+        if solicitud is None:
+            abort(404)
+        actualizadas = db.execute(
+            "UPDATE conexiones SET estado = :estado WHERE id = :id AND estado = 'pendiente'",
+            estado=estado,
+            id=solicitud["id"],
+        )
+        if actualizadas != 1:
+            abort(404)
+        if estado == "aceptada":
+            notificar(
+                solicitante_id,
+                "conexion",
+                f"{g.usuario['nombre']} {g.usuario['apellido']} aceptó tu solicitud de conexión.",
+                url_for("perfil.ver", usuario_id=usuario_id),
+            )
+    flash("Conexión aceptada." if estado == "aceptada" else "Solicitud ignorada.")
+    return redirect(_volver_local() or url_for("perfil.conexiones", usuario_id=usuario_id))
 
 
 @bp.post("/<int:usuario_id>/conexiones/<int:solicitante_id>/aceptar")
@@ -265,10 +403,52 @@ def rechazar_conexion(usuario_id: int, solicitante_id: int):
     return _resolver_solicitud(usuario_id, solicitante_id, "rechazada")
 
 
+def _quitar_conexion(usuario_id: int, otro_id: int, cancelar: bool):
+    if g.usuario["id"] != usuario_id or g.usuario["rol"] != "estudiante":
+        abort(403)
+    with db.transaccion():
+        if not _bloquear_par(usuario_id, otro_id):
+            abort(404)
+        if _estudiante_publico(usuario_id) is None or _estudiante_publico(otro_id) is None:
+            abort(404)
+        if cancelar:
+            condiciones = (
+                "solicitante_id = :yo AND receptor_id = :otro AND estado IN ('pendiente', 'rechazada')"
+            )
+        else:
+            condiciones = (
+                "((solicitante_id = :yo AND receptor_id = :otro)"
+                " OR (solicitante_id = :otro AND receptor_id = :yo)) AND estado = 'aceptada'"
+            )
+        eliminadas = db.execute(
+            f"DELETE FROM conexiones WHERE {condiciones}",
+            yo=usuario_id,
+            otro=otro_id,
+        )
+        if eliminadas != 1:
+            abort(404)
+    flash("Solicitud cancelada." if cancelar else "Conexión eliminada.")
+    return redirect(_volver_local() or url_for("perfil.conexiones", usuario_id=usuario_id))
+
+
+@bp.post("/<int:usuario_id>/conexiones/<int:otro_id>/cancelar")
+@seguridad.requiere_login
+def cancelar_conexion(usuario_id: int, otro_id: int):
+    return _quitar_conexion(usuario_id, otro_id, cancelar=True)
+
+
+@bp.post("/<int:usuario_id>/conexiones/<int:otro_id>/eliminar")
+@seguridad.requiere_login
+def eliminar_conexion(usuario_id: int, otro_id: int):
+    return _quitar_conexion(usuario_id, otro_id, cancelar=False)
+
+
 @bp.get("/<int:usuario_id>/conexiones")
 @seguridad.requiere_login
 def conexiones(usuario_id: int):
     if g.usuario["id"] != usuario_id:
+        abort(403)
+    if g.usuario["rol"] != "estudiante":
         abort(403)
     solicitudes_recibidas = db.query(
         "SELECT u.id, u.nombre, u.apellido, c.nombre AS carrera,"
@@ -286,7 +466,7 @@ def conexiones(usuario_id: int):
         " FROM conexiones x JOIN usuarios u ON u.id = x.receptor_id"
         " LEFT JOIN carreras c ON c.id = u.carrera_id"
         " LEFT JOIN fotos_perfil f ON f.usuario_id = u.id"
-        " WHERE x.solicitante_id = :id AND x.estado = 'pendiente'"
+        " WHERE x.solicitante_id = :id AND x.estado IN ('pendiente', 'rechazada')"
         " AND u.rol = 'estudiante' AND u.bloqueado = 0 ORDER BY x.creado DESC",
         id=usuario_id,
     )

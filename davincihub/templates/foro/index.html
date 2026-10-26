@@ -4,19 +4,18 @@
 
 {% block contenido %}
 <section class="cabecera-seccion fondo-oscuro">
-  <img class="cabecera-seccion-imagen" src="/static/img/foro.png" alt="">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/foro.png') }}" alt="">
   <div class="contenedor cabecera-seccion-contenido">
     <h1>Foro <span class="acento-cian">académico</span></h1>
     <p>Compartí tus dudas por carrera y materia, y aprendé junto a la comunidad Da Vinci</p>
     <div class="acciones-cabecera">
-       {% if g.usuario %}
-        <a class="boton boton-grande" href="/foro/preguntas/nueva"> + Hacer una pregunta</a>
+      {% if g.usuario %}
+        <a class="boton boton-grande" href="{{ url_for('foro.nueva_pregunta') }}">Hacer una pregunta</a>
         <div class="enlaces-admin">
           <a class="enlace-admin" href="{{ url_for('foro.index', mis_dudas=1) }}"
              {% if mis_dudas %}aria-current="page"{% endif %}>Mis dudas</a>
-           {% endif %}
         </div>
-      
+      {% endif %}
     </div>
   </div>
 </section>
@@ -34,8 +33,8 @@
       </div>
     </section>
   {% elif g.usuario %}
-    {% set filtrando = q or carrera_id or materia_id %}
-    <form class="filtros-espacios foro-filtros" method="get" role="search">
+    {% set filtrando = q or carrera_id or materia_id or cuatrimestre %}
+    <form class="filtros-espacios foro-filtros filtros-fijos" method="get" role="search">
       {% if mis_dudas %}<input type="hidden" name="mis_dudas" value="1">{% endif %}
       <label class="filtro-buscar" for="foro-buscar">Buscar en el foro
         <input id="foro-buscar" type="search" name="q" value="{{ q }}"
@@ -59,6 +58,14 @@
           {% endfor %}
         </select>
       </label>
+      <label for="foro-cuatrimestre">Cuatrimestre
+        <select id="foro-cuatrimestre" name="cuatrimestre">
+          <option value="">Todos</option>
+          {% for numero in materias | map(attribute='cuatrimestre') | select | unique | sort %}
+            <option value="{{ numero }}" {% if cuatrimestre == numero | string %}selected{% endif %}>{{ numero }}.º cuatrimestre</option>
+          {% endfor %}
+        </select>
+      </label>
       <button class="boton boton-primario" type="submit">Buscar</button>
       {% if filtrando %}<a class="enlace-limpiar" href="{{ url_for('foro.index', mis_dudas=1) if mis_dudas else url_for('foro.index') }}">Limpiar</a>{% endif %}
     </form>
@@ -74,22 +81,30 @@
     {% if preguntas %}
     <section class="foro-listado" aria-label="Preguntas del foro">
       {% for pregunta in preguntas %}
-        <a class="foro-pregunta{% if pregunta.respuestas == 0 %} foro-pregunta-sin-respuesta{% endif %}"
+        {% set estado = 'resuelta' if pregunta.tiene_aceptada else ('sin-respuesta' if pregunta.respuestas == 0 else 'abierta') %}
+        <a class="foro-pregunta foro-fila foro-fila-{{ estado }}{% if pregunta.respuestas == 0 %} foro-pregunta-sin-respuesta{% endif %}"
            href="{{ url_for('foro.detalle', pregunta_id=pregunta.id) }}">
-          <div class="foro-pregunta-contenido">
-            <div class="foro-etiquetas">
+          <span class="foro-fila-contador" aria-hidden="true">
+            {% if pregunta.tiene_aceptada %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>{% endif %}
+            <strong>{{ pregunta.respuestas }}</strong>
+            <span>{{ "respuesta" if pregunta.respuestas == 1 else "respuestas" }}</span>
+          </span>
+          <span class="foro-fila-cuerpo">
+            <span class="foro-etiquetas">
               <span class="foro-materia">{{ pregunta.materia }}</span>
               {% if pregunta.respuestas == 0 %}<span class="foro-sin-responder">Sin responder</span>{% endif %}
               {% if pregunta.tiene_aceptada %}<span class="foro-resuelta">Resuelta</span>{% endif %}
-            </div>
+            </span>
             <h2>{{ pregunta.titulo }}</h2>
-            <p class="foro-pregunta-carrera">{{ pregunta.carrera }}</p>
-            <p class="foro-pregunta-autor">Por {{ pregunta.autor_nombre }} {{ pregunta.autor_apellido }}</p>
-          </div>
-          <div class="foro-pregunta-meta">
-            <span>{{ pregunta.creado | fecha_corta }}</span>
-            <strong>{{ pregunta.respuestas }} {{ "respuesta" if pregunta.respuestas == 1 else "respuestas" }}</strong>
-          </div>
+            <span class="foro-fila-extracto">{{ pregunta.cuerpo }}</span>
+            <span class="foro-fila-pie">
+              <span class="foro-avatar foro-avatar-chico" aria-hidden="true">{{ pregunta.autor_nombre[:1] }}{{ pregunta.autor_apellido[:1] }}</span>
+              <span class="foro-fila-autor">{{ pregunta.autor_nombre }} {{ pregunta.autor_apellido }}</span>
+              <span class="foro-fila-carrera">{{ pregunta.carrera }}</span>
+              <time datetime="{{ pregunta.creado }}">{{ pregunta.creado | fecha_corta }}</time>
+              <span class="visualmente-oculto">{{ pregunta.respuestas }} {{ "respuesta" if pregunta.respuestas == 1 else "respuestas" }}</span>
+            </span>
+          </span>
         </a>
       {% endfor %}
     </section>

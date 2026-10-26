@@ -15,8 +15,11 @@ class SinPermisoForo(PermissionError):
     """La persona no tiene permiso para realizar la acción del foro."""
 
 
+_INVISIBLES = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff"))
+
+
 def _texto(valor: str | None, nombre: str, limite: int, minimo: int = 1) -> str:
-    texto = (valor or "").strip()
+    texto = (valor or "").translate(_INVISIBLES).strip()
     if not texto:
         raise ErrorForo(f"Completá {nombre}.")
     if len(texto) > limite:
@@ -44,7 +47,7 @@ def _materia_de_formulario(formulario) -> int:
 
 def materias_para_formulario() -> list[dict]:
     return db.query(
-        "SELECT m.id, m.nombre, m.carrera_id, c.nombre AS carrera"
+        "SELECT m.id, m.nombre, m.carrera_id, m.cuatrimestre, c.nombre AS carrera"
         " FROM materias m JOIN carreras c ON c.id = m.carrera_id"
         " WHERE m.activa = 1 AND c.activa = 1 ORDER BY c.nombre, m.cuatrimestre, m.nombre"
     )
@@ -55,6 +58,7 @@ def listar_preguntas(
     carrera_id: int | None = None,
     materia_id: int | None = None,
     autor_id: int | None = None,
+    cuatrimestre: int | None = None,
 ) -> list[dict]:
     condiciones = []
     parametros = {}
@@ -73,6 +77,9 @@ def listar_preguntas(
     if materia_id is not None:
         condiciones.append("m.id = :materia_id")
         parametros["materia_id"] = materia_id
+    if cuatrimestre is not None:
+        condiciones.append("m.cuatrimestre = :cuatrimestre")
+        parametros["cuatrimestre"] = cuatrimestre
     if autor_id is not None:
         condiciones.append("p.autor_id = :autor_id")
         parametros["autor_id"] = autor_id
@@ -81,12 +88,14 @@ def listar_preguntas(
         "SELECT p.id, p.autor_id, p.titulo, p.cuerpo, p.creado, m.nombre AS materia,"
         " c.nombre AS carrera, u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
         " COUNT(r.id) AS respuestas,"
-        " COALESCE(MAX(r.aceptada), 0) AS tiene_aceptada"
+        " COALESCE(MAX(r.aceptada), 0) AS tiene_aceptada,"
+        " MAX(r.creado) AS ultima_respuesta, m.cuatrimestre,"
+        " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = p.autor_id) AS autor_tiene_foto"
         " FROM preguntas p JOIN materias m ON m.id = p.materia_id"
         " JOIN carreras c ON c.id = m.carrera_id JOIN usuarios u ON u.id = p.autor_id"
         " LEFT JOIN respuestas r ON r.pregunta_id = p.id"
         f"{donde}"
-        " GROUP BY p.id, m.nombre, c.nombre, u.nombre, u.apellido"
+        " GROUP BY p.id, m.nombre, m.cuatrimestre, c.nombre, u.nombre, u.apellido"
         " ORDER BY CASE WHEN COUNT(r.id) = 0 THEN 0 ELSE 1 END, p.creado DESC, p.id DESC",
         **parametros,
     )
@@ -159,6 +168,23 @@ def listar_respuestas(pregunta_id: int, usuario_id: int) -> list[dict]:
         recorrido.append(raiz)
         agregar_hijas(raiz, 1)
     return recorrido
+
+
+def autores(usuario_ids: set[int], yo: int) -> dict[int, dict]:
+    if not usuario_ids:
+        return {}
+    marcadores = ", ".join(f":u{i}" for i in range(len(usuario_ids)))
+    filas = db.query(
+        "SELECT u.id, u.nombre, u.apellido, u.rol, u.anio, u.comision, c.nombre AS carrera,"
+        " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = u.id) AS tiene_foto,"
+        " x.estado AS conexion_estado, x.solicitante_id AS conexion_solicitante"
+        " FROM usuarios u LEFT JOIN carreras c ON c.id = u.carrera_id"
+        " LEFT JOIN conexiones x ON (x.solicitante_id = :yo AND x.receptor_id = u.id)"
+        " OR (x.solicitante_id = u.id AND x.receptor_id = :yo)"
+        f" WHERE u.id IN ({marcadores})",
+        yo=yo, **{f"u{i}": usuario_id for i, usuario_id in enumerate(sorted(usuario_ids))},
+    )
+    return {fila["id"]: fila for fila in filas}
 
 
 def obtener_respuesta(respuesta_id: int) -> dict | None:
@@ -254,18 +280,12 @@ def crear_respuesta(
             creado=ahora(),
             padre=respuesta_padre_id,
         )
-        if padre or pregunta["autor_id"] != autor_id:
-            autor = db.query_one("SELECT nombre, apellido FROM usuarios WHERE id = :id", id=autor_id)
-            notificar(
-                padre["autor_id"] if padre else pregunta["autor_id"],
-                "foro",
-                (
-                    f"{autor['nombre']} {autor['apellido']} respondió tu comentario."
-                    if padre
-                    else f"{autor['nombre']} {autor['apellido']} respondió tu pregunta."
-                ),
-                f"/foro/preguntas/{pregunta_id}",
-            )
+        autor = db.query_one("SELECT nombre, apellido FROM usuarios WHERE id = :id", id=autor_id)
+        nombre = f"{autor['nombre']} {autor['apellido']}"
+        if padre:
+            notificar(padre["autor_id"], "foro", f"{nombre} respondió tu comentario.", f"/foro/preguntas/{pregunta_id}")
+        if pregunta["autor_id"] not in (autor_id, padre and padre["autor_id"]):
+            notificar(pregunta["autor_id"], "foro", f"{nombre} respondió tu pregunta.", f"/foro/preguntas/{pregunta_id}")
     return fila["id"]
 
 

@@ -85,6 +85,10 @@ CREATE TABLE conexiones (
     UNIQUE (solicitante_id, receptor_id),
     CHECK (solicitante_id <> receptor_id)
 );
+CREATE UNIQUE INDEX idx_conexiones_par ON conexiones (
+    (CASE WHEN solicitante_id < receptor_id THEN solicitante_id ELSE receptor_id END),
+    (CASE WHEN solicitante_id < receptor_id THEN receptor_id ELSE solicitante_id END)
+);
 
 CREATE TABLE preguntas (
     id {{PK}},

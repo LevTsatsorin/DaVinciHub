@@ -327,3 +327,26 @@ def test_todas_las_categorias_revisa_existentes_y_nuevas_sin_duplicar(app):
         datos.crear(2, PUBLICACION)
         datos.crear(3, PUBLICACION | {"precio": "30001"})
         assert len(busquedas.coincidencias_de(busquedas.obtener(solicitud))) == 2
+
+
+@pytest.mark.parametrize("buscado,ofrecido", [
+    ("calculadoras", "Calculadora Casio"), ("Auriculares", "Auricular Sony"),
+    ("libros de diseño", "Libro de composición"), ("lápices", "Lápiz HB"), ("cables", "Cable HDMI"),
+])
+def test_plural_encuentra_singular(app, buscado, ofrecido):
+    with app.app_context():
+        datos.crear(3, PUBLICACION | {"titulo": ofrecido, "descripcion": "Usado.", "categoria": "otros"})
+        assert busquedas.crear(2, BUSQUEDA | {"titulo": buscado, "descripcion": "", "categoria": "todas"})[1] == 1
+
+
+@pytest.mark.parametrize("buscado,ofrecido", [
+    ({"titulo": "Calculadora científica", "descripcion": "que funcione correctamente"},
+     {"titulo": "Mochila negra", "descripcion": "Funciona correctamente."}),
+    ({"titulo": "Calculadora fx 570", "descripcion": ""}, {"titulo": "Resma 570 hojas", "descripcion": "Usado."}),
+    ({"titulo": "Cama", "descripcion": ""}, {"titulo": "Cámara réflex", "descripcion": "Usado."}),
+    ({"titulo": "Mesa", "descripcion": ""}, {"titulo": "Mesada de dibujo", "descripcion": "Usado."}),
+])
+def test_palabras_comunes_numeros_y_prefijos_cortos_no_coinciden(app, buscado, ofrecido):
+    with app.app_context():
+        datos.crear(3, PUBLICACION | ofrecido | {"categoria": "otros"})
+        assert busquedas.crear(2, BUSQUEDA | buscado | {"categoria": "todas"})[1] == 0

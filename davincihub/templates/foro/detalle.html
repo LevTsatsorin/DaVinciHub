@@ -1,22 +1,28 @@
 {% extends "base.html" %}
+{% from "foro/_autor.html" import autor, avatar with context %}
 
 {% block titulo %}{{ pregunta.titulo }} — Foro académico{% endblock %}
+
+{% macro hilo_formulario(respuesta, prefijo) %}
+  <form method="post" action="{{ url_for('foro.responder_respuesta', respuesta_padre_id=respuesta.id) }}" class="foro-formulario foro-formulario-hilo">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="foro-sr-only" for="{{ prefijo }}-{{ respuesta.id }}">Responder a {{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}</label>
+    <textarea id="{{ prefijo }}-{{ respuesta.id }}" name="cuerpo" rows="2" maxlength="5000" required placeholder="Escribí una respuesta para {{ respuesta.autor_nombre }}"></textarea>
+    <button class="boton boton-primario" type="submit">Responder</button>
+  </form>
+{% endmacro %}
 
 {% macro subcomentario(respuesta) %}
   <article class="foro-subcomentario">
     <header class="foro-subcomentario-cabecera">
-      {% if respuesta.autor_rol == 'estudiante' %}
-        <a class="foro-autor-enlace" href="{{ url_for('perfil.ver', usuario_id=respuesta.autor_id) }}">
-          {{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}
-        </a>
-      {% else %}
-        <strong>{{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}</strong>
-      {% endif %}
-      {% if respuesta.autor_carrera %}<span class="foro-autor-carrera">{{ respuesta.autor_carrera }}</span>{% endif %}
+      {{ autor(autores[respuesta.autor_id]) }}
       {% if respuesta.es_catedra %}<span class="foro-insignia">Cátedra · {{ respuesta.materia }}</span>{% endif %}
       <time datetime="{{ respuesta.creado }}">{{ respuesta.creado | fecha_corta }}</time>
     </header>
     <div class="foro-texto">{{ respuesta.cuerpo }}</div>
+    {% if respuesta.autor_id == g.usuario.id and not pregunta.respuesta_aceptada_id %}
+      <a class="foro-editar-enlace" href="{{ url_for('foro.editar_respuesta', respuesta_id=respuesta.id) }}">Editar respuesta</a>
+    {% endif %}
     {% if respuesta.respuestas_hijas or respuesta.autor_id != g.usuario.id %}
       <details class="foro-hilo-respuestas">
         <summary>
@@ -31,36 +37,28 @@
             {% for hija in respuesta.respuestas_hijas %}{{ subcomentario(hija) }}{% endfor %}
           </div>
         {% endif %}
-        {% if respuesta.autor_id != g.usuario.id %}
-          <form method="post" action="{{ url_for('foro.responder_respuesta', respuesta_padre_id=respuesta.id) }}" class="foro-formulario foro-formulario-hilo">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label class="foro-sr-only" for="subcomentario-{{ respuesta.id }}">Responder a {{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}</label>
-            <textarea id="subcomentario-{{ respuesta.id }}" name="cuerpo" rows="3" maxlength="5000" required placeholder="Escribí una respuesta para {{ respuesta.autor_nombre }}"></textarea>
-            <button class="boton boton-primario" type="submit">Responder</button>
-          </form>
-        {% endif %}
+        {% if respuesta.autor_id != g.usuario.id %}{{ hilo_formulario(respuesta, "subcomentario") }}{% endif %}
       </details>
     {% endif %}
   </article>
 {% endmacro %}
 
 {% block contenido %}
+<div class="foro-tema">
 <section class="contenedor pagina-modulo pagina-foro">
   <a class="enlace-volver foro-volver" href="{{ url_for('foro.index') }}">‹ Volver al foro</a>
-  <article class="foro-detalle-pregunta tarjeta">
+  <article class="foro-detalle-pregunta fondo-oscuro">
     <div class="foro-etiquetas">
       <span class="foro-materia">{{ pregunta.materia }}</span>
       <span class="foro-carrera">{{ pregunta.carrera }}</span>
-      {% if pregunta.respuesta_aceptada_id %}<span class="foro-resuelta">Resuelta</span>{% endif %}
+      {% if pregunta.respuesta_aceptada_id %}<span class="foro-resuelta">Resuelta</span>
+      {% elif not respuestas %}<span class="foro-sin-responder">Sin responder</span>{% endif %}
     </div>
     <h1>{{ pregunta.titulo }}</h1>
-    <p class="foro-detalle-autor">Preguntó
-      {% if pregunta.autor_rol == 'estudiante' %}
-        <a class="foro-autor-enlace" href="{{ url_for('perfil.ver', usuario_id=pregunta.autor_id) }}">{{ pregunta.autor_nombre }} {{ pregunta.autor_apellido }}</a>
-      {% else %}
-        {{ pregunta.autor_nombre }} {{ pregunta.autor_apellido }}
-      {% endif %} · {{ pregunta.creado | fecha_corta }}
-    </p>
+    <div class="foro-detalle-autor">
+      {{ autor(autores[pregunta.autor_id]) }}
+      <span>preguntó el <time datetime="{{ pregunta.creado }}">{{ pregunta.creado | fecha_corta }}</time></span>
+    </div>
     <div class="foro-texto">{{ pregunta.cuerpo }}</div>
     {% if pregunta.tiene_imagen %}
       <a class="foro-imagen-enlace" href="{{ url_for('foro.imagen_pregunta', pregunta_id=pregunta.id) }}" target="_blank" rel="noopener">
@@ -74,28 +72,21 @@
 
   <section class="foro-respuestas" aria-labelledby="respuestas-titulo">
     <div class="foro-respuestas-cabecera">
-      <h2 id="respuestas-titulo">Respuestas <span>{{ respuestas | length }}</span></h2>
+      <h2 id="respuestas-titulo">Respuestas <span>{{ respuestas | selectattr('nivel', 'equalto', 0) | list | length }}</span></h2>
+      <a class="foro-ir-responder" href="#respuesta-cuerpo">Responder</a>
     </div>
     {% if respuestas %}
       <div class="foro-respuestas-lista">
         {% for respuesta in respuestas %}
           {% if respuesta.nivel == 0 %}
-          <article class="foro-respuesta tarjeta{% if respuesta.aceptada %} foro-respuesta-aceptada{% endif %}{% if respuesta.nivel %} foro-comentario{% endif %}"
-                   style="--foro-nivel: {{ respuesta.nivel }}">
+          <article class="foro-respuesta{% if respuesta.aceptada %} foro-respuesta-aceptada{% endif %}{% if respuesta.es_catedra %} foro-respuesta-catedra{% endif %}" id="respuesta-{{ respuesta.id }}">
             {% if respuesta.aceptada %}<div class="foro-aceptada-etiqueta">Respuesta aceptada</div>{% endif %}
             <div class="foro-respuesta-cabecera">
               <div>
-                {% if respuesta.autor_rol == 'estudiante' %}
-                  <a class="foro-autor-enlace" href="{{ url_for('perfil.ver', usuario_id=respuesta.autor_id) }}">
-                    {{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}
-                  </a>
-                {% else %}
-                  <strong>{{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}</strong>
-                {% endif %}
-                {% if respuesta.autor_carrera %}<span class="foro-autor-carrera">{{ respuesta.autor_carrera }}</span>{% endif %}
+                {{ autor(autores[respuesta.autor_id]) }}
                 {% if respuesta.es_catedra %}<span class="foro-insignia">Cátedra · {{ respuesta.materia }}</span>{% endif %}
               </div>
-              <time>{{ respuesta.creado | fecha_corta }}</time>
+              <time datetime="{{ respuesta.creado }}">{{ respuesta.creado | fecha_corta }}</time>
             </div>
             <div class="foro-texto">{{ respuesta.cuerpo }}</div>
             <div class="foro-respuesta-acciones">
@@ -138,14 +129,7 @@
                     {% for hija in respuesta.respuestas_hijas %}{{ subcomentario(hija) }}{% endfor %}
                   </div>
                 {% endif %}
-                {% if respuesta.autor_id != g.usuario.id %}
-                  <form method="post" action="{{ url_for('foro.responder_respuesta', respuesta_padre_id=respuesta.id) }}" class="foro-formulario foro-formulario-hilo">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <label class="foro-sr-only" for="comentario-{{ respuesta.id }}">Responder a {{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}</label>
-                    <textarea id="comentario-{{ respuesta.id }}" name="cuerpo" rows="3" maxlength="5000" required placeholder="Escribí una respuesta para {{ respuesta.autor_nombre }}"></textarea>
-                    <button class="boton boton-primario" type="submit">Responder</button>
-                  </form>
-                {% endif %}
+                {% if respuesta.autor_id != g.usuario.id %}{{ hilo_formulario(respuesta, "comentario") }}{% endif %}
               </details>
             {% endif %}
           </article>
@@ -153,22 +137,25 @@
         {% endfor %}
       </div>
     {% else %}
-      <p class="foro-sin-respuestas">Todavía no hay respuestas. Podés ser la primera persona en ayudar.</p>
+      <div class="foro-sin-respuestas">
+        <img src="{{ url_for('static', filename='img/foro.png') }}" alt="">
+        <p>Todavía no hay respuestas. Podés ser la primera persona en ayudar.</p>
+      </div>
     {% endif %}
   </section>
 
-  <section class="foro-contestar tarjeta" aria-labelledby="contestar-titulo">
-    <h2 id="contestar-titulo">Tu respuesta</h2>
+  <section class="foro-contestar" aria-labelledby="contestar-titulo">
+    {{ avatar({'id': g.usuario.id, 'nombre': g.usuario.nombre, 'apellido': g.usuario.apellido, 'tiene_foto': g.usuario.tiene_foto}) }}
     <form method="post" action="{{ url_for('foro.responder', pregunta_id=pregunta.id) }}" class="foro-formulario">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="campo">
-        <label for="respuesta-cuerpo">Escribí una respuesta</label>
-        <textarea id="respuesta-cuerpo" name="cuerpo" rows="5" maxlength="5000" required></textarea>
-      </div>
+      <h2 id="contestar-titulo">Tu respuesta</h2>
+      <label class="foro-sr-only" for="respuesta-cuerpo">Escribí una respuesta</label>
+      <textarea id="respuesta-cuerpo" name="cuerpo" rows="5" maxlength="5000" required placeholder="Contá cómo lo resolviste, con pasos o ejemplos si podés."></textarea>
       <button class="boton boton-primario" type="submit">Publicar respuesta</button>
     </form>
   </section>
 </section>
+</div>
 {% endblock %}
 
 {% block scripts %}

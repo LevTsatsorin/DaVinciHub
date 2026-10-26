@@ -2,32 +2,106 @@
 
 {% block titulo %}Notificaciones — Da Vinci Hub{% endblock %}
 
+{% macro avatar(persona) -%}
+  {%- if persona.tiene_foto %}<img class="aviso-avatar" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
+  {%- else %}<span class="aviso-avatar" aria-hidden="true">{{ persona.nombre[:1] }}{{ persona.apellido[:1] }}</span>{% endif -%}
+{%- endmacro %}
+
+{% macro icono(nombre) -%}
+  <span class="aviso-icono aviso-icono-{{ nombre }}" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      {%- if nombre == 'foro' %}<path d="M4 5h16v11H9l-5 4z"/><path d="M9 10h6"/>
+      {%- elif nombre == 'objetos' %}<path d="M3 8 12 3l9 5-9 5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>
+      {%- elif nombre == 'mensaje' %}<path d="M4 5h16v11H8l-4 4z"/>
+      {%- elif nombre == 'conexion' %}<circle cx="8" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><path d="M2 20c1-3 3.5-5 6-5s5 2 6 5M14 15.5c1-.3 2-.5 3-.5 2.5 0 4.5 2 5 5"/>
+      {%- elif nombre == 'actividades' %}<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>
+      {%- elif nombre == 'reservas' %}<path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16"/><path d="M9 21v-5h6v5M9 8h.01M15 8h.01M9 12h.01M15 12h.01"/>
+      {%- else %}<path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>{% endif -%}
+    </svg>
+  </span>
+{%- endmacro %}
+
 {% block contenido %}
-<section class="contenedor pagina-modulo">
+<section class="contenedor pagina-modulo pagina-avisos">
   <div class="cabecera-modulo">
     <h1>Notificaciones</h1>
     {% if avisos_sin_leer %}
       <form method="post" action="{{ url_for('notificaciones.leer_todas') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="boton" type="submit">Marcar todo como leído</button>
+        <button class="boton boton-suave" type="submit">Marcar todo como leído</button>
       </form>
     {% endif %}
   </div>
 
-  {% if avisos %}
-    <ul class="lista-avisos">
-      {% for aviso in avisos %}
-        <li>
-          <a class="aviso-fila{% if not aviso.leida %} aviso-nuevo{% endif %}"
-             href="{{ url_for('notificaciones.abrir', aviso_id=aviso.id) }}">
-            <span class="aviso-punto" aria-hidden="true"></span>
-            <span class="aviso-texto">{{ aviso.cuerpo }}</span>
-            <time class="aviso-fecha" datetime="{{ aviso.creado }}">{{ aviso.creado|fecha_corta }}</time>
-          </a>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
+  {% if solicitudes %}
+    <section class="avisos-solicitudes" aria-labelledby="solicitudes-titulo">
+      <h2 id="solicitudes-titulo">Quieren conectar con vos <span>{{ solicitudes | length }}</span></h2>
+      <ul>
+        {% for persona in solicitudes %}
+          <li class="aviso-solicitud">
+            <a class="aviso-solicitud-persona" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
+              {{ avatar(persona) }}
+              <span><strong>{{ persona.nombre }} {{ persona.apellido }}</strong>{% if persona.carrera %}<span>{{ persona.carrera }}{% if persona.anio %} · {{ persona.anio }}.º año{% endif %}</span>{% endif %}</span>
+            </a>
+            <span class="aviso-solicitud-acciones">
+              <form method="post" action="{{ url_for('perfil.aceptar_conexion', usuario_id=g.usuario.id, solicitante_id=persona.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="volver" value="{{ url_for('notificaciones.bandeja') }}">
+                <button class="boton boton-primario" type="submit">Aceptar</button>
+              </form>
+              <form method="post" action="{{ url_for('perfil.rechazar_conexion', usuario_id=g.usuario.id, solicitante_id=persona.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="volver" value="{{ url_for('notificaciones.bandeja') }}">
+                <button class="boton boton-suave" type="submit">Ignorar</button>
+              </form>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if secciones %}
+    {% for nombre, grupos in secciones %}
+      <section class="avisos-dia" aria-label="{{ nombre }}">
+        <h2>{{ nombre }}</h2>
+        <ul class="lista-avisos">
+          {% for grupo in grupos %}
+            <li>
+              <a class="aviso-fila aviso-tipo-{{ grupo.icono }}{% if grupo.sin_leer %} aviso-nuevo{% endif %}" href="{{ url_for('notificaciones.abrir', aviso_id=grupo.id) }}">
+                <span class="aviso-visual">
+                  {% if grupo.personas %}{{ avatar(grupo.personas[0]) }}
+                  {% elif grupo.iniciales %}
+                    <span class="aviso-avatares">
+                      {% for nombre_persona in grupo.iniciales %}<span class="aviso-avatar" aria-hidden="true">{{ nombre_persona.split()[0][:1] }}{{ (nombre_persona.split()[-1] if nombre_persona.split() | length > 1 else '')[:1] }}</span>{% endfor %}
+                    </span>
+                  {% else %}{{ icono(grupo.icono) }}{% endif %}
+                </span>
+                <span class="aviso-contenido">
+                  <span class="aviso-titulo">{{ grupo.titulo }}</span>
+                  {% if grupo.detalle %}<span class="aviso-detalle">{{ grupo.detalle }}</span>{% endif %}
+                  {% if grupo.objetos %}
+                    <span class="aviso-objetos">
+                      {% for objeto in grupo.objetos %}
+                        <span class="aviso-objeto">
+                          <span class="aviso-objeto-icono objeto-{{ objeto.categoria }}" aria-hidden="true">{% set publicacion = objeto %}{% include "objetos/_icono.html" %}</span>
+                          <span class="aviso-objeto-datos"><span>{{ objeto.titulo }}</span><strong>{{ objeto.precio | precio_corto if objeto.modalidad == 'venta' and objeto.precio is not none else ('Intercambio' if objeto.modalidad == 'intercambio' else 'Préstamo') }}</strong></span>
+                        </span>
+                      {% endfor %}
+                    </span>
+                  {% endif %}
+                </span>
+                <span class="aviso-meta">
+                  <time class="aviso-fecha" datetime="{{ grupo.creado }}" title="{{ grupo.creado | fecha_corta }}">{{ tiempo_relativo(grupo.creado) }}</time>
+                  {% if grupo.sin_leer %}<span class="aviso-punto" aria-label="Sin leer"></span>{% endif %}
+                </span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  {% elif not solicitudes %}
     <div class="estado-vacio">
       <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
       <h2>No tenés avisos por ahora</h2>

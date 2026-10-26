@@ -65,15 +65,9 @@
       {% endfor %}
     </ul>
     {% if paginas > 1 %}
-      <nav class="paginacion" aria-label="Páginas">
-        {% if pagina > 1 %}
-          <a class="boton boton-suave" href="{{ url_for('usuarios.lista', q=filtros.q or None, carrera=filtros.carrera, rol=filtros.rol or None, estado=filtros.estado or None, pagina=pagina - 1) }}">Anteriores</a>
-        {% endif %}
-        <span>Página {{ pagina }} de {{ paginas }}</span>
-        {% if pagina < paginas %}
-          <a class="boton boton-suave" href="{{ url_for('usuarios.lista', q=filtros.q or None, carrera=filtros.carrera, rol=filtros.rol or None, estado=filtros.estado or None, pagina=pagina + 1) }}">Siguientes</a>
-        {% endif %}
-      </nav>
+      {% set enlaces = paginacion('usuarios.lista', pagina, paginas, q=filtros.q, carrera=filtros.carrera, rol=filtros.rol, estado=filtros.estado) %}
+      {% set etiqueta_paginacion = "Páginas de usuarios" %}
+      {% include "_paginacion.html" %}
     {% endif %}
   {% else %}
     <div class="estado-vacio">

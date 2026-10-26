@@ -3,6 +3,8 @@ from flask import Blueprint, abort, g, redirect, render_template, url_for
 from davincihub import db, seguridad
 from davincihub.utiles import ahora, fecha_corta
 
+from . import feed
+
 bp = Blueprint("notificaciones", __name__, url_prefix="/notificaciones")
 
 
@@ -51,7 +53,13 @@ def bandeja():
         "SELECT * FROM notificaciones WHERE usuario_id = :usuario ORDER BY creado DESC, id DESC",
         usuario=g.usuario["id"],
     )
-    return render_template("notificaciones/bandeja.html", avisos=avisos)
+    return render_template(
+        "notificaciones/bandeja.html",
+        avisos=avisos,
+        secciones=feed.agrupar(avisos, g.usuario["id"]),
+        solicitudes=feed.solicitudes_pendientes(g.usuario["id"]) if g.usuario["rol"] == "estudiante" else [],
+        tiempo_relativo=feed.tiempo_relativo,
+    )
 
 
 @bp.route("/<int:aviso_id>")
@@ -65,6 +73,12 @@ def abrir(aviso_id: int):
     if aviso is None:
         abort(404)
     db.execute("UPDATE notificaciones SET leida = 1 WHERE id = :id", id=aviso_id)
+    if aviso["enlace"]:
+        db.execute(
+            "UPDATE notificaciones SET leida = 1 WHERE usuario_id = :usuario AND tipo = :tipo"
+            " AND enlace = :enlace AND leida = 0",
+            usuario=g.usuario["id"], tipo=aviso["tipo"], enlace=aviso["enlace"],
+        )
     enlace = aviso["enlace"]
     if not enlace or not _es_interno(enlace):
         enlace = url_for("notificaciones.bandeja")
