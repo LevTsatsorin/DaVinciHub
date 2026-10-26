@@ -7,7 +7,7 @@
     <h1>Mis búsquedas</h1>
     <p>Los materiales que necesitás y las posibles coincidencias encontradas para vos.</p>
     <div class="acciones-cabecera">
-      <a class="boton boton-primario" href="{{ url_for('objetos.nueva_busqueda') }}">Busco un objeto</a>
+      <a class="boton boton-grande" href="{{ url_for('objetos.nueva_busqueda') }}">Busco un objeto</a>
       <div class="enlaces-admin"><a class="enlace-admin" href="{{ url_for('objetos.catalogo') }}">Ver catálogo</a></div>
     </div>
   </div>
@@ -34,11 +34,9 @@
       {% endfor %}
     </div>
     {% if paginas > 1 %}
-      <nav class="objetos-paginacion" aria-label="Páginas de búsquedas">
-        {% if pagina > 1 %}<a class="boton" href="{{ url_for('objetos.mis_busquedas', estado=estado, pagina=pagina - 1) }}">← Anterior</a>{% endif %}
-        <span>Página {{ pagina }} de {{ paginas }}</span>
-        {% if pagina < paginas %}<a class="boton" href="{{ url_for('objetos.mis_busquedas', estado=estado, pagina=pagina + 1) }}">Siguiente →</a>{% endif %}
-      </nav>
+      {% set enlaces = paginacion('objetos.mis_busquedas', pagina, paginas, estado=estado) %}
+      {% set etiqueta_paginacion = "Páginas de búsquedas" %}
+      {% include "_paginacion.html" %}
     {% endif %}
   {% else %}
     <div class="estado-vacio">

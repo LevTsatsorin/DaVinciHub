@@ -10,17 +10,22 @@
     <div class="objeto-ficha-datos">
       <span class="objeto-categoria">{{ categorias.get(publicacion.categoria, publicacion.categoria) }}</span>
       <h1>{{ publicacion.titulo }}</h1>
-      <span class="objeto-modalidad">{{ modalidades.get(publicacion.modalidad, publicacion.modalidad) }}</span>
-      <p class="objeto-precio">{{ publicacion.precio | precio_pesos if publicacion.modalidad == 'venta' and publicacion.precio is not none else ('Para intercambiar' if publicacion.modalidad == 'intercambio' else 'Para prestar') }}</p>
+      <div class="objeto-ficha-chips">
+        <span class="objeto-modalidad objeto-modalidad-{{ publicacion.modalidad }}">{{ modalidades.get(publicacion.modalidad, publicacion.modalidad) }}</span>
+        {% if propia %}<span class="objeto-estado objeto-estado-{{ publicacion.estado }}">{{ estados[publicacion.estado] }}</span>{% endif %}
+      </div>
+      {% if publicacion.modalidad == 'venta' and publicacion.precio is not none %}
+        <p class="objeto-precio">{{ publicacion.precio | precio_corto }}</p>
+      {% else %}
+        <p class="objeto-precio objeto-precio-{{ publicacion.modalidad }}">{{ 'Sin costo · intercambio' if publicacion.modalidad == 'intercambio' else 'Sin costo · préstamo' }}</p>
+      {% endif %}
       <dl class="objeto-atributos">
         <div><dt>Estado del objeto</dt><dd>{{ condiciones.get(publicacion.estado_objeto, publicacion.estado_objeto) }}</dd></div>
         {% if publicacion.carrera %}<div><dt>Carrera</dt><dd>{{ publicacion.carrera }}</dd></div>{% endif %}
         <div><dt>Publicado por</dt><dd><a href="{{ url_for('perfil.ver', usuario_id=publicacion.autor_id) }}">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</a></dd></div>
         <div><dt>Fecha de publicación</dt><dd>{{ publicacion.creado | fecha_corta }}</dd></div>
       </dl>
-      {% if propia %}
-        <span class="objeto-estado objeto-estado-{{ publicacion.estado }}">{{ estados[publicacion.estado] }}</span>
-      {% elif g.usuario.rol == 'estudiante' %}
+      {% if not propia and g.usuario.rol == 'estudiante' %}
         <a class="boton boton-primario" href="{{ url_for('perfil.chat', usuario_id=publicacion.autor_id) }}">Escribirle a {{ publicacion.autor_nombre }}</a>
       {% endif %}
     </div>

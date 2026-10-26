@@ -111,3 +111,15 @@ def test_abrir_ignora_enlace_externo_guardado_en_la_base(client, app):
     respuesta = client.get(f"/notificaciones/{fila['id']}")
     assert respuesta.status_code == 302
     assert respuesta.headers["Location"].endswith("/notificaciones/")
+
+
+def test_avisos_del_mismo_tema_se_agrupan_y_se_leen_juntos(client, app):
+    primero = avisar(app, cuerpo="Tomás Vega respondió tu pregunta.", enlace="/foro/preguntas/1")
+    avisar(app, cuerpo="Lucía Paz respondió tu pregunta.", enlace="/foro/preguntas/1")
+    login(client)
+    texto = client.get("/notificaciones/").get_data(as_text=True)
+    assert "2 respuestas nuevas" in texto
+    assert texto.count('class="aviso-fila') == 1
+    client.get(f"/notificaciones/{primero}")
+    with app.app_context():
+        assert db.query_one("SELECT count(*) AS n FROM notificaciones WHERE leida = 0")["n"] == 0

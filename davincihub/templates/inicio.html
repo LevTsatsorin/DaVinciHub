@@ -1,15 +1,27 @@
 {% extends "base.html" %}
 
 {% block contenido %}
+{% macro avatar(persona, clase="inicio-avatar") -%}
+  {%- if persona.tiene_foto %}<img class="{{ clase }}" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
+  {%- else %}<span class="{{ clase }}" aria-hidden="true">{{ persona.nombre[:1] }}{{ persona.apellido[:1] }}</span>{% endif -%}
+{%- endmacro %}
+{% set icono_pregunta %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M10 9a2 2 0 1 1 2.5 1.9c-.3.1-.5.4-.5.7v.4M12 13.5h.01"/></svg>{% endset %}
+{% set icono_objeto %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8 12 3l9 5-9 5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>{% endset %}
+{% set icono_espacio %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M8 2.5v4M16 2.5v4"/></svg>{% endset %}
+{% set icono_actividad %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>{% endset %}
 {% if g.usuario %}
-  <section class="portada portada-ilustrada portada-compacta">
+  <section class="portada portada-ilustrada portada-compacta portada-tablero">
     <div class="contenedor portada-contenido">
       <h1>Hola, {{ g.usuario.nombre }}</h1>
       <p>Esto es lo que tenés por delante en el Hub.</p>
-      <div class="portada-acciones">
-        <a class="boton boton-grande" href="{{ url_for('espacios.catalogo') }}">Reservar un espacio</a>
-        <a class="boton boton-fantasma" href="{{ url_for('actividades.crear') }}">{{ "Crear actividad" if g.usuario.rol == 'admin' else "Proponer actividad" }}</a>
-      </div>
+      <nav class="inicio-atajos" aria-label="Acciones rápidas">
+        {% if g.usuario.rol == 'estudiante' %}
+          <a class="inicio-atajo atajo-foro" href="{{ url_for('foro.nueva_pregunta') }}">{{ icono_pregunta }}<span class="atajo-largo">Hacer una pregunta</span><span class="atajo-corto" aria-hidden="true">Preguntar</span></a>
+          <a class="inicio-atajo atajo-objetos" href="{{ url_for('objetos.publicar') }}">{{ icono_objeto }}<span class="atajo-largo">Publicar un objeto</span><span class="atajo-corto" aria-hidden="true">Publicar</span></a>
+        {% endif %}
+        <a class="inicio-atajo atajo-reservas" href="{{ url_for('espacios.catalogo') }}">{{ icono_espacio }}<span class="atajo-largo">Reservar un espacio</span><span class="atajo-corto" aria-hidden="true">Reservar</span></a>
+        <a class="inicio-atajo atajo-actividades" href="{{ url_for('actividades.crear') }}">{{ icono_actividad }}<span class="atajo-largo">{{ "Crear actividad" if g.usuario.rol == 'admin' else "Proponer actividad" }}</span><span class="atajo-corto" aria-hidden="true">{{ "Crear" if g.usuario.rol == 'admin' else "Proponer" }}</span></a>
+      </nav>
     </div>
   </section>
 {% else %}
@@ -26,6 +38,14 @@
 {% endif %}
 
 <div class="contenedor pagina-inicio">
+  {% if resumen is defined and (resumen.mensajes or resumen.solicitudes or resumen.respuestas or resumen.coincidencias) %}
+    <nav class="inicio-resumen" aria-label="Novedades">
+      {% if resumen.mensajes %}<a class="resumen-item resumen-mensajes" href="{{ url_for('perfil.chats') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg><span><strong>{{ resumen.mensajes }}</strong>{{ "mensaje sin leer" if resumen.mensajes == 1 else "mensajes sin leer" }}</span></a>{% endif %}
+      {% if resumen.solicitudes %}<a class="resumen-item resumen-solicitudes" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><path d="M2 20c1-3 3.5-5 6-5s5 2 6 5M14 15.5c1-.3 2-.5 3-.5 2.5 0 4.5 2 5 5"/></svg><span><strong>{{ resumen.solicitudes }}</strong>{{ "solicitud de conexión" if resumen.solicitudes == 1 else "solicitudes de conexión" }}</span></a>{% endif %}
+      {% if resumen.respuestas %}<a class="resumen-item resumen-respuestas" href="{{ url_for('notificaciones.bandeja') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M9 10h6"/></svg><span><strong>{{ resumen.respuestas }}</strong>{{ "respuesta nueva en el foro" if resumen.respuestas == 1 else "respuestas nuevas en el foro" }}</span></a>{% endif %}
+      {% if resumen.coincidencias %}<a class="resumen-item resumen-coincidencias" href="{{ url_for('objetos.mis_busquedas') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8 12 3l9 5-9 5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg><span><strong>{{ resumen.coincidencias }}</strong>{{ "objeto para tus búsquedas" if resumen.coincidencias == 1 else "objetos para tus búsquedas" }}</span></a>{% endif %}
+    </nav>
+  {% endif %}
   {% if pendientes %}
     <section class="inicio-bloque" aria-labelledby="titulo-revisar">
       <h2 id="titulo-revisar">Para revisar</h2>
@@ -46,7 +66,49 @@
     </section>
   {% endif %}
 
-  {% if g.usuario %}
+  {% if semana is defined %}
+    <section class="inicio-bloque" aria-labelledby="titulo-agenda">
+      <div class="inicio-bloque-cabecera">
+        <h2 id="titulo-agenda">Tu agenda <span class="inicio-subtitulo">próximas dos semanas</span></h2>
+        <a href="{{ url_for('actividades.index') }}">Ver calendario</a>
+      </div>
+      <ol class="agenda-semana">
+        {% for dia in semana %}
+          <li class="semana-dia{% if loop.first %} semana-hoy{% endif %}{% if not dia.eventos %} semana-libre{% endif %}">
+            <header><span>{{ dia.nombre }}</span><strong>{{ dia.numero }}</strong></header>
+            {% if dia.eventos %}
+              <ul>
+                {% for evento in dia.eventos %}
+                  <li><a class="semana-evento semana-{{ evento.tipo }}" href="{{ url_for(evento.enlace[0], **evento.enlace[1]) }}">
+                    <time>{{ evento.inicio[11:16] }}</time>
+                    <strong>{{ evento.titulo }}</strong>
+                    <span>{{ evento.detalle }}</span>
+                  </a></li>
+                {% endfor %}
+              </ul>
+              {% if dia.mas %}<a class="semana-mas" href="{{ url_for('actividades.index', mes=dia.mes, dia=dia.iso) }}" aria-label="Ver las {{ dia.total }} del día">+{{ dia.mas }} más</a>{% endif %}
+            {% else %}
+              <p>Libre</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+      <ul class="semana-leyenda" aria-label="Referencias">
+        <li class="semana-reserva">Tus reservas</li>
+        <li class="semana-anotado">Tus actividades</li>
+      </ul>
+    </section>
+
+    <section class="inicio-bloque" aria-labelledby="titulo-numeros">
+      <h2 id="titulo-numeros">Tu paso por el Hub</h2>
+      <div class="inicio-numeros">
+        <a href="{{ url_for('foro.index', mis_dudas=1) }}"><strong>{{ numeros.preguntas }}</strong><span>{{ "pregunta" if numeros.preguntas == 1 else "preguntas" }}</span></a>
+        <a href="{{ url_for('foro.index') }}"><strong>{{ numeros.respuestas }}</strong><span>{{ "respuesta" if numeros.respuestas == 1 else "respuestas" }}{% if numeros.utiles %}<small>{{ numeros.utiles }} útil{{ "es" if numeros.utiles != 1 }}</small>{% endif %}</span></a>
+        <a href="{{ url_for('objetos.mis_publicaciones') }}"><strong>{{ numeros.publicaciones }}</strong><span>{{ "objeto activo" if numeros.publicaciones == 1 else "objetos activos" }}</span></a>
+        <a href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}"><strong>{{ numeros.conexiones }}</strong><span>{{ "conexión" if numeros.conexiones == 1 else "conexiones" }}</span></a>
+      </div>
+    </section>
+  {% elif g.usuario %}
     <section class="inicio-bloque" aria-labelledby="titulo-agenda">
       <h2 id="titulo-agenda">Tu agenda</h2>
       <div class="inicio-agenda">
@@ -98,6 +160,62 @@
     </section>
   {% endif %}
 
+  {% if para_ayudar %}
+    <section class="inicio-bloque" aria-labelledby="titulo-ayudar">
+      <div class="inicio-bloque-cabecera">
+        <h2 id="titulo-ayudar">Preguntas de tu carrera sin responder</h2>
+        <a href="{{ url_for('foro.index', carrera_id=g.usuario.carrera_id) }}">Ir al foro</a>
+      </div>
+      <ul class="inicio-preguntas">
+        {% for pregunta in para_ayudar %}
+          <li>
+            <a href="{{ url_for('foro.detalle', pregunta_id=pregunta.id) }}">
+              <span class="inicio-pregunta-materia">{{ pregunta.materia }}</span>
+              <strong>{{ pregunta.titulo }}</strong>
+              <span class="inicio-pregunta-meta">{{ pregunta.autor_nombre }} {{ pregunta.autor_apellido }} · {{ pregunta.creado | fecha_corta }}</span>
+              <span class="inicio-pregunta-cta">Responder</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if objetos_destacados %}
+    <section class="inicio-bloque" aria-labelledby="titulo-objetos">
+      <div class="inicio-bloque-cabecera">
+        <h2 id="titulo-objetos">Recién publicado para tu carrera</h2>
+        <a href="{{ url_for('objetos.catalogo') }}">Ver catálogo</a>
+      </div>
+      <div class="inicio-objetos">{% for publicacion in objetos_destacados %}{% include "objetos/_tarjeta_compacta.html" %}{% endfor %}</div>
+    </section>
+  {% endif %}
+
+  {% if sugerencias %}
+    <section class="inicio-bloque" aria-labelledby="titulo-sugerencias">
+      <div class="inicio-bloque-cabecera">
+        <h2 id="titulo-sugerencias">Gente que podrías conocer</h2>
+        <a href="{{ url_for('perfil.buscar_estudiantes', carrera=g.usuario.carrera_id) }}">Ver más</a>
+      </div>
+      <ul class="inicio-sugerencias">
+        {% for persona in sugerencias %}
+          <li>
+            <a class="sugerencia-persona" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">
+              {{ avatar(persona, "inicio-avatar inicio-avatar-grande") }}
+              <strong>{{ persona.nombre }} {{ persona.apellido }}</strong>
+              <span>{% if persona.carrera_id == g.usuario.carrera_id %}Tu carrera{% else %}{{ persona.carrera }}{% endif %}{% if persona.anio %} · {{ persona.anio }}.º año{% endif %}</span>
+            </a>
+            <form method="post" action="{{ url_for('perfil.solicitar_conexion', usuario_id=persona.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="volver" value="/">
+              <button class="boton boton-suave" type="submit">Conectar</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
   {% if proximas %}
     <section class="inicio-bloque" aria-labelledby="titulo-proximas">
       <div class="inicio-bloque-cabecera">
@@ -118,10 +236,10 @@
   <section class="inicio-bloque" aria-labelledby="titulo-modulos">
     <h2 id="titulo-modulos">Todo el Hub</h2>
     <div class="modulos">
-      <article class="modulo-foro modulo-pronto">
-        <h3>Foro académico <span class="etiqueta-pronto">Próximamente</span></h3>
+      <a class="modulo-foro" href="{{ url_for('foro.index') }}">
+        <h3>Foro académico</h3>
         <p>Preguntas y respuestas por materia, con estudiantes de cátedra reconocidos.</p>
-      </article>
+      </a>
       <a class="modulo-objetos" href="{{ url_for('objetos.catalogo') }}">
         <h3>Objetos</h3>
         <p>Vendé, intercambiá o prestá materiales entre estudiantes.</p>
@@ -133,6 +251,10 @@
       <a class="modulo-actividades" href="{{ url_for('actividades.index') }}">
         <h3>Actividades</h3>
         <p>Encuentros creados por estudiantes, con cupo e inscripción.</p>
+      </a>
+      <a class="modulo-estudiantes" href="{{ url_for('auth.registro') }}">
+        <h3>Compañeros y chat</h3>
+        <p>Encontrá gente de tu carrera, sumala a tu red y escribile directo.</p>
       </a>
     </div>
   </section>

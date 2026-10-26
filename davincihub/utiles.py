@@ -45,3 +45,13 @@ def fecha_corta(iso: str) -> str:
 
 def sin_acentos(texto: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", texto.casefold()) if not unicodedata.combining(c))
+
+
+def paginas_visibles(actual: int, total: int) -> list[int | None]:
+    numeros = sorted({1, total, *range(max(1, actual - 1), min(total, actual + 1) + 1)})
+    visibles: list[int | None] = []
+    for numero in numeros:
+        if visibles and numero - visibles[-1] > 1:
+            visibles.append(None)
+        visibles.append(numero)
+    return visibles

@@ -16,10 +16,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from davincihub import db, seguridad, validacion
 from davincihub.notificaciones import notificar
 from davincihub.usuarios import datos as usuarios_datos
-from davincihub.utiles import ahora, sin_acentos, tipo_imagen
+from davincihub.utiles import ahora, ahora_local, paginas_visibles, sin_acentos, tipo_imagen
 
 bp = Blueprint("perfil", __name__, url_prefix="/estudiantes")
 MAX_FOTO_BYTES = 3 * 1024 * 1024
+ESTUDIANTES_POR_PAGINA = 12
 TEMAS_CHAT = {"davinci": "Da Vinci", "menta": "Menta", "violeta": "Violeta", "ambar": "Ámbar", "noche": "Noche"}
 
 
@@ -89,22 +90,48 @@ def buscar_estudiantes():
     if filtros["comision"]:
         condiciones.append("lower(trim(u.comision)) = :comision")
         params["comision"] = filtros["comision"].lower()
-    estudiantes = db.query(
-        "SELECT u.id, u.nombre, u.apellido, u.anio, u.comision, c.nombre AS carrera,"
-        " CASE WHEN f.usuario_id IS NULL THEN 0 ELSE 1 END AS tiene_foto,"
-        " x.estado AS conexion_estado, x.solicitante_id"
+    desde_sql = (
         " FROM usuarios u LEFT JOIN carreras c ON c.id = u.carrera_id"
-        " LEFT JOIN fotos_perfil f ON f.usuario_id = u.id"
         " LEFT JOIN conexiones x ON (x.solicitante_id = :yo AND x.receptor_id = u.id)"
         " OR (x.solicitante_id = u.id AND x.receptor_id = :yo)"
         f" WHERE {' AND '.join(condiciones)}"
-        " ORDER BY u.apellido, u.nombre, u.id",
+    )
+    conteo = db.query_one(
+        "SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN x.estado = 'aceptada' THEN 1 ELSE 0 END), 0) AS conexiones"
+        + desde_sql,
         **params,
     )
+    cantidades = {"conexiones": conteo["conexiones"], "otros": conteo["total"] - conteo["conexiones"]}
+    vista = "conexiones" if request.args.get("vista") == "conexiones" else "otros"
+    paginas = max(1, -(-cantidades[vista] // ESTUDIANTES_POR_PAGINA))
+    pagina = min(max(request.args.get("pagina", 1, type=int) or 1, 1), paginas)
+    pestana = "x.estado = 'aceptada'" if vista == "conexiones" else "(x.estado IS NULL OR x.estado <> 'aceptada')"
+    estudiantes = db.query(
+        "SELECT u.id, u.nombre, u.apellido, u.anio, u.comision, c.nombre AS carrera,"
+        " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = u.id) AS tiene_foto,"
+        " x.estado AS conexion_estado, x.solicitante_id"
+        + desde_sql + f" AND {pestana}"
+        " ORDER BY u.apellido, u.nombre, u.id LIMIT :limite OFFSET :desde",
+        limite=ESTUDIANTES_POR_PAGINA, desde=(pagina - 1) * ESTUDIANTES_POR_PAGINA, **params,
+    )
+    argumentos = {k: v for k, v in request.args.items() if k != "pagina" and v}
+    enlaces = {
+        "anterior": url_for("perfil.buscar_estudiantes", **argumentos, pagina=pagina - 1),
+        "siguiente": url_for("perfil.buscar_estudiantes", **argumentos, pagina=pagina + 1),
+        "paginas": [
+            (numero, url_for("perfil.buscar_estudiantes", **argumentos, pagina=numero) if numero else None)
+            for numero in paginas_visibles(pagina, paginas)
+        ],
+    }
     return render_template(
         "perfil/buscar.html",
         estudiantes=estudiantes,
+        cantidades=cantidades,
+        vista=vista,
         filtros=filtros,
+        pagina=pagina,
+        paginas=paginas,
+        enlaces=enlaces,
         carreras=db.query("SELECT id, nombre FROM carreras WHERE activa = 1 ORDER BY nombre"),
     )
 
@@ -151,16 +178,17 @@ def ver(usuario_id: int):
     actividades = db.query(
         "SELECT a.id, a.nombre, a.inicio, a.ubicacion FROM inscripciones i"
         " JOIN actividades a ON a.id = i.actividad_id"
-        " WHERE i.usuario_id = :id AND a.estado = 'aprobada'"
-        " ORDER BY a.inicio DESC LIMIT 5",
-        id=usuario_id,
+        " WHERE i.usuario_id = :id AND a.estado = 'aprobada' AND a.inicio >= :ahora"
+        " ORDER BY a.inicio LIMIT 4",
+        id=usuario_id, ahora=ahora_local(),
     )
-    actividades_total = db.query_one(
-        "SELECT COUNT(*) AS total FROM inscripciones i"
-        " JOIN actividades a ON a.id = i.actividad_id"
+    totales = db.query_one(
+        "SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN a.inicio < :ahora THEN 1 ELSE 0 END), 0) AS pasadas"
+        " FROM inscripciones i JOIN actividades a ON a.id = i.actividad_id"
         " WHERE i.usuario_id = :id AND a.estado = 'aprobada'",
-        id=usuario_id,
-    )["total"]
+        id=usuario_id, ahora=ahora_local(),
+    )
+    actividades_total = totales["total"]
     conexion = _estado_conexion(usuario_id) if g.usuario and g.usuario["id"] != usuario_id else None
     return render_template(
         "perfil/perfil.html",
@@ -171,6 +199,8 @@ def ver(usuario_id: int):
         respuestas_utiles=respuestas_utiles["total"],
         actividades=actividades,
         actividades_total=actividades_total,
+        actividades_pasadas=totales["pasadas"],
+        proximas_total=totales["total"] - totales["pasadas"],
         conexion=conexion,
     )
 
@@ -285,12 +315,13 @@ def solicitar_conexion(usuario_id: int):
         mensaje = "Ya existe una solicitud o conexión entre ustedes."
     if mensaje:
         flash(mensaje)
-    return redirect(_volver_a_busqueda() or url_for("perfil.ver", usuario_id=usuario_id))
+    return redirect(_volver_local() or url_for("perfil.ver", usuario_id=usuario_id))
 
 
-def _volver_a_busqueda() -> str | None:
+def _volver_local() -> str | None:
     destino = request.form.get("volver") or ""
-    return destino if destino.startswith(url_for("perfil.buscar_estudiantes")) else None
+    seguro = destino.startswith("/") and not destino.startswith("//") and "\\" not in destino
+    return destino if seguro else None
 
 
 def _bloquear_par(uno_id: int, otro_id: int) -> bool:
@@ -356,8 +387,8 @@ def _resolver_solicitud(usuario_id: int, solicitante_id: int, estado: str):
                 f"{g.usuario['nombre']} {g.usuario['apellido']} aceptó tu solicitud de conexión.",
                 url_for("perfil.ver", usuario_id=usuario_id),
             )
-    flash("Conexión aceptada." if estado == "aceptada" else "Solicitud rechazada.")
-    return redirect(url_for("perfil.conexiones", usuario_id=usuario_id))
+    flash("Conexión aceptada." if estado == "aceptada" else "Solicitud ignorada.")
+    return redirect(_volver_local() or url_for("perfil.conexiones", usuario_id=usuario_id))
 
 
 @bp.post("/<int:usuario_id>/conexiones/<int:solicitante_id>/aceptar")
@@ -382,7 +413,7 @@ def _quitar_conexion(usuario_id: int, otro_id: int, cancelar: bool):
             abort(404)
         if cancelar:
             condiciones = (
-                "solicitante_id = :yo AND receptor_id = :otro AND estado = 'pendiente'"
+                "solicitante_id = :yo AND receptor_id = :otro AND estado IN ('pendiente', 'rechazada')"
             )
         else:
             condiciones = (
@@ -397,7 +428,7 @@ def _quitar_conexion(usuario_id: int, otro_id: int, cancelar: bool):
         if eliminadas != 1:
             abort(404)
     flash("Solicitud cancelada." if cancelar else "Conexión eliminada.")
-    return redirect(_volver_a_busqueda() or url_for("perfil.conexiones", usuario_id=usuario_id))
+    return redirect(_volver_local() or url_for("perfil.conexiones", usuario_id=usuario_id))
 
 
 @bp.post("/<int:usuario_id>/conexiones/<int:otro_id>/cancelar")
@@ -435,7 +466,7 @@ def conexiones(usuario_id: int):
         " FROM conexiones x JOIN usuarios u ON u.id = x.receptor_id"
         " LEFT JOIN carreras c ON c.id = u.carrera_id"
         " LEFT JOIN fotos_perfil f ON f.usuario_id = u.id"
-        " WHERE x.solicitante_id = :id AND x.estado = 'pendiente'"
+        " WHERE x.solicitante_id = :id AND x.estado IN ('pendiente', 'rechazada')"
         " AND u.rol = 'estudiante' AND u.bloqueado = 0 ORDER BY x.creado DESC",
         id=usuario_id,
     )

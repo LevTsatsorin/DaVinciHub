@@ -29,14 +29,10 @@
         {% elif g.usuario and g.usuario.rol == 'estudiante' %}
           {% if conexion and conexion.estado == 'aceptada' %}
             <span class="perfil-estado-conexion perfil-conectados">Ya están conectados</span>
-          {% elif conexion and conexion.estado == 'pendiente' %}
-            {% if conexion.solicitante_id == g.usuario.id %}
-              <span class="perfil-estado-conexion perfil-solicitud-enviada">Solicitud enviada</span>
-            {% else %}
-              <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Responder solicitud</a>
-            {% endif %}
           {% elif conexion and conexion.solicitante_id == g.usuario.id %}
-            <span class="perfil-estado-conexion">La solicitud de conexión fue rechazada</span>
+            <span class="perfil-estado-conexion perfil-solicitud-enviada">Solicitud enviada</span>
+          {% elif conexion and conexion.estado == 'pendiente' %}
+            <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Responder solicitud</a>
           {% else %}
             <form method="post" action="{{ url_for('perfil.solicitar_conexion', usuario_id=estudiante.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -70,21 +66,34 @@
     </ul>
   {% endif %}
 
-  <h2 class="subtitulo">Actividades recientes</h2>
+  <div class="perfil-agenda-cabecera">
+    <h2 class="subtitulo">{{ "Tus próximas actividades" if es_yo else "Próximas actividades de " ~ estudiante.nombre }}</h2>
+    {% if es_yo and actividades_total %}<a class="enlace-ver-mas" href="{{ url_for('actividades.mis_actividades') }}">Ver todas</a>{% endif %}
+  </div>
   {% if actividades %}
-    <ul class="perfil-actividades">
+    <ul class="perfil-agenda">
       {% for actividad in actividades %}
+        {% set fecha = actividad.inicio | partes_fecha %}
         <li>
-          <a href="{{ url_for('actividades.detalle', actividad_id=actividad.id) }}">{{ actividad.nombre }}</a>
-          <span>{{ actividad.inicio | dia_y_fecha }} {{ actividad.inicio[11:16] }}{% if actividad.ubicacion %} · {{ actividad.ubicacion }}{% endif %}</span>
+          <a class="perfil-agenda-item" href="{{ url_for('actividades.detalle', actividad_id=actividad.id) }}">
+            <span class="perfil-agenda-fecha"><span>{{ fecha.dia }}</span><strong>{{ fecha.numero }}</strong><span>{{ fecha.mes }}</span></span>
+            <span class="perfil-agenda-datos">
+              <strong>{{ actividad.nombre }}</strong>
+              <span>{{ actividad.inicio[11:16] }} h{% if actividad.ubicacion %} · {{ actividad.ubicacion }}{% endif %}</span>
+            </span>
+          </a>
         </li>
       {% endfor %}
     </ul>
+    {% if proximas_total > actividades | length %}<p class="perfil-nota">Y {{ proximas_total - actividades | length }} más en el calendario.</p>{% endif %}
   {% else %}
     <div class="perfil-vacio">
-      <p>{{ "Todavía no participaste en actividades." if es_yo else "Todavía no participó en actividades." }}</p>
-      <a class="boton boton-suave" href="{{ url_for('actividades.index') }}">Ver actividades</a>
+      <p>{{ "No estás anotado en ninguna actividad próxima." if es_yo else "No tiene actividades próximas." }}</p>
+      {% if es_yo %}<a class="boton boton-suave" href="{{ url_for('actividades.index') }}">Buscar actividades</a>{% endif %}
     </div>
+  {% endif %}
+  {% if actividades_pasadas %}
+    <p class="perfil-nota perfil-historial">{{ "Ya participaste" if es_yo else "Ya participó" }} en {{ actividades_pasadas }} actividad{{ "es" if actividades_pasadas != 1 }} del Hub.</p>
   {% endif %}
 </section>
 {% endblock %}

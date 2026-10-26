@@ -283,3 +283,16 @@ def test_paginacion_conserva_opcion_mostrar_propias(estudiante, app):
     respuesta = estudiante.get("/objetos/?mostrar_mias=1")
     assert "mostrar_mias=1" in respuesta.text
     assert "Página 1 de 2" in respuesta.text
+
+
+def test_incluir_mis_publicaciones_marca_las_propias(client, app):
+    with app.app_context():
+        mias = db.query_one("SELECT count(*) AS n FROM publicaciones WHERE autor_id = 2 AND estado = 'activa'")["n"]
+        otras = db.query_one(
+            "SELECT count(*) AS n FROM publicaciones p JOIN usuarios u ON u.id = p.autor_id"
+            " WHERE p.autor_id <> 2 AND p.estado = 'activa' AND u.bloqueado = 0"
+        )["n"]
+    client.post("/auth/login", data={"email": "mica@davinci.edu.ar", "password": "davinci123"})
+    texto = client.get("/objetos/?mostrar_mias=1").get_data(as_text=True)
+    assert f"<strong>{mias + otras}</strong>" in texto
+    assert texto.count("Tu publicación") == min(mias, 12)

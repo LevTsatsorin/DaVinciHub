@@ -1,19 +1,26 @@
-<article class="objeto-tarjeta">
+<article class="objeto-tarjeta objeto-tarjeta-{{ publicacion.modalidad }}">
   <a class="objeto-enlace" href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">
     <div class="objeto-ilustracion objeto-{{ publicacion.categoria }}">
       {% include "objetos/_icono.html" %}
-      <span class="objeto-modalidad">{{ modalidades.get(publicacion.modalidad, publicacion.modalidad) }}</span>
+      <span class="objeto-modalidad objeto-modalidad-{{ publicacion.modalidad }}">{{ modalidades.get(publicacion.modalidad, publicacion.modalidad) }}</span>
+      {% if not mias and publicacion.autor_id == g.usuario.id %}<span class="objeto-propia">Tu publicación</span>{% endif %}
     </div>
     <div class="objeto-tarjeta-cuerpo">
       <span class="objeto-categoria">{{ categorias.get(publicacion.categoria, publicacion.categoria) }}</span>
-      <h2>{{ publicacion.titulo }}</h2>
-      <p class="objeto-condicion">{{ condiciones.get(publicacion.estado_objeto, publicacion.estado_objeto) }}</p>
-      {% if publicacion.carrera %}<p class="objeto-carrera">{{ publicacion.carrera }}</p>{% endif %}
+      <h2 title="{{ publicacion.titulo }}">{{ publicacion.titulo }}</h2>
+      <ul class="objeto-datos" aria-label="Detalles">
+        <li class="objeto-dato objeto-dato-{{ publicacion.estado_objeto }}">{{ condiciones.get(publicacion.estado_objeto, publicacion.estado_objeto) }}</li>
+        {% if publicacion.carrera %}<li class="objeto-dato objeto-dato-carrera" title="{{ publicacion.carrera }}">{{ publicacion.carrera }}</li>{% endif %}
+      </ul>
       <div class="objeto-tarjeta-pie">
-        <strong>{{ publicacion.precio | precio_pesos if publicacion.modalidad == 'venta' and publicacion.precio is not none else ('Para intercambiar' if publicacion.modalidad == 'intercambio' else 'Para prestar') }}</strong>
-        <span aria-hidden="true">↗</span>
+        {% if publicacion.modalidad == 'venta' and publicacion.precio is not none %}
+          <strong class="objeto-precio">{{ publicacion.precio | precio_corto }}</strong>
+        {% else %}
+          <strong class="objeto-precio objeto-precio-{{ publicacion.modalidad }}">{{ 'Sin costo · intercambio' if publicacion.modalidad == 'intercambio' else 'Sin costo · préstamo' }}</strong>
+        {% endif %}
+        <span class="objeto-ir" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg></span>
       </div>
-      <p class="objeto-autor">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</p>
+      <p class="objeto-autor"><span class="objeto-autor-avatar" aria-hidden="true">{{ publicacion.autor_nombre[:1] }}{{ publicacion.autor_apellido[:1] }}</span>{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</p>
     </div>
   </a>
   {% if mias %}

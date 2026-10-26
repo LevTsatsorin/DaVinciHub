@@ -2,6 +2,7 @@ from flask import Blueprint, abort, flash, g, redirect, render_template, request
 
 from davincihub import seguridad
 from davincihub.objetos import busquedas, datos
+from davincihub.utiles import paginas_visibles
 
 bp = Blueprint("objetos", __name__, url_prefix="/objetos")
 
@@ -9,6 +10,12 @@ bp = Blueprint("objetos", __name__, url_prefix="/objetos")
 @bp.app_template_filter("precio_pesos")
 def precio_pesos(valor) -> str:
     return "$" + f"{valor:,.2f}".translate(str.maketrans({",": ".", ".": ","}))
+
+
+@bp.app_template_filter("precio_corto")
+def precio_corto(valor) -> str:
+    texto = precio_pesos(valor)
+    return texto.removesuffix(",00")
 
 
 @bp.context_processor
@@ -71,6 +78,10 @@ def _listado(mias: bool = False):
     enlaces = {
         "anterior": url_for(endpoint, **filtros, pagina=resultado["pagina"] - 1),
         "siguiente": url_for(endpoint, **filtros, pagina=resultado["pagina"] + 1),
+        "paginas": [
+            (numero, url_for(endpoint, **filtros, pagina=numero) if numero else None)
+            for numero in paginas_visibles(resultado["pagina"], resultado["paginas"])
+        ],
     }
     return render_template(
         "objetos/catalogo.html", **resultado, filtros=filtros, mias=mias,

@@ -103,7 +103,8 @@ def nueva_pregunta():
 def detalle(pregunta_id: int):
     pregunta = _pregunta_o_404(pregunta_id)
     respuestas = datos.listar_respuestas(pregunta_id, g.usuario["id"])
-    return render_template("foro/detalle.html", pregunta=pregunta, respuestas=respuestas)
+    autores = datos.autores({pregunta["autor_id"], *(r["autor_id"] for r in respuestas)}, g.usuario["id"])
+    return render_template("foro/detalle.html", pregunta=pregunta, respuestas=respuestas, autores=autores)
 
 
 @bp.get("/preguntas/<int:pregunta_id>/imagen")
@@ -228,6 +229,9 @@ def aceptar_respuesta(respuesta_id: int):
         )
     except datos.SinPermisoForo:
         abort(403)
+    except datos.ErrorForo as e:
+        flash(str(e), "error")
+        return redirect(url_for("foro.detalle", pregunta_id=respuesta["pregunta_id"]))
     flash("Respuesta aceptada." if aceptada else "Se quitó la aceptación de la respuesta.")
     return redirect(url_for("foro.detalle", pregunta_id=respuesta["pregunta_id"]))
 

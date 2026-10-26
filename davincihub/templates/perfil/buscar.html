@@ -8,21 +8,28 @@
 {%- endmacro %}
 
 {% block contenido %}
-<section class="contenedor pagina-modulo pagina-perfil">
-  <a class="enlace-volver" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">← Mis conexiones</a>
-  <header class="ficha-usuario fondo-oscuro">
-    <div class="ficha-usuario-datos">
-      <h1>Buscar estudiantes</h1>
-      <p>Encontrá compañeros por nombre, carrera, año o comisión.</p>
+<section class="cabecera-seccion fondo-oscuro cabecera-estudiantes">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/portada.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    <h1>Estudiantes</h1>
+    <p>Encontrá compañeros por nombre, carrera, año o comisión y sumalos a tu red.</p>
+    <div class="acciones-cabecera">
+      <div class="enlaces-admin">
+        <a class="enlace-admin" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Solicitudes</a>
+        <a class="enlace-admin" href="{{ url_for('perfil.chats') }}">Mensajes</a>
+      </div>
     </div>
-  </header>
-  <form class="filtros-espacios filtros-usuarios filtros-estudiantes" method="get" role="search">
+  </div>
+</section>
+<section class="contenedor pagina-modulo pagina-perfil pagina-estudiantes">
+  <form class="filtros-espacios filtros-usuarios filtros-estudiantes filtros-fijos" method="get" role="search">
+    {% if vista == 'conexiones' %}<input type="hidden" name="vista" value="conexiones">{% endif %}
     <label class="filtro-buscar">Nombre
       <input type="search" name="q" value="{{ filtros.q }}" placeholder="¿A quién buscás?" maxlength="100">
     </label>
     <label>Carrera
       <select name="carrera">
-        <option value="">Todas las carreras</option>
+        <option value="">Todas</option>
         {% for carrera in carreras %}
           <option value="{{ carrera.id }}"{% if filtros.carrera == carrera.id %} selected{% endif %}>{{ carrera.nombre }}</option>
         {% endfor %}
@@ -40,10 +47,15 @@
       <input name="comision" value="{{ filtros.comision }}" maxlength="40" placeholder="Ej. A">
     </label>
     <button class="boton boton-primario" type="submit">Buscar</button>
-    <a class="boton boton-suave" href="{{ url_for('perfil.buscar_estudiantes') }}">Limpiar</a>
+    <a class="boton boton-suave" href="{{ url_for('perfil.buscar_estudiantes', vista=vista if vista == 'conexiones' else None) }}">Limpiar</a>
   </form>
 
-  <h2 class="subtitulo">{{ estudiantes | length }} {{ "estudiante encontrado" if estudiantes | length == 1 else "estudiantes encontrados" }}</h2>
+  {% set filtros_url = {'q': filtros.q or None, 'carrera': filtros.carrera, 'anio': filtros.anio, 'comision': filtros.comision or None} %}
+  <nav class="pestanas" aria-label="Qué estudiantes ver">
+    <a class="pestana{% if vista == 'otros' %} pestana-activa{% endif %}" href="{{ url_for('perfil.buscar_estudiantes', **filtros_url) }}"{% if vista == 'otros' %} aria-current="page"{% endif %}>Por conocer <span>{{ cantidades.otros }}</span></a>
+    <a class="pestana{% if vista == 'conexiones' %} pestana-activa{% endif %}" href="{{ url_for('perfil.buscar_estudiantes', vista='conexiones', **filtros_url) }}"{% if vista == 'conexiones' %} aria-current="page"{% endif %}>Mis conexiones <span>{{ cantidades.conexiones }}</span></a>
+  </nav>
+
   {% if estudiantes %}
     <ul class="estudiantes-resultados">
       {% for persona in estudiantes %}
@@ -57,7 +69,7 @@
           <div class="estudiante-tarjeta-accion">
             {% if persona.conexion_estado == "aceptada" %}
               <a class="boton boton-suave" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Escribir</a>
-            {% elif persona.conexion_estado == "pendiente" and persona.solicitante_id == g.usuario.id %}
+            {% elif persona.conexion_estado in ("pendiente", "rechazada") and persona.solicitante_id == g.usuario.id %}
               <form method="post" action="{{ url_for('perfil.cancelar_conexion', usuario_id=g.usuario.id, otro_id=persona.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="volver" value="{{ request.full_path }}">
@@ -65,8 +77,6 @@
               </form>
             {% elif persona.conexion_estado == "pendiente" %}
               <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Responder solicitud</a>
-            {% elif persona.conexion_estado == "rechazada" and persona.solicitante_id == g.usuario.id %}
-              <span class="estado estado-inactivo">Solicitud rechazada</span>
             {% else %}
               <form method="post" action="{{ url_for('perfil.solicitar_conexion', usuario_id=persona.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -78,9 +88,13 @@
         </li>
       {% endfor %}
     </ul>
+    {% if paginas > 1 %}
+      {% set etiqueta_paginacion = "Páginas de estudiantes" %}
+      {% include "_paginacion.html" %}
+    {% endif %}
   {% else %}
     <div class="perfil-vacio">
-      <p>No encontramos estudiantes con esos filtros.</p>
+      <p>{{ 'Todavía no tenés conexiones con estos filtros.' if vista == 'conexiones' else 'No encontramos estudiantes con esos filtros.' }}</p>
       <a class="boton boton-suave" href="{{ url_for('perfil.buscar_estudiantes') }}">Ver todos</a>
     </div>
   {% endif %}

@@ -40,7 +40,7 @@
             </form>
             <form method="post" action="{{ url_for('perfil.rechazar_conexion', usuario_id=estudiante.id, solicitante_id=persona.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="boton boton-suave" type="submit">Rechazar</button>
+              <button class="boton boton-suave" type="submit">Ignorar</button>
             </form>
           </div>
         </li>

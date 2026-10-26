@@ -88,12 +88,14 @@ def listar_preguntas(
         "SELECT p.id, p.autor_id, p.titulo, p.cuerpo, p.creado, m.nombre AS materia,"
         " c.nombre AS carrera, u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
         " COUNT(r.id) AS respuestas,"
-        " COALESCE(MAX(r.aceptada), 0) AS tiene_aceptada"
+        " COALESCE(MAX(r.aceptada), 0) AS tiene_aceptada,"
+        " MAX(r.creado) AS ultima_respuesta, m.cuatrimestre,"
+        " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = p.autor_id) AS autor_tiene_foto"
         " FROM preguntas p JOIN materias m ON m.id = p.materia_id"
         " JOIN carreras c ON c.id = m.carrera_id JOIN usuarios u ON u.id = p.autor_id"
         " LEFT JOIN respuestas r ON r.pregunta_id = p.id"
         f"{donde}"
-        " GROUP BY p.id, m.nombre, c.nombre, u.nombre, u.apellido"
+        " GROUP BY p.id, m.nombre, m.cuatrimestre, c.nombre, u.nombre, u.apellido"
         " ORDER BY CASE WHEN COUNT(r.id) = 0 THEN 0 ELSE 1 END, p.creado DESC, p.id DESC",
         **parametros,
     )
@@ -104,11 +106,13 @@ def obtener_pregunta(pregunta_id: int) -> dict | None:
         "SELECT p.id, p.autor_id, p.materia_id, p.titulo, p.cuerpo, p.creado,"
         " m.nombre AS materia, m.carrera_id, c.nombre AS carrera,"
         " u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
+        " u.rol AS autor_rol, ca.nombre AS autor_carrera,"
         " EXISTS (SELECT 1 FROM preguntas pa WHERE pa.id = p.id AND pa.imagen IS NOT NULL) AS tiene_imagen,"
         " (SELECT COUNT(*) FROM respuestas r WHERE r.pregunta_id = p.id) AS cantidad_respuestas,"
         " (SELECT id FROM respuestas r WHERE r.pregunta_id = p.id AND r.aceptada = 1) AS respuesta_aceptada_id"
         " FROM preguntas p JOIN materias m ON m.id = p.materia_id"
         " JOIN carreras c ON c.id = m.carrera_id JOIN usuarios u ON u.id = p.autor_id"
+        " LEFT JOIN carreras ca ON ca.id = u.carrera_id"
         " WHERE p.id = :id",
         id=pregunta_id,
     )
@@ -117,12 +121,14 @@ def obtener_pregunta(pregunta_id: int) -> dict | None:
 def listar_respuestas(pregunta_id: int, usuario_id: int) -> list[dict]:
     respuestas = db.query(
         "SELECT r.*, u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
+        " u.rol AS autor_rol, ca.nombre AS autor_carrera,"
         " (SELECT COUNT(*) FROM valoraciones_respuestas v WHERE v.respuesta_id = r.id) AS utiles,"
         " EXISTS (SELECT 1 FROM valoraciones_respuestas v"
         "         WHERE v.respuesta_id = r.id AND v.usuario_id = :usuario) AS valorada_por_mi,"
         " m.nombre AS materia, m.id AS materia_id,"
         " r.respuesta_padre_id"
         " FROM respuestas r JOIN usuarios u ON u.id = r.autor_id"
+        " LEFT JOIN carreras ca ON ca.id = u.carrera_id"
         " JOIN preguntas p ON p.id = r.pregunta_id"
         " JOIN materias m ON m.id = p.materia_id"
         " WHERE r.pregunta_id = :pregunta"
@@ -162,6 +168,23 @@ def listar_respuestas(pregunta_id: int, usuario_id: int) -> list[dict]:
         recorrido.append(raiz)
         agregar_hijas(raiz, 1)
     return recorrido
+
+
+def autores(usuario_ids: set[int], yo: int) -> dict[int, dict]:
+    if not usuario_ids:
+        return {}
+    marcadores = ", ".join(f":u{i}" for i in range(len(usuario_ids)))
+    filas = db.query(
+        "SELECT u.id, u.nombre, u.apellido, u.rol, u.anio, u.comision, c.nombre AS carrera,"
+        " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = u.id) AS tiene_foto,"
+        " x.estado AS conexion_estado, x.solicitante_id AS conexion_solicitante"
+        " FROM usuarios u LEFT JOIN carreras c ON c.id = u.carrera_id"
+        " LEFT JOIN conexiones x ON (x.solicitante_id = :yo AND x.receptor_id = u.id)"
+        " OR (x.solicitante_id = u.id AND x.receptor_id = :yo)"
+        f" WHERE u.id IN ({marcadores})",
+        yo=yo, **{f"u{i}": usuario_id for i, usuario_id in enumerate(sorted(usuario_ids))},
+    )
+    return {fila["id"]: fila for fila in filas}
 
 
 def obtener_respuesta(respuesta_id: int) -> dict | None:
@@ -307,6 +330,8 @@ def establecer_aceptacion(respuesta_id: int, usuario_id: int, aceptar: bool) -> 
         respuesta = obtener_respuesta(respuesta_id)
         if respuesta is None:
             raise ErrorForo("La respuesta ya no existe.")
+        if aceptar and respuesta["respuesta_padre_id"] is not None:
+            raise ErrorForo("Solo podés aceptar una respuesta principal.")
         if aceptar and respuesta["autor_id"] == usuario_id:
             raise SinPermisoForo
         if not aceptar:

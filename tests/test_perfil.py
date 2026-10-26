@@ -211,8 +211,8 @@ def test_solicitudes_rechazadas_no_se_muestran_como_conexion(client, app):
             "SELECT count(*) AS n FROM conexiones WHERE solicitante_id = 2 AND receptor_id = 4"
             " AND estado = 'aceptada'"
         )["n"] == 0
-    assert "Lucía Paz" not in contenido
-    assert "La solicitud de conexión fue rechazada" in perfil
+    assert "Lucía Paz" in contenido.split("Solicitudes enviadas", 1)[1]
+    assert "rechaz" not in perfil.lower() and "Solicitud enviada" in perfil
 
 
 def test_quien_rechazo_puede_pedir_conexion_despues(client, app):
@@ -223,7 +223,8 @@ def test_quien_rechazo_puede_pedir_conexion_despues(client, app):
     lucia.post("/estudiantes/4/conexiones/2/rechazar")
     assert "Pedir conexión" in lucia.get("/estudiantes/2").get_data(as_text=True)
     assert "Conectar" in lucia.get("/estudiantes/buscar?q=mica").get_data(as_text=True)
-    assert "Solicitud rechazada" in client.get("/estudiantes/buscar?q=lucia").get_data(as_text=True)
+    busqueda = client.get("/estudiantes/buscar?q=lucia").get_data(as_text=True)
+    assert "rechaz" not in busqueda.lower() and "Cancelar solicitud" in busqueda
 
     assert lucia.post("/estudiantes/2/conexiones").status_code == 302
     with app.app_context():
@@ -602,3 +603,45 @@ def test_el_chat_usa_la_gamma_elegida(client, app):
 def test_un_admin_no_elige_gamma_de_chat(client):
     ingresar(client, email="admin@davinci.edu.ar")
     assert client.post("/estudiantes/3/chat/tema", data={"tema": "noche"}).status_code == 403
+
+
+def test_quien_envio_puede_cancelar_una_solicitud_ignorada(client, app):
+    ingresar(client)
+    client.post("/estudiantes/4/conexiones")
+    lucia = app.test_client()
+    ingresar(lucia, email="lucia@davinci.edu.ar")
+    assert "Ignorar" in lucia.get("/estudiantes/4/conexiones").get_data(as_text=True)
+    lucia.post("/estudiantes/4/conexiones/2/rechazar")
+    assert client.post("/estudiantes/2/conexiones/4/cancelar").status_code == 302
+    with app.app_context():
+        assert db.query_one("SELECT count(*) AS n FROM conexiones WHERE solicitante_id = 2 AND receptor_id = 4")["n"] == 0
+
+
+def test_buscador_separa_conexiones_del_resto(client, app):
+    with app.app_context():
+        db.execute(
+            "INSERT INTO conexiones (solicitante_id, receptor_id, estado, creado)"
+            " VALUES (2, 4, 'aceptada', '2026-10-20T10:00:00')"
+        )
+    ingresar(client)
+    otros = client.get("/estudiantes/buscar").get_data(as_text=True)
+    mias = client.get("/estudiantes/buscar?vista=conexiones").get_data(as_text=True)
+    assert "Lucía Paz" not in otros and "Tomás Vega" in otros
+    assert "Lucía Paz" in mias and "Tomás Vega" not in mias
+    assert 'aria-current="page">Mis conexiones' in mias
+
+
+def test_buscador_pagina_de_a_doce(client, app):
+    with app.app_context():
+        for i in range(30):
+            db.execute(
+                "INSERT INTO usuarios (nombre, apellido, email, password_hash, rol, carrera_id, anio, comision, creado)"
+                " VALUES ('Extra', :apellido, :email, 'x', 'estudiante', 1, 1, 'A', '2026-10-01T00:00:00')",
+                apellido=f"Zeta{i:02d}", email=f"extra{i}@davinci.edu.ar",
+            )
+    ingresar(client)
+    primera = client.get("/estudiantes/buscar").get_data(as_text=True)
+    ultima = client.get("/estudiantes/buscar?pagina=3").get_data(as_text=True)
+    assert primera.count('class="estudiante-tarjeta"') == 12
+    assert "Página 1 de 3" in primera and "Zeta29" not in primera
+    assert "Zeta29" in ultima and "Página 3 de 3" in ultima

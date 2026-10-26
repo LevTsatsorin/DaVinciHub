@@ -26,3 +26,18 @@ document.addEventListener("keydown", (evento) => {
     menu.open = false;
   });
 });
+
+const filtrosFijos = document.querySelectorAll(".filtros-fijos");
+
+if (filtrosFijos.length) {
+  const marcarPegados = () => {
+    const alto = document.querySelector(".barra")?.getBoundingClientRect().height ?? 0;
+    filtrosFijos.forEach((filtro) => {
+      const fijo = getComputedStyle(filtro).position === "sticky";
+      filtro.classList.toggle("filtros-pegados", fijo && filtro.getBoundingClientRect().top <= alto + 0.5);
+    });
+  };
+  window.addEventListener("scroll", marcarPegados, { passive: true });
+  window.addEventListener("resize", marcarPegados);
+  marcarPegados();
+}

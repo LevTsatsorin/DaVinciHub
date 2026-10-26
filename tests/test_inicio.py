@@ -110,3 +110,18 @@ def test_los_avisos_demo_llevan_a_una_pagina_real(client, app):
         assert respuesta.status_code == 302
         assert respuesta.location != "/"
         assert client.get(respuesta.location).status_code == 200
+
+
+def test_inicio_del_estudiante_resume_sin_presionar_y_muestra_la_semana(client, app):
+    with app.app_context():
+        db.execute(
+            "INSERT INTO conexiones (solicitante_id, receptor_id, estado, creado)"
+            " VALUES (3, 2, 'pendiente', '2026-10-20T10:00:00')"
+        )
+    client.post("/auth/login", data={"email": "mica@davinci.edu.ar", "password": "davinci123"})
+    texto = client.get("/").get_data(as_text=True)
+    assert "<strong>1</strong>solicitud de conexión" in texto
+    assert "Te están esperando" not in texto and "aceptar" not in texto
+    assert "Hacer una pregunta" in texto and "Publicar un objeto" in texto
+    assert "próximas dos semanas" in texto and "Tu paso por el Hub" in texto
+    assert "Gente que podrías conocer" in texto

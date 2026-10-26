@@ -17,6 +17,7 @@ from davincihub import (
 from davincihub import inicio as pagina_inicio
 from davincihub.objetos import rutas as objetos_rutas
 from davincihub.reservas import rutas as reservas_rutas
+from davincihub.utiles import paginas_visibles
 
 csrf = CSRFProtect()
 
@@ -48,6 +49,18 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(objetos_rutas.bp)
     app.before_request(seguridad.cargar_usuario)
     app.add_template_global(seguridad.es_catedra)
+
+    @app.template_global()
+    def paginacion(endpoint: str, pagina: int, paginas: int, ancla: str = "", **argumentos) -> dict:
+        argumentos = {k: v for k, v in argumentos.items() if v not in (None, "")}
+
+        def enlace(numero: int) -> str:
+            return url_for(endpoint, **argumentos, pagina=numero) + ancla
+
+        return {
+            "anterior": enlace(pagina - 1), "siguiente": enlace(pagina + 1),
+            "paginas": [(n, enlace(n) if n else None) for n in paginas_visibles(pagina, paginas)],
+        }
 
     # devuelve None hasta que exista el blueprint de perfiles (B1)
     @app.template_global()
