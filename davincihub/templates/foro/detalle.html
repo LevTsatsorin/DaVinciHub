@@ -5,7 +5,14 @@
 {% macro subcomentario(respuesta) %}
   <article class="foro-subcomentario">
     <header class="foro-subcomentario-cabecera">
-      <strong>{{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}</strong>
+      {% if respuesta.autor_rol == 'estudiante' %}
+        <a class="foro-autor-enlace" href="{{ url_for('perfil.ver', usuario_id=respuesta.autor_id) }}">
+          {{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}
+        </a>
+      {% else %}
+        <strong>{{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}</strong>
+      {% endif %}
+      {% if respuesta.autor_carrera %}<span class="foro-autor-carrera">{{ respuesta.autor_carrera }}</span>{% endif %}
       {% if respuesta.es_catedra %}<span class="foro-insignia">Cátedra · {{ respuesta.materia }}</span>{% endif %}
       <time datetime="{{ respuesta.creado }}">{{ respuesta.creado | fecha_corta }}</time>
     </header>
@@ -47,7 +54,13 @@
       {% if pregunta.respuesta_aceptada_id %}<span class="foro-resuelta">Resuelta</span>{% endif %}
     </div>
     <h1>{{ pregunta.titulo }}</h1>
-    <p class="foro-detalle-autor">Preguntó {{ pregunta.autor_nombre }} {{ pregunta.autor_apellido }} · {{ pregunta.creado | fecha_corta }}</p>
+    <p class="foro-detalle-autor">Preguntó
+      {% if pregunta.autor_rol == 'estudiante' %}
+        <a class="foro-autor-enlace" href="{{ url_for('perfil.ver', usuario_id=pregunta.autor_id) }}">{{ pregunta.autor_nombre }} {{ pregunta.autor_apellido }}</a>
+      {% else %}
+        {{ pregunta.autor_nombre }} {{ pregunta.autor_apellido }}
+      {% endif %} · {{ pregunta.creado | fecha_corta }}
+    </p>
     <div class="foro-texto">{{ pregunta.cuerpo }}</div>
     {% if pregunta.tiene_imagen %}
       <a class="foro-imagen-enlace" href="{{ url_for('foro.imagen_pregunta', pregunta_id=pregunta.id) }}" target="_blank" rel="noopener">
@@ -55,7 +68,7 @@
       </a>
     {% endif %}
     {% if g.usuario.id == pregunta.autor_id and not pregunta.respuesta_aceptada_id %}
-      <a class="foro-editar-enlace" href="{{ url_for('foro.editar_pregunta', pregunta_id=pregunta.id) }}">Editar pregunta</a>
+      <a class="foro-editar-enlace foro-editar-pregunta" href="{{ url_for('foro.editar_pregunta', pregunta_id=pregunta.id) }}">Editar pregunta</a>
     {% endif %}
   </article>
 
@@ -72,7 +85,14 @@
             {% if respuesta.aceptada %}<div class="foro-aceptada-etiqueta">Respuesta aceptada</div>{% endif %}
             <div class="foro-respuesta-cabecera">
               <div>
-                <strong>{{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}</strong>
+                {% if respuesta.autor_rol == 'estudiante' %}
+                  <a class="foro-autor-enlace" href="{{ url_for('perfil.ver', usuario_id=respuesta.autor_id) }}">
+                    {{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}
+                  </a>
+                {% else %}
+                  <strong>{{ respuesta.autor_nombre }} {{ respuesta.autor_apellido }}</strong>
+                {% endif %}
+                {% if respuesta.autor_carrera %}<span class="foro-autor-carrera">{{ respuesta.autor_carrera }}</span>{% endif %}
                 {% if respuesta.es_catedra %}<span class="foro-insignia">Cátedra · {{ respuesta.materia }}</span>{% endif %}
               </div>
               <time>{{ respuesta.creado | fecha_corta }}</time>
@@ -91,7 +111,11 @@
                 <a class="foro-editar-enlace" href="{{ url_for('foro.editar_respuesta', respuesta_id=respuesta.id) }}">Editar respuesta</a>
               {% endif %}
               {% if g.usuario.id == pregunta.autor_id and respuesta.autor_id != pregunta.autor_id %}
-                <form method="post" action="{{ url_for('foro.aceptar_respuesta', respuesta_id=respuesta.id) }}">
+                <form method="post" action="{{ url_for('foro.aceptar_respuesta', respuesta_id=respuesta.id) }}"
+                      data-confirmar="{{ '¿Estás seguro de que querés quitar esta respuesta aceptada?' if respuesta.aceptada else '¿Estás seguro de que querés aceptar esta respuesta?' }}"
+                      data-confirmar-texto="Esta decisión se va a reflejar en la pregunta y se notificará a quien respondió."
+                      data-confirmar-boton="{{ 'Quitar aceptación' if respuesta.aceptada else 'Aceptar respuesta' }}"
+                      data-confirmar-tono="{{ 'peligro' if respuesta.aceptada else 'positivo' }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="aceptada" value="{{ 0 if respuesta.aceptada else 1 }}">
                   <button class="boton boton-suave foro-boton-aceptar" type="submit">
@@ -145,4 +169,11 @@
     </form>
   </section>
 </section>
+{% endblock %}
+
+{% block scripts %}
+  {% if g.usuario.id == pregunta.autor_id and respuestas %}
+    {% include "espacios/_dialogo.html" %}
+    <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
+  {% endif %}
 {% endblock %}

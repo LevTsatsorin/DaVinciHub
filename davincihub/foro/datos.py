@@ -97,11 +97,13 @@ def obtener_pregunta(pregunta_id: int) -> dict | None:
         "SELECT p.id, p.autor_id, p.materia_id, p.titulo, p.cuerpo, p.creado,"
         " m.nombre AS materia, m.carrera_id, c.nombre AS carrera,"
         " u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
+        " u.rol AS autor_rol, ca.nombre AS autor_carrera,"
         " EXISTS (SELECT 1 FROM preguntas pa WHERE pa.id = p.id AND pa.imagen IS NOT NULL) AS tiene_imagen,"
         " (SELECT COUNT(*) FROM respuestas r WHERE r.pregunta_id = p.id) AS cantidad_respuestas,"
         " (SELECT id FROM respuestas r WHERE r.pregunta_id = p.id AND r.aceptada = 1) AS respuesta_aceptada_id"
         " FROM preguntas p JOIN materias m ON m.id = p.materia_id"
         " JOIN carreras c ON c.id = m.carrera_id JOIN usuarios u ON u.id = p.autor_id"
+        " LEFT JOIN carreras ca ON ca.id = u.carrera_id"
         " WHERE p.id = :id",
         id=pregunta_id,
     )
@@ -110,12 +112,14 @@ def obtener_pregunta(pregunta_id: int) -> dict | None:
 def listar_respuestas(pregunta_id: int, usuario_id: int) -> list[dict]:
     respuestas = db.query(
         "SELECT r.*, u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
+        " u.rol AS autor_rol, ca.nombre AS autor_carrera,"
         " (SELECT COUNT(*) FROM valoraciones_respuestas v WHERE v.respuesta_id = r.id) AS utiles,"
         " EXISTS (SELECT 1 FROM valoraciones_respuestas v"
         "         WHERE v.respuesta_id = r.id AND v.usuario_id = :usuario) AS valorada_por_mi,"
         " m.nombre AS materia, m.id AS materia_id,"
         " r.respuesta_padre_id"
         " FROM respuestas r JOIN usuarios u ON u.id = r.autor_id"
+        " LEFT JOIN carreras ca ON ca.id = u.carrera_id"
         " JOIN preguntas p ON p.id = r.pregunta_id"
         " JOIN materias m ON m.id = p.materia_id"
         " WHERE r.pregunta_id = :pregunta"
@@ -306,6 +310,8 @@ def establecer_aceptacion(respuesta_id: int, usuario_id: int, aceptar: bool) -> 
         respuesta = obtener_respuesta(respuesta_id)
         if respuesta is None:
             raise ErrorForo("La respuesta ya no existe.")
+        if aceptar and respuesta["respuesta_padre_id"] is not None:
+            raise ErrorForo("Solo podés aceptar una respuesta principal.")
         if aceptar and respuesta["autor_id"] == usuario_id:
             raise SinPermisoForo
         if not aceptar:

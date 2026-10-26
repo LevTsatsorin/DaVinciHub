@@ -3806,6 +3806,34 @@ a.enlace-ficha:hover { color: #ffffff; }
   margin: 0 0 16px; 
   color: var(--gris-texto); 
   font-size: 14px; }
+.foro-autor-enlace {
+  display: inline-block;
+  padding: 2px 5px;
+  border-radius: 6px;
+  color: var(--violeta);
+  font-weight: 700;
+  text-decoration: none;
+  transition: color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+.foro-autor-enlace:hover,
+.foro-autor-enlace:focus-visible {
+  background: rgba(124, 58, 237, .09);
+  color: var(--magenta-oscuro);
+  box-shadow: 0 0 0 2px rgba(229, 9, 127, .12);
+  outline: none;
+}
+.foro-autor-carrera {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border: 1px solid rgba(124, 58, 237, .16);
+  border-radius: 999px;
+  background: rgba(124, 58, 237, .06);
+  color: var(--gris-texto);
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: middle;
+}
 .foro-texto { 
   white-space: pre-wrap; 
   overflow-wrap: anywhere; }
@@ -3817,7 +3845,7 @@ a.enlace-ficha:hover { color: #ffffff; }
 .foro-editar-enlace:hover { 
   text-decoration: underline; }
 .foro-detalle-pregunta > .foro-editar-enlace {
-   display: inline-block; margin-top: 18px; }
+   display: block; width: fit-content; margin-top: 18px; }
 .foro-respuestas-cabecera { 
   display: flex; 
   align-items: center; 

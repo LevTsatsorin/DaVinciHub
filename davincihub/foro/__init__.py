@@ -216,6 +216,9 @@ def aceptar_respuesta(respuesta_id: int):
         )
     except datos.SinPermisoForo:
         abort(403)
+    except datos.ErrorForo as e:
+        flash(str(e), "error")
+        return redirect(url_for("foro.detalle", pregunta_id=respuesta["pregunta_id"]))
     flash("Respuesta aceptada." if aceptada else "Se quitó la aceptación de la respuesta.")
     return redirect(url_for("foro.detalle", pregunta_id=respuesta["pregunta_id"]))
 

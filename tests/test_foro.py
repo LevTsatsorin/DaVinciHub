@@ -71,6 +71,19 @@ def test_publicar_pregunta_muestra_materia_carrera_y_respuestas(client, app):
     assert "Sin responder" in lista
 
 
+def test_detalle_enlaza_nombres_a_perfiles_y_muestra_carrera(client, app):
+    pregunta_id = crear_pregunta(app)
+    respuesta_id = crear_respuesta(app, pregunta_id, usuario_id(app, "tomas@davinci.edu.ar"))
+    ingresar(client)
+
+    contenido = client.get(f"/foro/preguntas/{pregunta_id}").get_data(as_text=True)
+
+    assert 'href="/estudiantes/2"' in contenido
+    assert "Diseño Multimedial" in contenido
+    assert f'href="/estudiantes/{usuario_id(app, "tomas@davinci.edu.ar")}"' in contenido
+    assert str(respuesta_id) in contenido
+
+
 def test_busqueda_filtra_materia_carrera_y_texto_y_limpiar_muestra_todo(client, app):
     logica = materia_id(app, "Lógica de la Programación")
     crear_pregunta(app, materia=logica, titulo="Algoritmos y estructuras de datos")
@@ -260,6 +273,8 @@ def test_aceptar_reemplazar_quitar_y_notificar(client, app):
 
     detalle = client.get(f"/foro/preguntas/{pregunta_id}").get_data(as_text=True)
     assert detalle.index("Respuesta aceptada") < detalle.index("Primera")
+    assert "¿Estás seguro de que querés quitar esta respuesta aceptada?" in detalle
+    assert "data-confirmar-tono=\"peligro\"" in detalle
     assert client.post(f"/foro/respuestas/{segunda}/aceptar", data={"aceptada": "0"}).status_code == 302
     with app.app_context():
         assert db.query_one(
@@ -286,6 +301,34 @@ def test_autor_de_pregunta_no_puede_aceptar_su_propia_respuesta(client, app):
     ).status_code == 403
     detalle = client.get(f"/foro/preguntas/{pregunta_id}").get_data(as_text=True)
     assert "Aceptar respuesta" not in detalle
+
+
+def test_no_se_puede_aceptar_una_respuesta_anidada(client, app):
+    pregunta_id = crear_pregunta(app)
+    principal = crear_respuesta(app, pregunta_id, usuario_id(app, "tomas@davinci.edu.ar"))
+    with app.app_context():
+        anidada = db.query_one(
+            "INSERT INTO respuestas (pregunta_id, autor_id, cuerpo, creado, respuesta_padre_id)"
+            " VALUES (:pregunta, :autor, 'Respuesta complementaria', '2026-10-20T12:20:00', :padre)"
+            " RETURNING id",
+            pregunta=pregunta_id,
+            autor=usuario_id(app, "lucia@davinci.edu.ar"),
+            padre=principal,
+        )["id"]
+    ingresar(client)
+
+    respuesta = client.post(
+        f"/foro/respuestas/{anidada}/aceptar",
+        data={"aceptada": "1"},
+        follow_redirects=True,
+    )
+
+    assert "Solo podés aceptar una respuesta principal." in respuesta.get_data(as_text=True)
+    with app.app_context():
+        assert db.query_one(
+            "SELECT COUNT(*) AS n FROM respuestas WHERE pregunta_id = :id AND aceptada = 1",
+            id=pregunta_id,
+        )["n"] == 0
 
 
 def test_responder_comentario_notifica_al_autor_y_no_admite_respuesta_propia(client, app):
@@ -404,3 +447,22 @@ def test_insignia_catedra_solo_en_materias_asignadas(client, app):
     ajena = client.get(f"/foro/preguntas/{pregunta_otra}").get_data(as_text=True)
     assert "Cátedra · Lógica de la Programación" in propia
     assert "Cátedra · Lógica de la Programación" not in ajena
+
+
+def test_confirmacion_para_aceptar_y_edicion_de_pregunta_debajo_de_imagen(client, app):
+    pregunta_id = crear_pregunta(app)
+    respuesta_id = crear_respuesta(app, pregunta_id, usuario_id(app, "tomas@davinci.edu.ar"))
+    with app.app_context():
+        db.execute(
+            "UPDATE preguntas SET imagen_tipo = 'image/png', imagen = :imagen WHERE id = :id",
+            imagen=b"imagen",
+            id=pregunta_id,
+        )
+    ingresar(client)
+
+    contenido = client.get(f"/foro/preguntas/{pregunta_id}").get_data(as_text=True)
+
+    assert "¿Estás seguro de que querés aceptar esta respuesta?" in contenido
+    assert 'data-confirmar-tono="positivo"' in contenido
+    assert contenido.index("foro-imagen-adjunta") < contenido.index("foro-editar-pregunta")
+    assert 'action="/foro/respuestas/' + str(respuesta_id) + '/aceptar"' in contenido
