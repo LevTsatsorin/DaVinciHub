@@ -58,7 +58,7 @@
             <a class="boton boton-suave" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Abrir chat</a>
             <form method="post" action="{{ url_for('perfil.eliminar_conexion', usuario_id=estudiante.id, otro_id=persona.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="boton boton-rojo" type="submit">Eliminar conexión</button>
+              <button class="boton boton-quitar" type="submit">Eliminar conexión</button>
             </form>
           </div>
         </li>
@@ -66,8 +66,8 @@
     </ul>
   {% else %}
     <div class="perfil-vacio">
-      <p>Todavía no tenés conexiones. Entrá al perfil de un compañero, por ejemplo desde los inscriptos de una actividad, y pedile conexión.</p>
-      <a class="boton boton-suave" href="{{ url_for('actividades.index') }}">Ver actividades</a>
+      <p>Todavía no tenés conexiones. Buscá compañeros por carrera, año o comisión y pediles conexión.</p>
+      <a class="boton boton-suave" href="{{ url_for('perfil.buscar_estudiantes') }}">Buscar estudiantes</a>
     </div>
   {% endif %}
 

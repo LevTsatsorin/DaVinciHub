@@ -16,39 +16,32 @@
       <p>Encontrá compañeros por nombre, carrera, año o comisión.</p>
     </div>
   </header>
-  <form class="filtros-espacios filtros-usuarios" method="get" role="search">
-    <label class="filtro-buscar">Buscar
-      <input type="search" name="q" value="" placeholder="¿Quién buscas?" maxlength="100">
+  <form class="filtros-espacios filtros-usuarios filtros-estudiantes" method="get" role="search">
+    <label class="filtro-buscar">Nombre
+      <input type="search" name="q" value="{{ filtros.q }}" placeholder="¿A quién buscás?" maxlength="100">
     </label>
     <label>Carrera
       <select name="carrera">
-    <option value="">Todas las carreras</option>
+        <option value="">Todas las carreras</option>
         {% for carrera in carreras %}
-          <option value="{{ carrera.id }}" 
-          {% if filtros.carrera == carrera.id %}selected{% endif %}>{{ carrera.nombre }}</option>
+          <option value="{{ carrera.id }}"{% if filtros.carrera == carrera.id %} selected{% endif %}>{{ carrera.nombre }}</option>
         {% endfor %}
-    
       </select>
     </label>
-     <label class="estudiantes-filtro">
-      Año
+    <label>Año
       <select name="anio">
-        <option value="">Todos los años</option>
+        <option value="">Todos</option>
         {% for anio in range(1, 7) %}
-          <option value="{{ anio }}" {% if filtros.anio == anio %}selected{% endif %}>{{ anio }}.º año</option>
+          <option value="{{ anio }}"{% if filtros.anio == anio %} selected{% endif %}>{{ anio }}.º año</option>
         {% endfor %}
       </select>
     </label>
-    <label class="estudiantes-filtro">
-      Comisión
+    <label>Comisión
       <input name="comision" value="{{ filtros.comision }}" maxlength="40" placeholder="Ej. A">
     </label>
-    <button class="boton boton-primario" type="submit">Filtrar</button>
-      <a class="boton boton-suave" href="{{ url_for('perfil.buscar_estudiantes') }}">Limpiar</a>
-    
-    
+    <button class="boton boton-primario" type="submit">Buscar</button>
+    <a class="boton boton-suave" href="{{ url_for('perfil.buscar_estudiantes') }}">Limpiar</a>
   </form>
-  
 
   <h2 class="subtitulo">{{ estudiantes | length }} {{ "estudiante encontrado" if estudiantes | length == 1 else "estudiantes encontrados" }}</h2>
   {% if estudiantes %}
@@ -58,24 +51,26 @@
           {{ avatar(persona) }}
           <div class="estudiante-tarjeta-datos">
             <a href="{{ url_for('perfil.ver', usuario_id=persona.id) }}"><strong>{{ persona.nombre }} {{ persona.apellido }}</strong></a>
-            <span>{{ persona.carrera or "Carrera sin completar" }}</span>
+            <span title="{{ persona.carrera or '' }}">{{ persona.carrera or "Carrera sin completar" }}</span>
             {% if persona.anio %}<span>{{ persona.anio }}.º año{% if persona.comision %} · Comisión {{ persona.comision }}{% endif %}</span>{% endif %}
           </div>
           <div class="estudiante-tarjeta-accion">
             {% if persona.conexion_estado == "aceptada" %}
-              <span class="perfil-estado-conexion perfil-conectados">Conectados</span>
+              <a class="boton boton-suave" href="{{ url_for('perfil.chat', usuario_id=persona.id) }}">Escribir</a>
             {% elif persona.conexion_estado == "pendiente" and persona.solicitante_id == g.usuario.id %}
               <form method="post" action="{{ url_for('perfil.cancelar_conexion', usuario_id=g.usuario.id, otro_id=persona.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="volver" value="{{ request.full_path }}">
                 <button class="boton boton-suave" type="submit">Cancelar solicitud</button>
               </form>
             {% elif persona.conexion_estado == "pendiente" %}
               <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Responder solicitud</a>
-            {% elif persona.conexion_estado == "rechazada" %}
-              <span class="perfil-estado-conexion">Solicitud rechazada</span>
+            {% elif persona.conexion_estado == "rechazada" and persona.solicitante_id == g.usuario.id %}
+              <span class="estado estado-inactivo">Solicitud rechazada</span>
             {% else %}
               <form method="post" action="{{ url_for('perfil.solicitar_conexion', usuario_id=persona.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="volver" value="{{ request.full_path }}">
                 <button class="boton boton-primario" type="submit">Conectar</button>
               </form>
             {% endif %}

@@ -1,7 +1,7 @@
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from davincihub import seguridad
-from davincihub.objetos import datos
+from davincihub.objetos import busquedas, datos
 
 bp = Blueprint("objetos", __name__, url_prefix="/objetos")
 
@@ -16,6 +16,8 @@ def opciones():
     return {
         "categorias": datos.CATEGORIAS, "condiciones": datos.CONDICIONES,
         "modalidades": datos.MODALIDADES, "estados": datos.ESTADOS,
+        "modalidades_busqueda": busquedas.MODALIDADES,
+        "categorias_busqueda": busquedas.CATEGORIAS,
     }
 
 
@@ -56,11 +58,15 @@ def _listado(mias: bool = False):
                    "estado": filtros["estado"]}
     else:
         filtros["estado"] = ""
+        filtros["mostrar_mias"] = "1" if request.args.get("mostrar_mias") == "1" else ""
     try:
         pagina = int(request.args.get("pagina", "1")[:9])
     except ValueError:
         pagina = 1
-    resultado = datos.listar(filtros, pagina, g.usuario["id"] if mias else None)
+    resultado = datos.listar(
+        filtros, pagina, g.usuario["id"] if mias else None,
+        excluir_autor_id=g.usuario["id"] if not mias and not filtros["mostrar_mias"] else None,
+    )
     endpoint = "objetos.mis_publicaciones" if mias else "objetos.catalogo"
     enlaces = {
         "anterior": url_for(endpoint, **filtros, pagina=resultado["pagina"] - 1),
@@ -150,3 +156,70 @@ def estado(publicacion_id: int):
         abort(404)
     flash("Estado de la publicación actualizado.")
     return redirect(url_for("objetos.detalle", publicacion_id=publicacion_id))
+
+
+def _mi_busqueda(solicitud_id: int) -> dict:
+    solicitud = busquedas.obtener(solicitud_id)
+    if solicitud is None or solicitud["autor_id"] != g.usuario["id"]:
+        abort(404)
+    return solicitud
+
+
+@bp.get("/busquedas")
+@seguridad.requiere_login
+def mis_busquedas():
+    _solo_estudiante()
+    try:
+        pagina = int(request.args.get("pagina", "1")[:9])
+    except ValueError:
+        pagina = 1
+    resultado = busquedas.listar_de(g.usuario["id"], request.args.get("estado", "activa"), pagina)
+    return render_template("objetos/busquedas.html", **resultado)
+
+
+@bp.route("/busquedas/nueva", methods=("GET", "POST"))
+@seguridad.requiere_login
+def nueva_busqueda():
+    _solo_estudiante()
+    errores = {}
+    if request.method == "POST":
+        try:
+            solicitud_id, cantidad = busquedas.crear(g.usuario["id"], request.form)
+        except busquedas.ErrorBusqueda as error:
+            errores = error.errores
+        except PermissionError:
+            abort(403)
+        else:
+            if cantidad:
+                resultado = "una posible coincidencia" if cantidad == 1 else f"{cantidad} posibles coincidencias"
+                flash(f"Búsqueda creada. Encontramos {resultado}.")
+            else:
+                flash("Búsqueda creada. Te avisaremos cuando aparezca un objeto compatible.")
+            return redirect(url_for("objetos.detalle_busqueda", solicitud_id=solicitud_id))
+    return render_template(
+        "objetos/busqueda_formulario.html", errores=errores, datos_form=request.form,
+    ), 400 if errores else 200
+
+
+@bp.get("/busquedas/<int:solicitud_id>")
+@seguridad.requiere_login
+def detalle_busqueda(solicitud_id: int):
+    _solo_estudiante()
+    solicitud = _mi_busqueda(solicitud_id)
+    return render_template("objetos/busqueda_detalle.html", solicitud=solicitud,
+                           publicaciones=busquedas.coincidencias_de(solicitud), mias=False)
+
+
+@bp.post("/busquedas/<int:solicitud_id>/cerrar")
+@seguridad.requiere_login
+def cerrar_busqueda(solicitud_id: int):
+    _solo_estudiante()
+    _mi_busqueda(solicitud_id)
+    try:
+        busquedas.cerrar(solicitud_id, g.usuario["id"])
+    except PermissionError:
+        abort(403)
+    except LookupError:
+        abort(404)
+    flash("Búsqueda cerrada. Ya no generará nuevas coincidencias ni avisos.")
+    return redirect(url_for("objetos.detalle_busqueda", solicitud_id=solicitud_id))

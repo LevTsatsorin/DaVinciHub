@@ -274,6 +274,9 @@ def solicitar_conexion(usuario_id: int):
                     url_for("perfil.ver", usuario_id=g.usuario["id"]),
                 )
                 mensaje = "La solicitud mutua se convirtió en una conexión."
+            elif conexion and conexion["estado"] == "rechazada" and conexion["receptor_id"] == g.usuario["id"]:
+                db.execute("DELETE FROM conexiones WHERE id = :id", id=conexion["id"])
+                mensaje = _crear_solicitud(usuario_id)
             elif conexion:
                 mensaje = "Ya existe una solicitud o conexión entre ustedes."
             else:
@@ -282,7 +285,12 @@ def solicitar_conexion(usuario_id: int):
         mensaje = "Ya existe una solicitud o conexión entre ustedes."
     if mensaje:
         flash(mensaje)
-    return redirect(url_for("perfil.ver", usuario_id=usuario_id))
+    return redirect(_volver_a_busqueda() or url_for("perfil.ver", usuario_id=usuario_id))
+
+
+def _volver_a_busqueda() -> str | None:
+    destino = request.form.get("volver") or ""
+    return destino if destino.startswith(url_for("perfil.buscar_estudiantes")) else None
 
 
 def _bloquear_par(uno_id: int, otro_id: int) -> bool:
@@ -389,7 +397,7 @@ def _quitar_conexion(usuario_id: int, otro_id: int, cancelar: bool):
         if eliminadas != 1:
             abort(404)
     flash("Solicitud cancelada." if cancelar else "Conexión eliminada.")
-    return redirect(url_for("perfil.conexiones", usuario_id=usuario_id))
+    return redirect(_volver_a_busqueda() or url_for("perfil.conexiones", usuario_id=usuario_id))
 
 
 @bp.post("/<int:usuario_id>/conexiones/<int:otro_id>/cancelar")

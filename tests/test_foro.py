@@ -404,3 +404,80 @@ def test_insignia_catedra_solo_en_materias_asignadas(client, app):
     ajena = client.get(f"/foro/preguntas/{pregunta_otra}").get_data(as_text=True)
     assert "Cátedra · Lógica de la Programación" in propia
     assert "Cátedra · Lógica de la Programación" not in ajena
+
+
+def test_respuesta_en_hilo_tambien_avisa_al_autor_de_la_pregunta(client, app):
+    pregunta_id = crear_pregunta(app)
+    padre_id = crear_respuesta(app, pregunta_id, usuario_id(app, "tomas@davinci.edu.ar"))
+    ingresar(client, "lucia@davinci.edu.ar")
+    client.post(f"/foro/respuestas/{padre_id}/responder", data={"cuerpo": "Sumo un dato al hilo."})
+    with app.app_context():
+        avisos = db.query(
+            "SELECT usuario_id FROM notificaciones WHERE tipo = 'foro' ORDER BY usuario_id"
+        )
+    assert [a["usuario_id"] for a in avisos] == [2, usuario_id(app, "tomas@davinci.edu.ar")]
+
+
+def test_filtro_por_cuatrimestre(client, app):
+    with app.app_context():
+        primera = db.query_one("SELECT id FROM materias WHERE carrera_id = 1 AND cuatrimestre = 1 LIMIT 1")["id"]
+        segunda = db.query_one("SELECT id FROM materias WHERE carrera_id = 1 AND cuatrimestre = 2 LIMIT 1")["id"]
+    crear_pregunta(app, materia=primera, titulo="Duda del primer cuatri")
+    crear_pregunta(app, materia=segunda, titulo="Duda del segundo cuatri")
+    ingresar(client)
+    contenido = client.get("/foro/?cuatrimestre=2").get_data(as_text=True)
+    assert "Duda del segundo cuatri" in contenido
+    assert "Duda del primer cuatri" not in contenido
+    assert 'name="cuatrimestre"' in contenido
+
+
+def test_no_se_publica_en_materia_o_carrera_deshabilitada(client, app):
+    ingresar(client)
+    datos_pregunta = {"carrera_id": "1", "materia_id": "1",
+                      "titulo": "Pregunta en materia cerrada", "cuerpo": "Detalle suficiente de la duda."}
+    with app.app_context():
+        db.execute("UPDATE materias SET activa = 0 WHERE id = 1")
+    assert client.post("/foro/preguntas/nueva", data=datos_pregunta).status_code == 200
+    with app.app_context():
+        db.execute("UPDATE materias SET activa = 1 WHERE id = 1")
+        db.execute("UPDATE carreras SET activa = 0 WHERE id = 1")
+    assert client.post("/foro/preguntas/nueva", data=datos_pregunta).status_code == 200
+    with app.app_context():
+        assert db.query_one(
+            "SELECT count(*) AS n FROM preguntas WHERE titulo = 'Pregunta en materia cerrada'"
+        )["n"] == 0
+
+
+def test_formularios_de_edicion_no_abren_con_respuesta_aceptada(client, app):
+    pregunta_id = crear_pregunta(app)
+    respuesta_id = crear_respuesta(app, pregunta_id, usuario_id(app, "tomas@davinci.edu.ar"), aceptada=1)
+    ingresar(client)
+    assert client.get(f"/foro/preguntas/{pregunta_id}/editar").headers["Location"] == f"/foro/preguntas/{pregunta_id}"
+    client.post("/auth/salir")
+    ingresar(client, "tomas@davinci.edu.ar")
+    assert client.get(f"/foro/respuestas/{respuesta_id}/editar").headers["Location"] == f"/foro/preguntas/{pregunta_id}"
+
+
+def test_respuesta_anidada_tiene_enlace_para_editar(client, app):
+    pregunta_id = crear_pregunta(app)
+    padre_id = crear_respuesta(app, pregunta_id, usuario_id(app, "tomas@davinci.edu.ar"))
+    ingresar(client, "lucia@davinci.edu.ar")
+    client.post(f"/foro/respuestas/{padre_id}/responder", data={"cuerpo": "Respuesta en el hilo."})
+    with app.app_context():
+        hija = db.query_one("SELECT id FROM respuestas WHERE respuesta_padre_id = :id", id=padre_id)["id"]
+    assert f"/foro/respuestas/{hija}/editar" in client.get(f"/foro/preguntas/{pregunta_id}").get_data(as_text=True)
+
+
+def test_caracteres_invisibles_no_cuentan_como_texto(client):
+    ingresar(client)
+    invisible = "\u200b" * 12
+    respuesta = client.post("/foro/preguntas/nueva", data={
+        "carrera_id": "1", "materia_id": "1", "titulo": invisible, "cuerpo": invisible,
+    })
+    assert respuesta.status_code == 200
+
+
+def test_cabecera_del_foro_sin_sesion_tiene_html_balanceado(client):
+    contenido = client.get("/foro/").get_data(as_text=True)
+    cabecera = contenido.split('class="cabecera-seccion fondo-oscuro"', 1)[1].split("</section>", 1)[0]
+    assert cabecera.count("<div") == cabecera.count("</div>")

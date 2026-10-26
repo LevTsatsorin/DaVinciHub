@@ -39,6 +39,11 @@ def _leer_imagen():
     return imagen_tipo, imagen, None
 
 
+def _edicion_cerrada(pregunta_id: int):
+    flash("La pregunta ya tiene una respuesta aceptada y no se puede editar.", "error")
+    return redirect(url_for("foro.detalle", pregunta_id=pregunta_id))
+
+
 @bp.get("/")
 def index():
     q = (request.args.get("q") or "").strip()[:100]
@@ -47,11 +52,13 @@ def index():
     materia_texto = (request.args.get("materia_id") or "").strip()
     carrera_id = int(carrera_texto) if carrera_texto.isdecimal() else None
     materia_id = int(materia_texto) if materia_texto.isdecimal() else None
+    cuatrimestre_texto = (request.args.get("cuatrimestre") or "").strip()
+    cuatrimestre = int(cuatrimestre_texto) if cuatrimestre_texto.isdecimal() else None
     materias = datos.materias_para_formulario() if g.usuario else []
     preguntas = []
     if g.usuario:
         autor_id = g.usuario["id"] if mis_dudas else None
-        preguntas = datos.listar_preguntas(q, carrera_id, materia_id, autor_id)
+        preguntas = datos.listar_preguntas(q, carrera_id, materia_id, autor_id, cuatrimestre)
     return render_template(
         "foro/index.html",
         preguntas=preguntas,
@@ -59,6 +66,7 @@ def index():
         materias=materias,
         carrera_id=carrera_texto,
         materia_id=materia_texto,
+        cuatrimestre=cuatrimestre_texto,
         mis_dudas=mis_dudas,
     )
 
@@ -121,6 +129,8 @@ def imagen_pregunta(pregunta_id: int):
 def editar_pregunta(pregunta_id: int):
     pregunta = _pregunta_o_404(pregunta_id)
     _exigir_autor(pregunta)
+    if request.method == "GET" and pregunta["respuesta_aceptada_id"]:
+        return _edicion_cerrada(pregunta_id)
     error = None
     formulario = request.form if request.method == "POST" else pregunta
     if request.method == "POST":
@@ -188,6 +198,8 @@ def editar_respuesta(respuesta_id: int):
         abort(404)
     if respuesta["autor_id"] != g.usuario["id"]:
         abort(403)
+    if request.method == "GET" and _pregunta_o_404(respuesta["pregunta_id"])["respuesta_aceptada_id"]:
+        return _edicion_cerrada(respuesta["pregunta_id"])
     error = None
     cuerpo = request.form.get("cuerpo", respuesta["cuerpo"])
     if request.method == "POST":

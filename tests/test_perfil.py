@@ -215,6 +215,60 @@ def test_solicitudes_rechazadas_no_se_muestran_como_conexion(client, app):
     assert "La solicitud de conexión fue rechazada" in perfil
 
 
+def test_quien_rechazo_puede_pedir_conexion_despues(client, app):
+    ingresar(client)
+    client.post("/estudiantes/4/conexiones")
+    lucia = app.test_client()
+    ingresar(lucia, email="lucia@davinci.edu.ar")
+    lucia.post("/estudiantes/4/conexiones/2/rechazar")
+    assert "Pedir conexión" in lucia.get("/estudiantes/2").get_data(as_text=True)
+    assert "Conectar" in lucia.get("/estudiantes/buscar?q=mica").get_data(as_text=True)
+    assert "Solicitud rechazada" in client.get("/estudiantes/buscar?q=lucia").get_data(as_text=True)
+
+    assert lucia.post("/estudiantes/2/conexiones").status_code == 302
+    with app.app_context():
+        filas = db.query(
+            "SELECT solicitante_id, receptor_id, estado FROM conexiones"
+            " WHERE (solicitante_id = 2 AND receptor_id = 4) OR (solicitante_id = 4 AND receptor_id = 2)"
+        )
+        aviso = db.query_one(
+            "SELECT cuerpo FROM notificaciones WHERE usuario_id = 2 AND tipo = 'conexion'"
+            " ORDER BY id DESC LIMIT 1"
+        )
+    assert filas == [{"solicitante_id": 4, "receptor_id": 2, "estado": "pendiente"}]
+    assert "quiere conectar" in aviso["cuerpo"]
+    assert client.post("/estudiantes/2/conexiones/4/aceptar").status_code == 302
+
+
+def test_rechazado_no_puede_reenviar_la_solicitud(client, app):
+    ingresar(client)
+    client.post("/estudiantes/4/conexiones")
+    lucia = app.test_client()
+    ingresar(lucia, email="lucia@davinci.edu.ar")
+    lucia.post("/estudiantes/4/conexiones/2/rechazar")
+    client.post("/estudiantes/4/conexiones")
+    with app.app_context():
+        assert db.query_one(
+            "SELECT estado FROM conexiones WHERE solicitante_id = 2 AND receptor_id = 4"
+        )["estado"] == "rechazada"
+
+
+def test_conectar_desde_el_buscador_vuelve_al_buscador(client):
+    ingresar(client)
+    respuesta = client.post("/estudiantes/4/conexiones", data={"volver": "/estudiantes/buscar?q=lu"})
+    assert respuesta.headers["Location"] == "/estudiantes/buscar?q=lu"
+    respuesta = client.post("/estudiantes/3/conexiones", data={"volver": "https://otro.sitio/"})
+    assert respuesta.headers["Location"] == "/estudiantes/3"
+
+
+def test_buscador_conserva_el_texto_y_vacio_lleva_al_buscador(client):
+    ingresar(client)
+    contenido = client.get("/estudiantes/buscar?q=Luc%C3%ADa").get_data(as_text=True)
+    assert 'value="Lucía"' in contenido
+    vacio = client.get("/estudiantes/2/conexiones").get_data(as_text=True)
+    assert 'href="/estudiantes/buscar"' in vacio.split("Mis conexiones", 1)[1]
+
+
 def test_solicitud_mutua_se_convierte_en_una_conexion_aceptada(client, app):
     ingresar(client)
     client.post("/estudiantes/3/conexiones")

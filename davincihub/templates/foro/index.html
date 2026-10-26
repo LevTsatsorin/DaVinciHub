@@ -4,19 +4,18 @@
 
 {% block contenido %}
 <section class="cabecera-seccion fondo-oscuro">
-  <img class="cabecera-seccion-imagen" src="/static/img/foro.png" alt="">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/foro.png') }}" alt="">
   <div class="contenedor cabecera-seccion-contenido">
     <h1>Foro <span class="acento-cian">académico</span></h1>
     <p>Compartí tus dudas por carrera y materia, y aprendé junto a la comunidad Da Vinci</p>
     <div class="acciones-cabecera">
-       {% if g.usuario %}
-        <a class="boton boton-grande" href="/foro/preguntas/nueva"> + Hacer una pregunta</a>
+      {% if g.usuario %}
+        <a class="boton boton-grande" href="{{ url_for('foro.nueva_pregunta') }}">+ Hacer una pregunta</a>
         <div class="enlaces-admin">
           <a class="enlace-admin" href="{{ url_for('foro.index', mis_dudas=1) }}"
              {% if mis_dudas %}aria-current="page"{% endif %}>Mis dudas</a>
-           {% endif %}
         </div>
-      
+      {% endif %}
     </div>
   </div>
 </section>
@@ -34,7 +33,7 @@
       </div>
     </section>
   {% elif g.usuario %}
-    {% set filtrando = q or carrera_id or materia_id %}
+    {% set filtrando = q or carrera_id or materia_id or cuatrimestre %}
     <form class="filtros-espacios foro-filtros" method="get" role="search">
       {% if mis_dudas %}<input type="hidden" name="mis_dudas" value="1">{% endif %}
       <label class="filtro-buscar" for="foro-buscar">Buscar en el foro
@@ -56,6 +55,14 @@
             <option value="{{ materia.id }}" {% if materia_id == materia.id | string %}selected{% endif %}>
               {{ materia.nombre }} · {{ materia.carrera }}
             </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label for="foro-cuatrimestre">Cuatrimestre
+        <select id="foro-cuatrimestre" name="cuatrimestre">
+          <option value="">Todos</option>
+          {% for numero in materias | map(attribute='cuatrimestre') | select | unique | sort %}
+            <option value="{{ numero }}" {% if cuatrimestre == numero | string %}selected{% endif %}>{{ numero }}.º cuatrimestre</option>
           {% endfor %}
         </select>
       </label>

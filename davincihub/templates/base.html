@@ -46,6 +46,7 @@
               <a href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
               <a href="{{ url_for('perfil.chats') }}"{% if request.endpoint == 'perfil.chats' %} aria-current="page"{% endif %}>Mensajes</a>
               <a href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a>
+              <a href="{{ url_for('objetos.mis_busquedas') }}">Mis búsquedas</a>
             {% else %}
               <a href="{{ url_for('actividades.admin_panel') }}">Moderación</a>
               <a href="{{ url_for('espacios.admin_lista') }}">Espacios</a>
