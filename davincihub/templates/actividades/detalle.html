@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_persona.html" import persona %}
+{% from "reportes/_boton_reporte.html" import boton_reporte %}
 
 {% block titulo %}{{ actividad.nombre }} — Da Vinci Hub{% endblock %}
 
@@ -38,6 +39,9 @@
       {% endif %}
       <h2>Sobre esta actividad</h2>
       <p class="detalle-descripcion">{{ act.descripcion }}</p>
+      {% if act.estado == 'aprobada' %}
+        {{ boton_reporte('actividad', act.id, request.url, act.creador_id) }}
+      {% endif %}
 
       {% if g.usuario and g.usuario.rol == 'admin' and act.estado == 'pendiente' %}
         <div class="panel-acciones-moderacion">

@@ -158,7 +158,7 @@ def obtener_actividad(actividad_id: int) -> dict | None:
 
 
 def _filtro_publicas(desde: str | None, hasta: str | None, excluir: int | None) -> tuple[str, dict]:
-    sql = " WHERE a.estado = 'aprobada' AND COALESCE(a.fin, a.inicio) >= :ahora"
+    sql = " WHERE a.estado = 'aprobada' AND COALESCE(a.fin, a.inicio) >= :ahora AND a.oculto = 0"
     params: dict = {"ahora": ahora_local()}
     if desde:
         sql += " AND a.inicio >= :desde"

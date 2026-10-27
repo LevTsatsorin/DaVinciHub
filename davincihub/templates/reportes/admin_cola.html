@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "_persona.html" import persona %}
+
+{% block titulo %}Cola de reportes — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-admin">
+  <div class="cabecera-modulo">
+    <h1>Reportes de contenido</h1>
+  </div>
+
+  <nav class="pestanas" aria-label="Estado de los reportes">
+    {% for clave, etiqueta in estados.items() %}
+      <a class="pestana{% if estado == clave %} pestana-activa{% endif %}"
+         href="{{ url_for('reportes.admin_cola', estado=clave) }}"
+         {% if estado == clave %}aria-current="page"{% endif %}>
+        {{ etiqueta }}{% if clave == 'pendiente' and pendientes %} ({{ pendientes }}){% endif %}
+      </a>
+    {% endfor %}
+  </nav>
+
+  {% if reportes %}
+    <ul class="lista-moderacion">
+      {% for r in reportes %}
+        <li class="tarjeta-moderacion">
+          <div class="moderacion-cabecera">
+            <span class="estado estado-{{ 'pendiente' if r.estado == 'pendiente' else 'activo' }}">
+              {{ "Pendiente" if r.estado == 'pendiente' else "Resuelto" }}
+            </span>
+            <span class="moderacion-autor">
+              Reportado por {{ persona(r.autor_id, r.autor_nombre ~ " " ~ r.autor_apellido, 'estudiante') }}
+              · {{ r.creado | fecha_corta }}
+            </span>
+          </div>
+
+          <div class="moderacion-tipo">
+            <strong>Tipo:</strong>
+            {% set etiquetas_tipo = {'publicacion': 'Publicación', 'pregunta': 'Pregunta', 'respuesta': 'Respuesta', 'actividad': 'Actividad', 'usuario': 'Usuario'} %}
+            {{ etiquetas_tipo.get(r.tipo_objeto, r.tipo_objeto) }} #{{ r.objeto_id }}
+            {% if r.contenido_titulo %}
+              <span class="moderacion-titulo">· «{{ r.contenido_titulo }}»</span>
+            {% endif %}
+            {% if r.contenido_oculto %}
+              <span class="estado estado-pendiente">({{ 'Bloqueado' if r.tipo_objeto == 'usuario' else 'Oculto' }})</span>
+            {% endif %}
+            {% if r.contenido_enlace %}
+              <a href="{{ r.contenido_enlace }}" target="_blank" rel="noopener">Ver contenido ↗</a>
+            {% endif %}
+          </div>
+
+          {% if r.dueno_nombre and r.tipo_objeto != 'usuario' %}
+            <p class="moderacion-autor-contenido">
+              <strong>Autor del contenido:</strong>
+              <a href="{{ url_for('perfil.ver', usuario_id=r.dueno_id) }}" target="_blank" rel="noopener">{{ r.dueno_nombre }}</a>
+            </p>
+          {% endif %}
+
+          <p class="moderacion-descripcion"><strong>Motivo:</strong> {{ r.motivo }}</p>
+
+          {% if r.estado == 'resuelto' %}
+            <p class="aviso">
+              <strong>Resolución:</strong> {{ r.resolucion }}
+              {% if r.resuelto_nombre %} · {{ r.resuelto_nombre }} {{ r.resuelto_apellido }}{% endif %}
+            </p>
+            {% if r.tipo_objeto != 'usuario' %}
+              <form method="post" action="{{ url_for('reportes.restaurar', reporte_id=r.id) }}"
+                    data-confirmar="¿Restaurar este contenido?"
+                    data-confirmar-texto="Volverá a ser visible para los estudiantes."
+                    data-confirmar-boton="Restaurar"
+                    data-confirmar-tono="positivo">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="boton boton-suave" type="submit">Restaurar contenido</button>
+              </form>
+            {% endif %}
+          {% else %}
+            <form class="form-resolucion" id="form-{{ r.id }}" method="post" action="{{ url_for('reportes.resolver', reporte_id=r.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="campo">
+                <label for="resolucion-{{ r.id }}">Motivo de la resolución</label>
+                <textarea id="resolucion-{{ r.id }}" name="resolucion" rows="2" maxlength="500" required
+                          placeholder="Explicá brevemente la decisión tomada"></textarea>
+              </div>
+              <div class="moderacion-acciones">
+                <button class="boton boton-suave" type="submit" name="accion" value="descartar">Descartar</button>
+                {% if r.tipo_objeto != 'usuario' %}
+                  <button class="boton boton-primario" type="submit" name="accion" value="ocultar">Ocultar contenido</button>
+                {% endif %}
+                <button class="boton boton-peligro" type="submit" name="accion" value="bloquear"
+                        data-confirmar="¿Derivar a bloqueo del usuario?"
+                        data-confirmar-texto="Se va a redirigir a la ficha del usuario para que puedas bloquearlo desde ahí.">
+                  Derivar a bloqueo
+                </button>
+              </div>
+            </form>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
+      <h2>{{ "No hay reportes pendientes" if estado == 'pendiente' else "No hay reportes resueltos" }}</h2>
+      <p>{{ "Cuando un usuario reporte contenido, va a aparecer acá." if estado == 'pendiente' else "Los reportes resueltos van a aparecer acá." }}</p>
+    </div>
+  {% endif %}
+</section>
+{% include "espacios/_dialogo.html" %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}
+

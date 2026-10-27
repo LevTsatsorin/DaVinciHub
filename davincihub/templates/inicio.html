@@ -50,6 +50,10 @@
     <section class="inicio-bloque" aria-labelledby="titulo-revisar">
       <h2 id="titulo-revisar">Para revisar</h2>
       <div class="inicio-pendientes">
+        <a class="pendiente-tarjeta{% if pendientes.reportes %} pendiente-urgente{% endif %}" href="{{ url_for('reportes.admin_cola', estado='pendiente') }}">
+          <strong>{{ pendientes.reportes }}</strong>
+          <span>{{ "reporte pendiente" if pendientes.reportes == 1 else "reportes pendientes" }}</span>
+        </a>
         <a class="pendiente-tarjeta{% if pendientes.actividades %} pendiente-urgente{% endif %}" href="{{ url_for('actividades.admin_panel', estado='pendiente') }}">
           <strong>{{ pendientes.actividades }}</strong>
           <span>{{ "actividad por moderar" if pendientes.actividades == 1 else "actividades por moderar" }}</span>

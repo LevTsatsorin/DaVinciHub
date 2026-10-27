@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "reportes/_boton_reporte.html" import boton_reporte %}
 {% block titulo %}{{ publicacion.titulo }} — Da Vinci Hub{% endblock %}
 {% block contenido %}
 <section class="contenedor pagina-modulo pagina-objeto-detalle">
@@ -27,6 +28,7 @@
       </dl>
       {% if not propia and g.usuario.rol == 'estudiante' %}
         <a class="boton boton-primario" href="{{ url_for('perfil.chat', usuario_id=publicacion.autor_id) }}">Escribirle a {{ publicacion.autor_nombre }}</a>
+        {{ boton_reporte('publicacion', publicacion.id, request.url, publicacion.autor_id) }}
       {% endif %}
     </div>
   </div>

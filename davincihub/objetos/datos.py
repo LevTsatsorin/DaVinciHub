@@ -168,7 +168,7 @@ def carreras_disponibles(actual: int | None = None) -> list[dict]:
 def listar(filtros: dict, pagina: int = 1, autor_id: int | None = None,
            excluir_autor_id: int | None = None) -> dict:
     condiciones = ["p.autor_id = :autor"] if autor_id is not None else [
-        "p.estado = 'activa'", "u.bloqueado = 0"
+        "p.estado = 'activa'", "u.bloqueado = 0", "p.oculto = 0"
     ]
     params = {"autor": autor_id} if autor_id is not None else {}
     if autor_id is None and excluir_autor_id is not None:

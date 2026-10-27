@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "foro/_autor.html" import autor, avatar with context %}
+{% from "reportes/_boton_reporte.html" import boton_reporte %}
 
 {% block titulo %}{{ pregunta.titulo }} — Foro académico{% endblock %}
 
@@ -68,6 +69,7 @@
     {% if g.usuario.id == pregunta.autor_id and not pregunta.respuesta_aceptada_id %}
       <a class="foro-editar-enlace foro-editar-pregunta" href="{{ url_for('foro.editar_pregunta', pregunta_id=pregunta.id) }}">Editar pregunta</a>
     {% endif %}
+    {{ boton_reporte('pregunta', pregunta.id, request.url, pregunta.autor_id) }}
   </article>
 
   <section class="foro-respuestas" aria-labelledby="respuestas-titulo">
@@ -114,6 +116,7 @@
                   </button>
                 </form>
               {% endif %}
+            {{ boton_reporte('respuesta', respuesta.id, request.url, respuesta.autor_id) }}
             </div>
             {% if respuesta.respuestas_hijas or respuesta.autor_id != g.usuario.id %}
               <details class="foro-hilo-respuestas">

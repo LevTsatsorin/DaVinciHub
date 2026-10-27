@@ -1,0 +1,37 @@
+{% macro boton_reporte(tipo_objeto, objeto_id, siguiente, autor_id=none) %}
+{% if g.usuario and g.usuario.rol == 'estudiante' and (autor_id is none or g.usuario.id != autor_id) %}
+{% set lista_motivos = motivos_reporte or [
+  "Contenido inapropiado u ofensivo",
+  "Acoso o discriminación",
+  "Spam o publicidad no permitida",
+  "Información falsa o engañosa",
+  "Otro"
+] %}
+<details class="reporte-detalles">
+  <summary class="reporte-abrir" aria-label="Reportar {{ 'este perfil' if tipo_objeto == 'usuario' else 'este contenido' }}" title="Reportar {{ 'usuario' if tipo_objeto == 'usuario' else 'contenido' }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+    Reportar
+  </summary>
+  <form class="reporte-form" method="post" action="{{ url_for('reportes.crear') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="tipo_objeto" value="{{ tipo_objeto }}">
+    <input type="hidden" name="objeto_id" value="{{ objeto_id }}">
+    <input type="hidden" name="siguiente" value="{{ siguiente }}">
+    <label class="reporte-label" for="motivo-{{ tipo_objeto }}-{{ objeto_id }}">
+      {% if tipo_objeto == 'usuario' %}
+        ¿Por qué reportás a este usuario?
+      {% else %}
+        ¿Por qué reportás este contenido?
+      {% endif %}
+    </label>
+    <select class="reporte-select" id="motivo-{{ tipo_objeto }}-{{ objeto_id }}" name="motivo" required>
+      <option value="">Elegí un motivo</option>
+      {% for m in lista_motivos %}
+        <option value="{{ m }}">{{ m }}</option>
+      {% endfor %}
+    </select>
+    <button class="boton boton-primario reporte-boton-enviar" type="submit">Enviar reporte</button>
+  </form>
+</details>
+{% endif %}
+{% endmacro %}

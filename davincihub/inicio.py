@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from davincihub import db
 from davincihub.actividades import datos as actividades
 from davincihub.objetos import datos as objetos
+from davincihub.reportes import datos as reportes
 from davincihub.reservas import datos as reservas
 from davincihub.utiles import ahora_local
 
@@ -26,6 +27,7 @@ def _pendientes_admin() -> dict:
     ahora = ahora_local()
     en_una_semana = (datetime.fromisoformat(ahora) + timedelta(days=7)).isoformat(timespec="seconds")
     return {
+        "reportes": reportes.contar_pendientes(),
         "actividades": actividades.contar_actividades_por_estado().get("pendiente", 0),
         "bloqueados": db.query_one("SELECT count(*) AS n FROM usuarios WHERE bloqueado = 1")["n"],
         "reservas_semana": db.query_one(

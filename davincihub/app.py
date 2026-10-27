@@ -16,6 +16,7 @@ from davincihub import (
 )
 from davincihub import inicio as pagina_inicio
 from davincihub.objetos import rutas as objetos_rutas
+from davincihub.reportes import bp as reportes_bp
 from davincihub.reservas import rutas as reservas_rutas
 from davincihub.utiles import paginas_visibles
 
@@ -47,6 +48,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(usuarios.bp)
     app.register_blueprint(academico.bp)
     app.register_blueprint(objetos_rutas.bp)
+    app.register_blueprint(reportes_bp)
     app.before_request(seguridad.cargar_usuario)
     app.add_template_global(seguridad.es_catedra)
 
