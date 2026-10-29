@@ -166,3 +166,37 @@ def test_bloquear_fila_indica_si_existe(app):
 def test_bloquear_fila_rechaza_tabla_invalida(app):
     with app.app_context(), db.transaccion(), pytest.raises(ValueError):
         db.bloquear_fila("espacios; DROP TABLE usuarios", 1)
+
+
+def test_postgres_detalle_objeto_y_ocupacion_sin_exclusion():
+    import os
+
+    from davincihub.app import create_app
+    from davincihub.objetos import datos, prestamos
+    from davincihub.utiles import ahora
+
+    url = os.environ.get("TEST_DATABASE_URL", "")
+    if not url:
+        pytest.skip("sin TEST_DATABASE_URL")
+    aplicacion = create_app({"TESTING": True, "WTF_CSRF_ENABLED": False, "DATABASE_URL": url})
+    with aplicacion.app_context():
+        # Solo TEST_DATABASE_URL: esta base es de pruebas y puede reinicializarse.
+        db.init_db(demo=True)
+        publicacion = datos.crear(3, {
+            "titulo": "Cámara para verificar PostgreSQL", "descripcion": "Con batería y cargador.",
+            "categoria": "foto_video", "estado_objeto": "usado_buen_estado", "modalidad": "prestamo",
+        })
+        assert not prestamos.ocupado(publicacion)
+        prestamo = db.query_one(
+            "INSERT INTO prestamos (publicacion_id, solicitante_id, estado, creado)"
+            " VALUES (:publicacion, 2, 'aceptado', :creado) RETURNING id",
+            publicacion=publicacion, creado=ahora(),
+        )["id"]
+        assert prestamos.ocupado(publicacion)
+        assert not prestamos.ocupado(publicacion, excepto=prestamo)
+    cliente = aplicacion.test_client()
+    with cliente.session_transaction() as sesion:
+        sesion["usuario_id"] = 2
+    respuesta = cliente.get(f"/objetos/{publicacion}")
+    assert respuesta.status_code == 200
+    assert "Cámara para verificar PostgreSQL" in respuesta.text
