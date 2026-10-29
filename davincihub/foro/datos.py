@@ -8,11 +8,11 @@ MINIMO_TEXTO = 10
 
 
 class ErrorForo(ValueError):
-    """Error de validaciÃ³n o estado de una acciÃ³n del foro."""
+    """Error de validación o estado de una acción del foro."""
 
 
 class SinPermisoForo(PermissionError):
-    """La persona no tiene permiso para realizar la acciÃ³n del foro."""
+    """La persona no tiene permiso para realizar la acción del foro."""
 
 
 _INVISIBLES = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff"))
@@ -21,7 +21,7 @@ _INVISIBLES = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff"))
 def _texto(valor: str | None, nombre: str, limite: int, minimo: int = 1) -> str:
     texto = (valor or "").translate(_INVISIBLES).strip()
     if not texto:
-        raise ErrorForo(f"CompletÃ¡ {nombre}.")
+        raise ErrorForo(f"Completá {nombre}.")
     if len(texto) > limite:
         raise ErrorForo(f"{nombre.capitalize()} admite hasta {limite} caracteres.")
     if len(texto) < minimo:
@@ -33,7 +33,7 @@ def _materia_de_formulario(formulario) -> int:
     carrera_texto = (formulario.get("carrera_id") or "").strip()
     materia_texto = (formulario.get("materia_id") or "").strip()
     if not carrera_texto.isdecimal() or not materia_texto.isdecimal():
-        raise ErrorForo("ElegÃ­ una carrera y una materia vÃ¡lidas.")
+        raise ErrorForo("Elegí una carrera y una materia válidas.")
     fila = db.query_one(
         "SELECT m.id FROM materias m JOIN carreras c ON c.id = m.carrera_id"
         " WHERE m.id = :materia AND c.id = :carrera AND m.activa = 1 AND c.activa = 1",
@@ -83,9 +83,8 @@ def listar_preguntas(
     if autor_id is not None:
         condiciones.append("p.autor_id = :autor_id")
         parametros["autor_id"] = autor_id
-    # Ocultar preguntas moderadas de la vista pública
     condiciones.append("p.oculto = 0")
-    donde = f" WHERE {' AND '.join(condiciones)}" if condiciones else ""
+    donde = f" WHERE {' AND '.join(condiciones)}"
     return db.query(
         "SELECT p.id, p.autor_id, p.titulo, p.cuerpo, p.creado, m.nombre AS materia,"
         " c.nombre AS carrera, u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
@@ -95,7 +94,7 @@ def listar_preguntas(
         " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = p.autor_id) AS autor_tiene_foto"
         " FROM preguntas p JOIN materias m ON m.id = p.materia_id"
         " JOIN carreras c ON c.id = m.carrera_id JOIN usuarios u ON u.id = p.autor_id"
-        " LEFT JOIN respuestas r ON r.pregunta_id = p.id"
+        " LEFT JOIN respuestas r ON r.pregunta_id = p.id AND r.oculto = 0"
         f"{donde}"
         " GROUP BY p.id, m.nombre, m.cuatrimestre, c.nombre, u.nombre, u.apellido"
         " ORDER BY CASE WHEN COUNT(r.id) = 0 THEN 0 ELSE 1 END, p.creado DESC, p.id DESC",
@@ -108,9 +107,9 @@ def obtener_pregunta(pregunta_id: int) -> dict | None:
         "SELECT p.id, p.autor_id, p.materia_id, p.titulo, p.cuerpo, p.creado,"
         " m.nombre AS materia, m.carrera_id, c.nombre AS carrera,"
         " u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
-        " u.rol AS autor_rol, ca.nombre AS autor_carrera,"
+        " u.rol AS autor_rol, ca.nombre AS autor_carrera, p.oculto,"
         " EXISTS (SELECT 1 FROM preguntas pa WHERE pa.id = p.id AND pa.imagen IS NOT NULL) AS tiene_imagen,"
-        " (SELECT COUNT(*) FROM respuestas r WHERE r.pregunta_id = p.id) AS cantidad_respuestas,"
+        " (SELECT COUNT(*) FROM respuestas r WHERE r.pregunta_id = p.id AND r.oculto = 0) AS cantidad_respuestas,"
         " (SELECT id FROM respuestas r WHERE r.pregunta_id = p.id AND r.aceptada = 1) AS respuesta_aceptada_id"
         " FROM preguntas p JOIN materias m ON m.id = p.materia_id"
         " JOIN carreras c ON c.id = m.carrera_id JOIN usuarios u ON u.id = p.autor_id"
@@ -152,7 +151,7 @@ def listar_respuestas(pregunta_id: int, usuario_id: int) -> list[dict]:
             padre = por_id.get(padre_id)
             if padre is not None and padre["pregunta_id"] == pregunta_id:
                 padre["respuestas_hijas"].append(respuesta)
-                continue
+            continue
         respuestas_hijas.setdefault(None, []).append(respuesta)
 
     raices = respuestas_hijas.get(None, [])
@@ -177,7 +176,7 @@ def autores(usuario_ids: set[int], yo: int) -> dict[int, dict]:
         return {}
     marcadores = ", ".join(f":u{i}" for i in range(len(usuario_ids)))
     filas = db.query(
-        "SELECT u.id, u.nombre, u.apellido, u.rol, u.anio, u.comision, c.nombre AS carrera,"
+        "SELECT u.id, u.nombre, u.apellido, u.rol, u.anio, u.comision, u.catedra, c.nombre AS carrera,"
         " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = u.id) AS tiene_foto,"
         " x.estado AS conexion_estado, x.solicitante_id AS conexion_solicitante"
         " FROM usuarios u LEFT JOIN carreras c ON c.id = u.carrera_id"
@@ -201,8 +200,8 @@ def crear_pregunta(
     autor_id: int, formulario, imagen_tipo: str | None = None, imagen: bytes | None = None
 ) -> int:
     materia_id = _materia_de_formulario(formulario)
-    titulo = _texto(formulario.get("titulo"), "el tÃ­tulo", LIMITE_TITULO, MINIMO_TEXTO)
-    cuerpo = _texto(formulario.get("cuerpo"), "la descripciÃ³n", LIMITE_CUERPO, MINIMO_TEXTO)
+    titulo = _texto(formulario.get("titulo"), "el título", LIMITE_TITULO, MINIMO_TEXTO)
+    cuerpo = _texto(formulario.get("cuerpo"), "la descripción", LIMITE_CUERPO, MINIMO_TEXTO)
     fila = db.query_one(
         "INSERT INTO preguntas (autor_id, materia_id, titulo, cuerpo, creado, imagen_tipo, imagen)"
         " VALUES (:autor, :materia, :titulo, :cuerpo, :creado, :imagen_tipo, :imagen) RETURNING id",
@@ -225,8 +224,8 @@ def editar_pregunta(
     imagen: bytes | None = None,
 ) -> None:
     materia_id = _materia_de_formulario(formulario)
-    titulo = _texto(formulario.get("titulo"), "el tÃ­tulo", LIMITE_TITULO, MINIMO_TEXTO)
-    cuerpo = _texto(formulario.get("cuerpo"), "la descripciÃ³n", LIMITE_CUERPO, MINIMO_TEXTO)
+    titulo = _texto(formulario.get("titulo"), "el título", LIMITE_TITULO, MINIMO_TEXTO)
+    cuerpo = _texto(formulario.get("cuerpo"), "la descripción", LIMITE_CUERPO, MINIMO_TEXTO)
     with db.transaccion():
         if not db.bloquear_fila("preguntas", pregunta_id):
             raise ErrorForo("La pregunta ya no existe.")
@@ -237,7 +236,7 @@ def editar_pregunta(
             "SELECT id FROM respuestas WHERE pregunta_id = :pregunta AND aceptada = 1",
             pregunta=pregunta_id,
         ):
-            raise ErrorForo("No podÃ©s editar la pregunta despuÃ©s de aceptar una respuesta.")
+            raise ErrorForo("No podés editar la pregunta después de aceptar una respuesta.")
         db.execute(
             "UPDATE preguntas SET materia_id = :materia, titulo = :titulo, cuerpo = :cuerpo,"
             " imagen_tipo = COALESCE(:imagen_tipo, imagen_tipo),"
@@ -270,7 +269,7 @@ def crear_respuesta(
         if respuesta_padre_id is not None:
             padre = obtener_respuesta(respuesta_padre_id)
             if padre is None or padre["pregunta_id"] != pregunta_id:
-                raise ErrorForo("El comentario al que querÃ©s responder no existe.")
+                raise ErrorForo("El comentario al que querés responder no existe.")
             if padre["autor_id"] == autor_id:
                 raise SinPermisoForo
         fila = db.query_one(
@@ -285,9 +284,9 @@ def crear_respuesta(
         autor = db.query_one("SELECT nombre, apellido FROM usuarios WHERE id = :id", id=autor_id)
         nombre = f"{autor['nombre']} {autor['apellido']}"
         if padre:
-            notificar(padre["autor_id"], "foro", f"{nombre} respondiÃ³ tu comentario.", f"/foro/preguntas/{pregunta_id}")
+            notificar(padre["autor_id"], "foro", f"{nombre} respondió tu comentario.", f"/foro/preguntas/{pregunta_id}")
         if pregunta["autor_id"] not in (autor_id, padre and padre["autor_id"]):
-            notificar(pregunta["autor_id"], "foro", f"{nombre} respondiÃ³ tu pregunta.", f"/foro/preguntas/{pregunta_id}")
+            notificar(pregunta["autor_id"], "foro", f"{nombre} respondió tu pregunta.", f"/foro/preguntas/{pregunta_id}")
     return fila["id"]
 
 
@@ -308,7 +307,7 @@ def editar_respuesta(respuesta_id: int, usuario_id: int, cuerpo: str | None) -> 
             "SELECT id FROM respuestas WHERE pregunta_id = :pregunta AND aceptada = 1",
             pregunta=respuesta["pregunta_id"],
         ):
-            raise ErrorForo("No podÃ©s editar respuestas despuÃ©s de aceptar una.")
+            raise ErrorForo("No podés editar respuestas después de aceptar una.")
         db.execute(
             "UPDATE respuestas SET cuerpo = :cuerpo WHERE id = :id",
             cuerpo=contenido,
@@ -333,7 +332,7 @@ def establecer_aceptacion(respuesta_id: int, usuario_id: int, aceptar: bool) -> 
         if respuesta is None:
             raise ErrorForo("La respuesta ya no existe.")
         if aceptar and respuesta["respuesta_padre_id"] is not None:
-            raise ErrorForo("Solo podÃ©s aceptar una respuesta principal.")
+            raise ErrorForo("Solo podés aceptar una respuesta principal.")
         if aceptar and respuesta["autor_id"] == usuario_id:
             raise SinPermisoForo
         if not aceptar:
@@ -376,7 +375,7 @@ def valorar_respuesta(respuesta_id: int, usuario_id: int) -> bool:
         notificar(
             respuesta["autor_id"],
             "foro",
-            "Alguien marcÃ³ tu respuesta como Ãºtil.",
+            "Alguien marcó tu respuesta como útil.",
             f"/foro/preguntas/{respuesta['pregunta_id']}",
         )
     return True

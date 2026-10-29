@@ -1,106 +1,111 @@
 {% extends "base.html" %}
-{% from "_persona.html" import persona %}
 
-{% block titulo %}Cola de reportes — Da Vinci Hub{% endblock %}
+{% block titulo %}Reportes — Da Vinci Hub{% endblock %}
+
+{% set decisiones = {'descartar': 'Descartado', 'ocultar': 'Ocultado', 'bloquear': 'Derivado a bloqueo', 'restaurar': 'Restaurado'} %}
 
 {% block contenido %}
-<section class="contenedor pagina-modulo pagina-admin">
+<section class="contenedor pagina-modulo pagina-reportes">
   <div class="cabecera-modulo">
-    <h1>Reportes de contenido</h1>
+    <h1>Reportes</h1>
   </div>
 
   <nav class="pestanas" aria-label="Estado de los reportes">
     {% for clave, etiqueta in estados.items() %}
-      <a class="pestana{% if estado == clave %} pestana-activa{% endif %}"
-         href="{{ url_for('reportes.admin_cola', estado=clave) }}"
-         {% if estado == clave %}aria-current="page"{% endif %}>
-        {{ etiqueta }}{% if clave == 'pendiente' and pendientes %} ({{ pendientes }}){% endif %}
+      <a class="pestana{% if estado == clave %} pestana-activa{% endif %}" href="{{ url_for('reportes.admin_cola', estado=clave) }}"{% if estado == clave %} aria-current="page"{% endif %}>
+        {{ etiqueta }}{% if clave == 'pendiente' and reportes_pendientes %} <span>{{ reportes_pendientes }}</span>{% endif %}
       </a>
     {% endfor %}
   </nav>
 
-  {% if reportes %}
-    <ul class="lista-moderacion">
-      {% for r in reportes %}
-        <li class="tarjeta-moderacion">
-          <div class="moderacion-cabecera">
-            <span class="estado estado-{{ 'pendiente' if r.estado == 'pendiente' else 'activo' }}">
-              {{ "Pendiente" if r.estado == 'pendiente' else "Resuelto" }}
-            </span>
-            <span class="moderacion-autor">
-              Reportado por {{ persona(r.autor_id, r.autor_nombre ~ " " ~ r.autor_apellido, 'estudiante') }}
-              · {{ r.creado | fecha_corta }}
-            </span>
-          </div>
+  {% if grupos %}
+    <ul class="reportes-lista">
+      {% for grupo in grupos %}
+        {% set r = grupo.principal %}
+        {% set cantidad = grupo.reportes | length %}
+        <li>
+          <details class="reporte-caso reporte-{{ r.tipo_objeto }}" id="reporte-{{ r.id }}"{% if loop.first and estado == 'pendiente' and pagina == 1 %} open{% endif %}>
+            <summary class="reporte-fila">
+              <span class="reporte-punto" aria-hidden="true"></span>
+              <span class="reporte-fila-texto">
+                <strong>{{ r.contenido_titulo or "Contenido eliminado" }}</strong>
+                <span>
+                  {{ r.tipo_nombre }}
+                  {% if estado == 'pendiente' %}· {{ r.motivo }}{% if cantidad > 1 %} y {{ cantidad - 1 }} más{% endif %}
+                  {% else %}· {{ decisiones.get(r.accion, 'Resuelto') }}{% endif %}
+                </span>
+              </span>
+              {% if cantidad > 1 %}<span class="reporte-contador" aria-label="{{ cantidad }} reportes">{{ cantidad }}</span>{% endif %}
+              <time datetime="{{ r.resuelto or r.creado }}">{{ (r.resuelto or r.creado) | fecha_corta }}</time>
+            </summary>
 
-          <div class="moderacion-tipo">
-            <strong>Tipo:</strong>
-            {% set etiquetas_tipo = {'publicacion': 'Publicación', 'pregunta': 'Pregunta', 'respuesta': 'Respuesta', 'actividad': 'Actividad', 'usuario': 'Usuario'} %}
-            {{ etiquetas_tipo.get(r.tipo_objeto, r.tipo_objeto) }} #{{ r.objeto_id }}
-            {% if r.contenido_titulo %}
-              <span class="moderacion-titulo">· «{{ r.contenido_titulo }}»</span>
-            {% endif %}
-            {% if r.contenido_oculto %}
-              <span class="estado estado-pendiente">({{ 'Bloqueado' if r.tipo_objeto == 'usuario' else 'Oculto' }})</span>
-            {% endif %}
-            {% if r.contenido_enlace %}
-              <a href="{{ r.contenido_enlace }}" target="_blank" rel="noopener">Ver contenido ↗</a>
-            {% endif %}
-          </div>
-
-          {% if r.dueno_nombre and r.tipo_objeto != 'usuario' %}
-            <p class="moderacion-autor-contenido">
-              <strong>Autor del contenido:</strong>
-              <a href="{{ url_for('perfil.ver', usuario_id=r.dueno_id) }}" target="_blank" rel="noopener">{{ r.dueno_nombre }}</a>
-            </p>
-          {% endif %}
-
-          <p class="moderacion-descripcion"><strong>Motivo:</strong> {{ r.motivo }}</p>
-
-          {% if r.estado == 'resuelto' %}
-            <p class="aviso">
-              <strong>Resolución:</strong> {{ r.resolucion }}
-              {% if r.resuelto_nombre %} · {{ r.resuelto_nombre }} {{ r.resuelto_apellido }}{% endif %}
-            </p>
-            {% if r.tipo_objeto != 'usuario' %}
-              <form method="post" action="{{ url_for('reportes.restaurar', reporte_id=r.id) }}"
-                    data-confirmar="¿Restaurar este contenido?"
-                    data-confirmar-texto="Volverá a ser visible para los estudiantes."
-                    data-confirmar-boton="Restaurar"
-                    data-confirmar-tono="positivo">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="boton boton-suave" type="submit">Restaurar contenido</button>
-              </form>
-            {% endif %}
-          {% else %}
-            <form class="form-resolucion" id="form-{{ r.id }}" method="post" action="{{ url_for('reportes.resolver', reporte_id=r.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="campo">
-                <label for="resolucion-{{ r.id }}">Motivo de la resolución</label>
-                <textarea id="resolucion-{{ r.id }}" name="resolucion" rows="2" maxlength="500" required
-                          placeholder="Explicá brevemente la decisión tomada"></textarea>
+            <div class="reporte-cuerpo">
+              <div class="reporte-objeto">
+                <div>
+                  <span class="reporte-etiqueta">{{ r.tipo_nombre }}{% if r.contenido_oculto %} · {{ 'cuenta bloqueada' if r.tipo_objeto == 'usuario' else 'oculto' }}{% endif %}</span>
+                  <p>{{ r.contenido_titulo or "El contenido ya no existe." }}</p>
+                  {% if r.dueno_nombre and r.tipo_objeto != 'usuario' %}<small>de <a href="{{ url_for('usuarios.ficha', usuario_id=r.dueno_id) }}">{{ r.dueno_nombre }}</a></small>{% endif %}
+                </div>
+                {% if r.contenido_enlace %}<a class="boton boton-suave" href="{{ r.contenido_enlace }}" target="_blank" rel="noopener">Abrir</a>{% endif %}
               </div>
-              <div class="moderacion-acciones">
-                <button class="boton boton-suave" type="submit" name="accion" value="descartar">Descartar</button>
-                {% if r.tipo_objeto != 'usuario' %}
-                  <button class="boton boton-primario" type="submit" name="accion" value="ocultar">Ocultar contenido</button>
+
+              <ul class="reporte-motivos" aria-label="Reportes recibidos">
+                {% for item in grupo.reportes %}
+                  <li><span>{{ item.motivo }}</span><small>{{ item.autor_nombre }} {{ item.autor_apellido }} · {{ item.creado | fecha_corta }}</small></li>
+                {% endfor %}
+              </ul>
+
+              {% if r.estado == 'resuelto' %}
+                <div class="reporte-decision">
+                  <strong>{{ decisiones.get(r.accion, 'Resuelto') }}</strong>
+                  {% if r.resolucion %}<p>{{ r.resolucion }}</p>{% endif %}
+                  <small>{% if r.resuelto_nombre %}{{ r.resuelto_nombre }} {{ r.resuelto_apellido }}{% endif %}{% if r.resuelto %} · {{ r.resuelto | fecha_corta }}{% endif %}</small>
+                </div>
+                {% if r.contenido_oculto and r.tipo_objeto != 'usuario' %}
+                  <form method="post" action="{{ url_for('reportes.restaurar', reporte_id=r.id) }}"
+                        data-confirmar="¿Restaurar este contenido?"
+                        data-confirmar-texto="Vuelve a ser visible para todos los estudiantes."
+                        data-confirmar-boton="Restaurar"
+                        data-confirmar-tono="positivo">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="boton boton-suave" type="submit">Restaurar contenido</button>
+                  </form>
                 {% endif %}
-                <button class="boton boton-peligro" type="submit" name="accion" value="bloquear"
-                        data-confirmar="¿Derivar a bloqueo del usuario?"
-                        data-confirmar-texto="Se va a redirigir a la ficha del usuario para que puedas bloquearlo desde ahí.">
-                  Derivar a bloqueo
-                </button>
-              </div>
-            </form>
-          {% endif %}
+              {% else %}
+                <form class="reporte-resolver" method="post" action="{{ url_for('reportes.resolver', reporte_id=r.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <fieldset class="reporte-opciones">
+                    <legend>¿Qué hacemos?</legend>
+                    {% set opciones = [('descartar', 'Dejarlo como está', 'No incumple las normas.')] %}
+                    {% if r.tipo_objeto != 'usuario' %}{% set opciones = opciones + [('ocultar', 'Ocultarlo', 'Deja de verse; se puede restaurar.')] %}{% endif %}
+                    {% set opciones = opciones + [('bloquear', 'Revisar la cuenta', 'Te llevo a la ficha para bloquear.')] %}
+                    {% for valor, titulo, ayuda in opciones %}
+                      <label class="reporte-opcion reporte-opcion-{{ valor }}">
+                        <input type="radio" name="accion" value="{{ valor }}" required>
+                        <span><strong>{{ titulo }}</strong><small>{{ ayuda }}</small></span>
+                      </label>
+                    {% endfor %}
+                  </fieldset>
+                  <label class="visualmente-oculto" for="resolucion-{{ r.id }}">Motivo de la decisión</label>
+                  <textarea id="resolucion-{{ r.id }}" name="resolucion" rows="2" maxlength="500" required placeholder="Motivo de la decisión (queda registrado)"></textarea>
+                  <button class="boton boton-primario" type="submit">Confirmar decisión{% if cantidad > 1 %} para los {{ cantidad }} reportes{% endif %}</button>
+                </form>
+              {% endif %}
+            </div>
+          </details>
         </li>
       {% endfor %}
     </ul>
+    {% if paginas > 1 %}
+      {% set enlaces = paginacion('reportes.admin_cola', pagina, paginas, estado=estado) %}
+      {% set etiqueta_paginacion = "Páginas de reportes" %}
+      {% include "_paginacion.html" %}
+    {% endif %}
   {% else %}
     <div class="estado-vacio">
       <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">
-      <h2>{{ "No hay reportes pendientes" if estado == 'pendiente' else "No hay reportes resueltos" }}</h2>
-      <p>{{ "Cuando un usuario reporte contenido, va a aparecer acá." if estado == 'pendiente' else "Los reportes resueltos van a aparecer acá." }}</p>
+      <h2>{{ "Todo en orden" if estado == 'pendiente' else "Todavía no se resolvió ningún reporte" }}</h2>
+      <p>{{ "No hay reportes por revisar." if estado == 'pendiente' else "Las decisiones tomadas quedan registradas acá." }}</p>
     </div>
   {% endif %}
 </section>
@@ -108,4 +113,3 @@
 {% endblock %}
 
 {% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}
-

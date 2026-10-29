@@ -163,6 +163,8 @@ COLUMNAS_AGREGADAS = [
     ("preguntas", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
     ("respuestas", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
     ("actividades", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
+    ("reportes", "accion", "TEXT"),
+    ("reportes", "resuelto", "TEXT"),
 ]
 
 TABLAS_AGREGADAS = {
@@ -187,22 +189,12 @@ TABLAS_AGREGADAS = {
         contenido BYTEA NOT NULL,
         actualizado TEXT NOT NULL
     )""",
-    "reportes": """CREATE TABLE IF NOT EXISTS reportes (
-        id {{PK}},
-        autor_id INTEGER NOT NULL REFERENCES usuarios (id),
-        tipo_objeto TEXT NOT NULL CHECK (tipo_objeto IN ('publicacion', 'usuario', 'pregunta', 'respuesta', 'actividad')),
-        objeto_id INTEGER NOT NULL,
-        motivo TEXT NOT NULL,
-        estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'resuelto')),
-        resolucion TEXT,
-        resuelto_por INTEGER REFERENCES usuarios (id),
-        creado TEXT NOT NULL
-    )""",
 }
 
 INDICES_AGREGADOS = [
     ("bloqueos", "CREATE INDEX IF NOT EXISTS idx_bloqueos_usuario ON bloqueos (usuario_id, creado)"),
     ("reportes", "CREATE INDEX IF NOT EXISTS idx_reportes_estado ON reportes (estado, creado)"),
+    ("reportes", "CREATE UNIQUE INDEX IF NOT EXISTS idx_reportes_unico ON reportes (autor_id, tipo_objeto, objeto_id)"),
     (
         "conexiones",
         (

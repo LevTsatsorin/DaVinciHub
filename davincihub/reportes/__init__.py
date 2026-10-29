@@ -4,36 +4,44 @@ from davincihub import seguridad
 from davincihub.reportes import datos
 
 bp = Blueprint("reportes", __name__, url_prefix="/reportes")
-bp.add_app_template_global(datos.MOTIVOS, "motivos_reporte")
 
 ESTADOS = {"pendiente": "Pendientes", "resuelto": "Resueltos"}
+POR_PAGINA = 10
+
+
+def _ruta_local(destino: str | None) -> str:
+    destino = destino or ""
+    if destino.startswith("/") and not destino.startswith("//") and "\\" not in destino:
+        return destino
+    return url_for("inicio")
 
 
 @bp.app_context_processor
-def contexto_motivos():
-    ctx: dict = {"motivos_reporte": datos.MOTIVOS}
-    from flask import g
+def contexto_reportes():
     usuario = g.get("usuario")
-    if usuario and usuario.get("rol") == "admin":
-        ctx["contar_reportes_pendientes"] = datos.contar_pendientes()
-    return ctx
+    contexto = {"motivos_reporte": datos.MOTIVOS}
+    if usuario and usuario["rol"] == "admin":
+        contexto["reportes_pendientes"] = datos.contar_pendientes()
+    return contexto
 
 
 @bp.post("/crear")
 @seguridad.requiere_login
 def crear():
-    tipo_objeto = request.form.get("tipo_objeto", "")
-    objeto_id_texto = request.form.get("objeto_id", "")
-    motivo = request.form.get("motivo", "").strip()
-    siguiente = request.form.get("siguiente") or "/"
-    if not objeto_id_texto.isdecimal():
-        flash("Datos inválidos.", "error")
+    siguiente = _ruta_local(request.form.get("siguiente"))
+    if g.usuario["rol"] != "estudiante":
+        abort(403)
+    objeto_id = request.form.get("objeto_id", "")
+    if not objeto_id.isdecimal():
+        flash("No pudimos identificar el contenido a reportar.", "error")
         return redirect(siguiente)
     try:
-        datos.crear_reporte(g.usuario["id"], tipo_objeto, int(objeto_id_texto), motivo)
-        flash("Gracias por tu reporte. El equipo lo va a revisar.")
+        datos.crear_reporte(g.usuario["id"], request.form.get("tipo_objeto", ""), int(objeto_id),
+                            (request.form.get("motivo") or "").strip())
     except datos.ErrorReporte as e:
         flash(str(e), "error")
+    else:
+        flash("Gracias por avisar. El equipo del Hub va a revisar tu reporte.")
     return redirect(siguiente)
 
 
@@ -43,13 +51,16 @@ def admin_cola():
     estado = request.args.get("estado", "pendiente")
     if estado not in ESTADOS:
         estado = "pendiente"
-    reportes = datos.listar_reportes(estado)
+    grupos = datos.agrupar(datos.listar_reportes(estado))
+    paginas = max(1, -(-len(grupos) // POR_PAGINA))
+    pagina = min(max(request.args.get("pagina", 1, type=int) or 1, 1), paginas)
     return render_template(
         "reportes/admin_cola.html",
-        reportes=reportes,
+        grupos=grupos[(pagina - 1) * POR_PAGINA:pagina * POR_PAGINA],
+        pagina=pagina,
+        paginas=paginas,
         estado=estado,
         estados=ESTADOS,
-        pendientes=datos.contar_pendientes(),
         motivos=datos.MOTIVOS,
     )
 
@@ -57,61 +68,39 @@ def admin_cola():
 @bp.post("/<int:reporte_id>/resolver")
 @seguridad.requiere_admin
 def resolver(reporte_id: int):
+    if datos.obtener_reporte(reporte_id) is None:
+        abort(404)
     accion = request.form.get("accion", "")
-    resolucion = request.form.get("resolucion", "").strip()
     try:
-        if accion == "bloquear":
-            reporte = datos.obtener_reporte(reporte_id)
-            if reporte is None:
-                abort(404)
-            usuario_obj_id = _obtener_usuario_del_objeto(reporte["tipo_objeto"], reporte["objeto_id"])
-            if usuario_obj_id is None:
-                flash("No se puede identificar el usuario del contenido.", "error")
-                return redirect(url_for("reportes.admin_cola"))
-            if usuario_obj_id == g.usuario["id"]:
-                flash("No podés derivar a bloqueo tu propia cuenta.", "error")
-                return redirect(url_for("reportes.admin_cola"))
-            datos.resolver_reporte(
-                reporte_id, g.usuario["id"], "bloquear",
-                f"Derivado a bloqueo: {resolucion}" if resolucion else "Derivado a bloqueo de cuenta."
-            )
-            flash("Reporte derivado a bloqueo. Completá la acción en la ficha del usuario.")
-            return redirect(url_for("usuarios.ficha", usuario_id=usuario_obj_id, motivo=resolucion))
-        datos.resolver_reporte(reporte_id, g.usuario["id"], accion, resolucion)
-        if accion == "ocultar":
-            flash("Contenido ocultado. Ya no es visible para los estudiantes.")
-        else:
-            flash("Reporte descartado.")
+        resultado = datos.resolver_reporte(reporte_id, g.usuario["id"], accion, request.form.get("resolucion", ""))
     except datos.ErrorReporte as e:
         flash(str(e), "error")
+        return redirect(url_for("reportes.admin_cola"))
+    otros = resultado["resueltos"] - 1
+    sufijo = f" También se cerraron {otros} reportes más sobre el mismo contenido." if otros > 0 else ""
+    if accion == "bloquear":
+        dueno = resultado["dueno_id"]
+        if dueno and dueno != g.usuario["id"]:
+            flash("Reporte derivado a bloqueo. Revisá la cuenta y bloqueala desde acá." + sufijo)
+            return redirect(url_for("usuarios.ficha", usuario_id=dueno,
+                                    motivo=(request.form.get("resolucion") or "").strip()))
+        flash("Reporte derivado a bloqueo." + sufijo)
+    elif accion == "ocultar":
+        flash("Contenido ocultado: ya no lo ven los estudiantes." + sufijo)
+    else:
+        flash("Reporte descartado." + sufijo)
     return redirect(url_for("reportes.admin_cola"))
 
 
 @bp.post("/<int:reporte_id>/restaurar")
 @seguridad.requiere_admin
 def restaurar(reporte_id: int):
-    reporte = datos.obtener_reporte(reporte_id)
-    if reporte is None:
+    if datos.obtener_reporte(reporte_id) is None:
         abort(404)
     try:
-        datos.restaurar_contenido(reporte["tipo_objeto"], reporte["objeto_id"])
-        flash("Contenido restaurado y visible nuevamente.")
+        datos.restaurar_contenido(reporte_id, g.usuario["id"])
     except datos.ErrorReporte as e:
         flash(str(e), "error")
+    else:
+        flash("Contenido restaurado: vuelve a estar visible.")
     return redirect(url_for("reportes.admin_cola", estado="resuelto"))
-
-
-def _obtener_usuario_del_objeto(tipo_objeto: str, objeto_id: int) -> int | None:
-    from davincihub import db
-    mapas = {
-        "publicacion": ("publicaciones", "autor_id"),
-        "pregunta": ("preguntas", "autor_id"),
-        "respuesta": ("respuestas", "autor_id"),
-        "actividad": ("actividades", "creador_id"),
-        "usuario": ("usuarios", "id"),
-    }
-    if tipo_objeto not in mapas:
-        return None
-    tabla, columna = mapas[tipo_objeto]
-    fila = db.query_one(f"SELECT {columna} AS uid FROM {tabla} WHERE id = :id", id=objeto_id)
-    return fila["uid"] if fila else None

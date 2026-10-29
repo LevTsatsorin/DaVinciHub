@@ -48,7 +48,7 @@
               <a href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a>
               <a href="{{ url_for('objetos.mis_busquedas') }}">Mis búsquedas</a>
             {% else %}
-              <a href="{{ url_for('reportes.admin_cola') }}">Reportes</a>
+              <a href="{{ url_for('reportes.admin_cola') }}">Reportes{% if reportes_pendientes %} <span class="campana-cantidad">{{ reportes_pendientes }}</span>{% endif %}</a>
               <a href="{{ url_for('actividades.admin_panel') }}">Moderación</a>
               <a href="{{ url_for('espacios.admin_lista') }}">Espacios</a>
             {% endif %}
@@ -113,6 +113,7 @@
     {% if g.usuario and g.usuario.rol == 'admin' %}
       <a class="menu-enlace modulo-usuarios" href="{{ url_for('usuarios.lista') }}"{% if request.blueprint == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
       <a class="menu-enlace modulo-carreras" href="{{ url_for('academico.lista') }}"{% if request.blueprint == 'academico' %} aria-current="page"{% endif %}>Carreras</a>
+      <a class="menu-enlace modulo-reportes" href="{{ url_for('reportes.admin_cola') }}"{% if request.blueprint == 'reportes' %} aria-current="page"{% endif %}>Reportes{% if reportes_pendientes %} <span class="campana-cantidad">{{ reportes_pendientes }}</span>{% endif %}</a>
     {% endif %}
   </nav>
   <div class="menu-acciones">
@@ -141,7 +142,7 @@
 </main>
 <footer class="pie">
   {% set es_admin = g.usuario and g.usuario.rol == 'admin' %}
-  <div class="contenedor pie-superior{% if es_admin %} pie-con-admin{% elif g.usuario %} pie-con-cuenta{% endif %}">
+  <div class="contenedor pie-superior{% if g.usuario %} pie-con-cuenta{% endif %}">
     <div class="pie-marca">
       <a class="logo" href="{{ url_for('inicio') }}">Da Vinci <span>Hub</span></a>
       <p>La comunidad online de los estudiantes de la Escuela Da Vinci.</p>
@@ -173,13 +174,17 @@
           <a href="{{ url_for('perfil.chats') }}">Mensajes</a>
           <a href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Conexiones</a>
         {% endif %}
+        {% if es_admin %}
+          <a href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
+          <a href="{{ url_for('actividades.mis_actividades') }}">Mis actividades</a>
+        {% endif %}
         <a href="{{ url_for('notificaciones.bandeja') }}">Notificaciones</a>
       {% else %}
         <a href="{{ url_for('auth.login') }}">Ingresar</a>
         <a href="{{ url_for('auth.registro') }}">Crear cuenta</a>
       {% endif %}
     </nav>
-    {% if g.usuario %}
+    {% if g.usuario and not es_admin %}
       <nav class="pie-columna pie-col-ambar">
         <h3>Lo tuyo</h3>
         <a href="{{ url_for('espacios.mis_reservas') }}">Mis reservas</a>
@@ -194,10 +199,12 @@
     {% if es_admin %}
       <nav class="pie-columna pie-col-violeta">
         <h3>Administración</h3>
+        <a href="{{ url_for('reportes.admin_cola') }}">Reportes{% if reportes_pendientes %} ({{ reportes_pendientes }}){% endif %}</a>
+        <a href="{{ url_for('actividades.admin_panel') }}">Moderar actividades</a>
         <a href="{{ url_for('usuarios.lista') }}">Usuarios</a>
-        <a href="{{ url_for('academico.lista') }}">Carreras</a>
+        <a href="{{ url_for('academico.lista') }}">Carreras y materias</a>
         <a href="{{ url_for('espacios.admin_lista') }}">Espacios</a>
-        <a href="{{ url_for('actividades.admin_panel') }}">Moderación</a>
+        <a href="{{ url_for('espacios.reservas_admin_todas') }}">Todas las reservas</a>
       </nav>
     {% endif %}
     <nav class="pie-columna pie-col-gris">

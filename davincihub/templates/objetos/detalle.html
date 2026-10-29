@@ -5,6 +5,7 @@
 <section class="contenedor pagina-modulo pagina-objeto-detalle">
   {% set propia = publicacion.autor_id == g.usuario.id %}
   <a class="volver" href="{{ url_for('objetos.mis_publicaciones') if propia else url_for('objetos.catalogo') }}">← {{ 'Mis publicaciones' if propia else 'Catálogo de objetos' }}</a>
+  {% if publicacion.oculto %}<p class="aviso aviso-moderado">Ocultada por moderación: no la ve ningún estudiante. Si creés que es un error, escribí a la escuela.</p>{% endif %}
   {% if publicacion.estado != 'activa' %}<p class="aviso aviso-advertencia">Esta publicación está {{ publicacion.estado }} y no aparece en el catálogo.</p>{% endif %}
   <div class="objeto-ficha">
     <div class="objeto-ilustracion objeto-ilustracion-detalle objeto-{{ publicacion.categoria }}">{% include "objetos/_icono.html" %}</div>
@@ -28,7 +29,7 @@
       </dl>
       {% if not propia and g.usuario.rol == 'estudiante' %}
         <a class="boton boton-primario" href="{{ url_for('perfil.chat', usuario_id=publicacion.autor_id) }}">Escribirle a {{ publicacion.autor_nombre }}</a>
-        {{ boton_reporte('publicacion', publicacion.id, request.url, publicacion.autor_id) }}
+        {{ boton_reporte('publicacion', publicacion.id, request.full_path, publicacion.autor_id) }}
       {% endif %}
     </div>
   </div>

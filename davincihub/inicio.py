@@ -89,11 +89,25 @@ def _numeros(usuario_id: int) -> dict:
     ))
 
 
+def _comunidad(ahora: str) -> dict:
+    hace_semana = (datetime.fromisoformat(ahora) - timedelta(days=7)).isoformat(timespec="seconds")
+    return dict(db.query_one(
+        "SELECT"
+        " (SELECT COUNT(*) FROM usuarios WHERE rol = 'estudiante' AND bloqueado = 0) AS estudiantes,"
+        " (SELECT COUNT(*) FROM usuarios WHERE rol = 'estudiante' AND creado >= :desde) AS nuevos,"
+        " (SELECT COUNT(*) FROM preguntas WHERE oculto = 0) AS preguntas,"
+        " (SELECT COUNT(*) FROM preguntas WHERE oculto = 0 AND creado >= :desde) AS preguntas_semana,"
+        " (SELECT COUNT(*) FROM publicaciones WHERE estado = 'activa' AND oculto = 0) AS publicaciones,"
+        " (SELECT COUNT(*) FROM conexiones WHERE estado = 'aceptada') AS conexiones",
+        desde=hace_semana,
+    ))
+
+
 def _preguntas_para_ayudar(usuario: dict) -> list[dict]:
     return db.query(
         "SELECT p.id, p.titulo, p.creado, m.nombre AS materia, u.nombre AS autor_nombre, u.apellido AS autor_apellido"
         " FROM preguntas p JOIN materias m ON m.id = p.materia_id JOIN usuarios u ON u.id = p.autor_id"
-        " WHERE m.carrera_id = :carrera AND p.autor_id <> :yo AND u.bloqueado = 0"
+        " WHERE m.carrera_id = :carrera AND p.autor_id <> :yo AND u.bloqueado = 0 AND p.oculto = 0"
         " AND NOT EXISTS (SELECT 1 FROM respuestas r WHERE r.pregunta_id = p.id)"
         " ORDER BY p.creado DESC LIMIT 4",
         carrera=usuario["carrera_id"] or 0, yo=usuario["id"],
@@ -105,7 +119,7 @@ def _objetos_destacados(usuario: dict) -> list[dict]:
         "SELECT p.id, p.titulo, p.categoria, p.modalidad, p.precio, p.estado_objeto, p.autor_id, p.creado,"
         " u.nombre AS autor_nombre, u.apellido AS autor_apellido, c.nombre AS carrera"
         " FROM publicaciones p JOIN usuarios u ON u.id = p.autor_id LEFT JOIN carreras c ON c.id = p.carrera_id"
-        " WHERE p.estado = 'activa' AND u.bloqueado = 0 AND p.autor_id <> :yo"
+        " WHERE p.estado = 'activa' AND p.oculto = 0 AND u.bloqueado = 0 AND p.autor_id <> :yo"
         " ORDER BY CASE WHEN p.carrera_id = :carrera THEN 0 ELSE 1 END, p.creado DESC, p.id DESC LIMIT 3",
         yo=usuario["id"], carrera=usuario["carrera_id"] or 0,
     )
@@ -134,7 +148,7 @@ def _resumen(usuario_id: int) -> dict:
         " (SELECT COUNT(*) FROM notificaciones WHERE usuario_id = :yo AND leida = 0 AND tipo = 'foro') AS respuestas,"
         " (SELECT COUNT(*) FROM coincidencias c JOIN solicitudes s ON s.id = c.solicitud_id"
         "  JOIN publicaciones p ON p.id = c.publicacion_id"
-        "  WHERE s.autor_id = :yo AND s.estado = 'activa' AND p.estado = 'activa') AS coincidencias",
+        "  WHERE s.autor_id = :yo AND s.estado = 'activa' AND p.estado = 'activa' AND p.oculto = 0) AS coincidencias",
         yo=usuario_id,
     )
     return dict(fila)
@@ -147,7 +161,8 @@ def contexto(usuario: dict | None) -> dict:
     datos["mis_reservas"] = reservas.listar_reservas_usuario(usuario["id"], solo_futuras=True)[:EN_AGENDA]
     datos["mis_actividades"] = _mis_actividades(usuario["id"], datos["ahora"])
     if usuario["rol"] == "admin":
-        datos["pendientes"] = _pendientes_admin()
+        datos.update(pendientes=_pendientes_admin(), semana=_semana(usuario["id"], datos["ahora"]),
+                     comunidad=_comunidad(datos["ahora"]))
         return datos
     datos.update(
         resumen=_resumen(usuario["id"]),

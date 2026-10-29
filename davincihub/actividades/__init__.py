@@ -141,6 +141,8 @@ def detalle(actividad_id: int):
     if not actividad:
         abort(404)
     rol = _rol_en(actividad)
+    if actividad["oculto"] and not (rol["admin"] or rol["creador"]):
+        abort(404)
     if actividad["estado"] != "aprobada" and not (
         rol["admin"] or rol["creador"] or (actividad["estado"] == "cancelada" and rol["inscripto"])
     ):
@@ -270,11 +272,17 @@ def admin_panel():
     estado_filtro = request.args.get("estado")
     if estado_filtro not in ESTADOS_MODERACION:
         estado_filtro = None
+    totales = contar_actividades_por_estado()
+    total = totales.get(estado_filtro, 0) if estado_filtro else sum(totales.values())
+    paginas = max(1, -(-total // POR_PAGINA))
+    pagina = min(max(request.args.get("pagina", 1, type=int) or 1, 1), paginas)
     return render_template(
         "actividades/admin.html",
-        actividades=listar_actividades_admin(estado=estado_filtro),
+        actividades=listar_actividades_admin(estado_filtro, POR_PAGINA, (pagina - 1) * POR_PAGINA),
         estado_filtro=estado_filtro,
-        totales=contar_actividades_por_estado(),
+        pagina=pagina,
+        paginas=paginas,
+        totales=totales,
         estados=ESTADOS_MODERACION,
     )
 

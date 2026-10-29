@@ -16,7 +16,7 @@
 {% macro subcomentario(respuesta) %}
   <article class="foro-subcomentario">
     <header class="foro-subcomentario-cabecera">
-      {{ autor(autores[respuesta.autor_id]) }}
+      {{ autor(autores[respuesta.autor_id], catedra=respuesta.es_catedra) }}
       {% if respuesta.es_catedra %}<span class="foro-insignia">Cátedra · {{ respuesta.materia }}</span>{% endif %}
       <time datetime="{{ respuesta.creado }}">{{ respuesta.creado | fecha_corta }}</time>
     </header>
@@ -48,6 +48,7 @@
 <div class="foro-tema">
 <section class="contenedor pagina-modulo pagina-foro">
   <a class="enlace-volver foro-volver" href="{{ url_for('foro.index') }}">‹ Volver al foro</a>
+  {% if pregunta.oculto %}<p class="aviso aviso-moderado">Pregunta ocultada por moderación: los estudiantes no la ven.</p>{% endif %}
   <article class="foro-detalle-pregunta fondo-oscuro">
     <div class="foro-etiquetas">
       <span class="foro-materia">{{ pregunta.materia }}</span>
@@ -69,7 +70,7 @@
     {% if g.usuario.id == pregunta.autor_id and not pregunta.respuesta_aceptada_id %}
       <a class="foro-editar-enlace foro-editar-pregunta" href="{{ url_for('foro.editar_pregunta', pregunta_id=pregunta.id) }}">Editar pregunta</a>
     {% endif %}
-    {{ boton_reporte('pregunta', pregunta.id, request.url, pregunta.autor_id) }}
+    {{ boton_reporte('pregunta', pregunta.id, request.full_path, pregunta.autor_id) }}
   </article>
 
   <section class="foro-respuestas" aria-labelledby="respuestas-titulo">
@@ -85,7 +86,7 @@
             {% if respuesta.aceptada %}<div class="foro-aceptada-etiqueta">Respuesta aceptada</div>{% endif %}
             <div class="foro-respuesta-cabecera">
               <div>
-                {{ autor(autores[respuesta.autor_id]) }}
+                {{ autor(autores[respuesta.autor_id], catedra=respuesta.es_catedra) }}
                 {% if respuesta.es_catedra %}<span class="foro-insignia">Cátedra · {{ respuesta.materia }}</span>{% endif %}
               </div>
               <time datetime="{{ respuesta.creado }}">{{ respuesta.creado | fecha_corta }}</time>
@@ -116,7 +117,7 @@
                   </button>
                 </form>
               {% endif %}
-            {{ boton_reporte('respuesta', respuesta.id, request.url, respuesta.autor_id) }}
+            {{ boton_reporte('respuesta', respuesta.id, request.full_path, respuesta.autor_id) }}
             </div>
             {% if respuesta.respuestas_hijas or respuesta.autor_id != g.usuario.id %}
               <details class="foro-hilo-respuestas">

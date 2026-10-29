@@ -296,5 +296,9 @@ CREATE TABLE reportes (
     estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'resuelto')),
     resolucion TEXT,
     resuelto_por INTEGER REFERENCES usuarios (id),
-    creado TEXT NOT NULL
+    creado TEXT NOT NULL,
+    accion TEXT,
+    resuelto TEXT
 );
+CREATE UNIQUE INDEX idx_reportes_unico ON reportes (autor_id, tipo_objeto, objeto_id);
+CREATE INDEX idx_reportes_estado ON reportes (estado, creado);

@@ -159,7 +159,7 @@ def detectar_para_busqueda(solicitud_id: int) -> int:
             return 0
         publicaciones = db.query(
             "SELECT p.* FROM publicaciones p JOIN usuarios u ON u.id = p.autor_id"
-            " WHERE p.estado = 'activa' AND (:categoria = 'todas' OR p.categoria = :categoria)"
+            " WHERE p.estado = 'activa' AND p.oculto = 0 AND (:categoria = 'todas' OR p.categoria = :categoria)"
             " AND p.autor_id <> :autor AND u.bloqueado = 0 ORDER BY p.id",
             categoria=solicitud["categoria"], autor=solicitud["autor_id"],
         )
@@ -170,7 +170,7 @@ def detectar_para_publicacion(publicacion_id: int) -> int:
     with db.transaccion():
         publicacion = db.query_one(
             "SELECT p.* FROM publicaciones p JOIN usuarios u ON u.id = p.autor_id"
-            " WHERE p.id = :id AND p.estado = 'activa' AND u.bloqueado = 0",
+            " WHERE p.id = :id AND p.estado = 'activa' AND p.oculto = 0 AND u.bloqueado = 0",
             id=publicacion_id,
         )
         if publicacion is None:
@@ -197,7 +197,7 @@ def coincidencias_de(solicitud: dict) -> list[dict]:
         "SELECT p.*, u.nombre AS autor_nombre, u.apellido AS autor_apellido, c.nombre AS carrera"
         " FROM coincidencias co JOIN publicaciones p ON p.id = co.publicacion_id"
         " JOIN usuarios u ON u.id = p.autor_id LEFT JOIN carreras c ON c.id = p.carrera_id"
-        " WHERE co.solicitud_id = :id AND p.estado = 'activa' AND u.bloqueado = 0"
+        " WHERE co.solicitud_id = :id AND p.estado = 'activa' AND p.oculto = 0 AND u.bloqueado = 0"
         " ORDER BY co.creado DESC, co.id DESC",
         id=solicitud["id"],
     )

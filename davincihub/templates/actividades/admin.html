@@ -43,6 +43,11 @@
         </li>
       {% endfor %}
     </ul>
+    {% if paginas > 1 %}
+      {% set enlaces = paginacion('actividades.admin_panel', pagina, paginas, estado=estado_filtro) %}
+      {% set etiqueta_paginacion = "Páginas de actividades" %}
+      {% include "_paginacion.html" %}
+    {% endif %}
   {% else %}
     <div class="estado-vacio">
       <img src="{{ url_for('static', filename='img/notificaciones-vacio.png') }}" alt="">

@@ -16,7 +16,7 @@ def _materias_formulario() -> list[dict]:
 
 def _pregunta_o_404(pregunta_id: int) -> dict:
     pregunta = datos.obtener_pregunta(pregunta_id)
-    if pregunta is None:
+    if pregunta is None or (pregunta["oculto"] and g.usuario["rol"] != "admin"):
         abort(404)
     return pregunta
 
@@ -111,7 +111,8 @@ def detalle(pregunta_id: int):
 @seguridad.requiere_login
 def imagen_pregunta(pregunta_id: int):
     imagen = db.query_one(
-        "SELECT imagen_tipo, imagen FROM preguntas WHERE id = :id",
+        "SELECT imagen_tipo, imagen FROM preguntas WHERE id = :id AND (oculto = 0 OR :admin = 1)",
+        admin=int(g.usuario["rol"] == "admin"),
         id=pregunta_id,
     )
     if imagen is None or not imagen["imagen"] or not imagen["imagen_tipo"]:
@@ -173,7 +174,7 @@ def responder(pregunta_id: int):
 @seguridad.requiere_login
 def responder_respuesta(respuesta_padre_id: int):
     padre = datos.obtener_respuesta(respuesta_padre_id)
-    if padre is None:
+    if padre is None or padre["oculto"]:
         abort(404)
     try:
         datos.crear_respuesta(
@@ -195,7 +196,7 @@ def responder_respuesta(respuesta_padre_id: int):
 @seguridad.requiere_login
 def editar_respuesta(respuesta_id: int):
     respuesta = datos.obtener_respuesta(respuesta_id)
-    if respuesta is None:
+    if respuesta is None or respuesta["oculto"]:
         abort(404)
     if respuesta["autor_id"] != g.usuario["id"]:
         abort(403)
@@ -218,7 +219,7 @@ def editar_respuesta(respuesta_id: int):
 @seguridad.requiere_login
 def aceptar_respuesta(respuesta_id: int):
     respuesta = datos.obtener_respuesta(respuesta_id)
-    if respuesta is None:
+    if respuesta is None or respuesta["oculto"]:
         abort(404)
     aceptada_texto = request.form.get("aceptada")
     if aceptada_texto not in ("0", "1"):
@@ -240,7 +241,7 @@ def aceptar_respuesta(respuesta_id: int):
 @seguridad.requiere_login
 def valorar_respuesta(respuesta_id: int):
     respuesta = datos.obtener_respuesta(respuesta_id)
-    if respuesta is None:
+    if respuesta is None or respuesta["oculto"]:
         abort(404)
     try:
         valorada = datos.valorar_respuesta(respuesta_id, g.usuario["id"])

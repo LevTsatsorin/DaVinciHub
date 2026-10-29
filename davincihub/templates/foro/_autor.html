@@ -3,9 +3,9 @@
   {%- else %}<span class="{{ clase }}" aria-hidden="true">{{ persona.nombre[:1] }}{{ persona.apellido[:1] }}</span>{% endif -%}
 {%- endmacro %}
 
-{% macro autor(persona, con_avatar=True) %}
+{% macro autor(persona, con_avatar=True, catedra=False) %}
   <span class="foro-autor">
-    {% if con_avatar %}{{ avatar(persona) }}{% endif %}
+    {% if con_avatar %}<span class="foro-avatar-marco">{{ avatar(persona) }}{% if catedra %}<img class="insignia insignia-mini" src="{{ url_for('static', filename='img/insignias/catedra.png') }}" alt="" title="Estudiante de cátedra en esta materia">{% endif %}</span>{% endif %}
     {% if persona.rol == 'estudiante' %}
       <a class="foro-autor-enlace" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">{{ persona.nombre }} {{ persona.apellido }}</a>
       <div class="foro-autor-tarjeta" role="group" aria-label="Sobre {{ persona.nombre }}">
@@ -17,6 +17,9 @@
             {% if persona.anio %}<span>{{ persona.anio }}.º año{% if persona.comision %} · Comisión {{ persona.comision }}{% endif %}</span>{% endif %}
           </span>
         </span>
+        {% if persona.catedra %}
+          <span class="foro-autor-insignia"><img class="insignia" src="{{ url_for('static', filename='img/insignias/catedra.png') }}" alt=""><span><strong>Estudiante de cátedra</strong><span>Ya cursó las materias de su año y ayuda en el foro.</span></span></span>
+        {% endif %}
         <span class="foro-autor-tarjeta-acciones">
           <a class="boton boton-suave" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">Ver perfil</a>
           {% if g.usuario.rol == 'estudiante' and persona.id != g.usuario.id %}
