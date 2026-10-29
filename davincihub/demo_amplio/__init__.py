@@ -5,7 +5,7 @@ from flask.cli import with_appcontext
 from werkzeug.security import generate_password_hash
 
 from davincihub import db
-from davincihub.demo_amplio import foro, objetos, personas, social
+from davincihub.demo_amplio import chat_largo, foro, moderacion, objetos, personas, social
 
 DOMINIO = "davinci.edu.ar"
 ORIGINALES = ("mica", "tomas", "lucia", "sofia", "bruno")
@@ -148,29 +148,8 @@ def _objetos(ids: dict, carreras: dict) -> tuple[int, int]:
 
 
 def _chats(ids: dict, nombres: dict) -> int:
-    total = 0
-    for chat in social.CHATS:
-        mensajes = chat["mensajes"]
-        primero_sin_leer = len(mensajes) - chat.get("sin_leer", 0)
-        for i, (emisor, cuerpo, creado) in enumerate(mensajes):
-            receptor = next(p for p in chat["entre"] if p != emisor)
-            db.execute(
-                "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, leido, creado)"
-                " VALUES (:emisor, :receptor, :cuerpo, :leido, :creado)",
-                emisor=ids[emisor], receptor=ids[receptor], cuerpo=cuerpo,
-                leido=int(i < primero_sin_leer), creado=creado,
-            )
-        if chat.get("sin_leer"):
-            emisor, _, creado = mensajes[-1]
-            receptor = next(p for p in chat["entre"] if p != emisor)
-            db.execute(
-                "INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, leida, creado)"
-                " VALUES (:usuario, 'mensaje', :cuerpo, :enlace, 0, :creado)",
-                usuario=ids[receptor], cuerpo=f"{nombres[emisor]} te escribió un mensaje.",
-                enlace=f"/estudiantes/{ids[emisor]}/chat", creado=creado,
-            )
-        total += len(mensajes)
-    return total
+    largos = {frozenset(c["entre"]) for c in chat_largo.CHATS_LARGOS}
+    return sum(_insertar_chat(ids, nombres, chat) for chat in social.CHATS if frozenset(chat["entre"]) not in largos)
 
 
 def _actividades(ids: dict) -> int:
@@ -201,22 +180,122 @@ def _actividades(ids: dict) -> int:
     return len(social.ACTIVIDADES)
 
 
+def _ids_existentes() -> tuple[dict, dict]:
+    ids, nombres = {}, {}
+    claves = [e[0] for e in personas.ESTUDIANTES] + list(ORIGINALES)
+    for clave in claves:
+        fila = db.query_one("SELECT id, nombre, apellido FROM usuarios WHERE email = :email", email=_email(clave))
+        if fila:
+            ids[clave] = fila["id"]
+            nombres[clave] = f"{fila['nombre']} {fila['apellido']}"
+    return ids, nombres
+
+
+def _chats_largos(ids: dict, nombres: dict) -> int:
+    existentes = {frozenset(c["entre"]): c for c in social.CHATS}
+    total = 0
+    for chat in chat_largo.CHATS_LARGOS:
+        uno, otro = (ids[c] for c in chat["entre"])
+        db.execute(
+            "DELETE FROM mensajes WHERE (emisor_id = :a AND receptor_id = :b) OR (emisor_id = :b AND receptor_id = :a)",
+            a=uno, b=otro,
+        )
+        db.execute(
+            "DELETE FROM notificaciones WHERE tipo = 'mensaje' AND enlace IN (:e1, :e2) AND usuario_id IN (:a, :b)",
+            e1=f"/estudiantes/{uno}/chat", e2=f"/estudiantes/{otro}/chat", a=uno, b=otro,
+        )
+        previo = existentes.get(frozenset(chat["entre"]), {"mensajes": []})["mensajes"]
+        mensajes = sorted({m[2]: m for m in [*previo, *chat["mensajes"]]}.values(), key=lambda m: m[2])
+        total += _insertar_chat(ids, nombres, {"entre": chat["entre"], "mensajes": mensajes,
+                                               "sin_leer": chat.get("sin_leer", 0)})
+    return total
+
+
+def _insertar_chat(ids: dict, nombres: dict, chat: dict) -> int:
+    mensajes = chat["mensajes"]
+    primero_sin_leer = len(mensajes) - chat.get("sin_leer", 0)
+    for i, (emisor, cuerpo, creado) in enumerate(mensajes):
+        receptor = next(p for p in chat["entre"] if p != emisor)
+        db.execute(
+            "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, leido, creado)"
+            " VALUES (:emisor, :receptor, :cuerpo, :leido, :creado)",
+            emisor=ids[emisor], receptor=ids[receptor], cuerpo=cuerpo,
+            leido=int(i < primero_sin_leer), creado=creado,
+        )
+    if chat.get("sin_leer"):
+        emisor, _, creado = mensajes[-1]
+        receptor = next(p for p in chat["entre"] if p != emisor)
+        db.execute(
+            "INSERT INTO notificaciones (usuario_id, tipo, cuerpo, enlace, leida, creado)"
+            " VALUES (:usuario, 'mensaje', :cuerpo, :enlace, 0, :creado)",
+            usuario=ids[receptor], cuerpo=f"{nombres[emisor]} te escribió un mensaje.",
+            enlace=f"/estudiantes/{ids[emisor]}/chat", creado=creado,
+        )
+    return len(mensajes)
+
+
+def _objeto_reportado(ids: dict, tipo: str, criterio: tuple[str, str]) -> int:
+    campo, valor = criterio
+    if campo == "clave":
+        return ids[valor]
+    tabla, columna = {
+        "publicacion": ("publicaciones", "titulo"), "pregunta": ("preguntas", "titulo"),
+        "respuesta": ("respuestas", "cuerpo"), "actividad": ("actividades", "nombre"),
+    }[tipo]
+    patron = valor if campo in ("titulo", "nombre", "cuerpo") else valor + "%"
+    operador = "=" if campo in ("titulo", "nombre", "cuerpo") else "LIKE"
+    return db.query_one(f"SELECT id FROM {tabla} WHERE {columna} {operador} :v ORDER BY id LIMIT 1", v=patron)["id"]
+
+
+def _reportes(ids: dict) -> int:
+    admin = db.query_one("SELECT id FROM usuarios WHERE rol = 'admin' ORDER BY id")["id"]
+    tablas = {"publicacion": "publicaciones", "pregunta": "preguntas", "respuesta": "respuestas", "actividad": "actividades"}
+    for autor, tipo, criterio, motivo, accion, resolucion, creado in moderacion.REPORTES:
+        objeto = _objeto_reportado(ids, tipo, criterio)
+        db.execute(
+            "INSERT INTO reportes (autor_id, tipo_objeto, objeto_id, motivo, estado, accion, resolucion,"
+            " resuelto_por, resuelto, creado) VALUES (:autor, :tipo, :objeto, :motivo, :estado, :accion,"
+            " :resolucion, :admin, :resuelto, :creado)",
+            autor=ids[autor], tipo=tipo, objeto=objeto, motivo=motivo,
+            estado="resuelto" if accion else "pendiente", accion=accion, resolucion=resolucion,
+            admin=admin if accion else None, resuelto=creado if accion else None, creado=creado,
+        )
+        if accion == "ocultar":
+            db.execute(f"UPDATE {tablas[tipo]} SET oculto = 1 WHERE id = :id", id=objeto)
+        if accion:
+            _avisar(ids[autor], "reportes", "Revisamos tu reporte." if accion == "descartar"
+                    else "Revisamos tu reporte: el contenido ya no es visible para la comunidad.", None, creado)
+    return len(moderacion.REPORTES)
+
+
+def _extra_cargado() -> bool:
+    return db.query_one("SELECT 1 AS hay FROM reportes WHERE motivo = :m AND creado = :c",
+                        m=moderacion.REPORTES[0][3], c=moderacion.REPORTES[0][6]) is not None
+
+
 def cargar() -> dict:
     if not db.query_one("SELECT id FROM usuarios WHERE email = :email", email=_email("mica")):
         raise click.ClickException("Primero cargá la base demo: flask --app davincihub.app init-db --demo")
-    primera = _email(personas.ESTUDIANTES[0][0])
-    if db.query_one("SELECT id FROM usuarios WHERE email = :email", email=primera):
+    base_cargada = db.query_one("SELECT id FROM usuarios WHERE email = :email",
+                                email=_email(personas.ESTUDIANTES[0][0])) is not None
+    if base_cargada and _extra_cargado():
         raise click.ClickException("Los datos ampliados ya están cargados en esta base.")
+    resumen = {}
     with db.transaccion():
-        ids, nombres, carreras = _personas()
-        resumen = {
-            "estudiantes": len(personas.ESTUDIANTES),
-            "conexiones": _conexiones(ids, nombres),
-            "preguntas": _foro(ids, nombres, carreras),
-        }
-        resumen["publicaciones"], resumen["busquedas"] = _objetos(ids, carreras)
-        resumen["mensajes"] = _chats(ids, nombres)
-        resumen["actividades"] = _actividades(ids)
+        if base_cargada:
+            ids, nombres = _ids_existentes()
+        else:
+            ids, nombres, carreras = _personas()
+            resumen = {
+                "estudiantes": len(personas.ESTUDIANTES),
+                "conexiones": _conexiones(ids, nombres),
+                "preguntas": _foro(ids, nombres, carreras),
+            }
+            resumen["publicaciones"], resumen["busquedas"] = _objetos(ids, carreras)
+            resumen["mensajes"] = _chats(ids, nombres)
+            resumen["actividades"] = _actividades(ids)
+        resumen["mensajes en chats largos"] = _chats_largos(ids, nombres)
+        resumen["reportes"] = _reportes(ids)
     return resumen
 
 
