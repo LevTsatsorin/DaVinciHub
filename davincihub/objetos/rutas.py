@@ -42,6 +42,8 @@ def _publicacion(publicacion_id: int, propia: bool = False) -> dict:
         abort(403)
     if not es_propia and (publicacion["estado"] != "activa" or publicacion["autor_bloqueado"]):
         abort(404)
+    if publicacion["oculto"] and not es_propia and g.usuario["rol"] != "admin":
+        abort(404)
     return publicacion
 
 

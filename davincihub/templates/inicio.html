@@ -15,12 +15,21 @@
       <h1>Hola, {{ g.usuario.nombre }}</h1>
       <p>Esto es lo que tenés por delante en el Hub.</p>
       <nav class="inicio-atajos" aria-label="Acciones rápidas">
+        {% if g.usuario.rol == 'admin' %}
+          <a class="inicio-atajo atajo-foro" href="{{ url_for('reportes.admin_cola') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4s1.5-1 4-1 4 2 7 2 3-1 3-1v10s-1 1-3 1-4-2-7-2-4 1-4 1"/></svg><span class="atajo-largo">Revisar reportes</span><span class="atajo-corto" aria-hidden="true">Reportes</span></a>
+          <a class="inicio-atajo atajo-actividades" href="{{ url_for('actividades.admin_panel', estado='pendiente') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><span class="atajo-largo">Moderar actividades</span><span class="atajo-corto" aria-hidden="true">Moderar</span></a>
+          <a class="inicio-atajo atajo-objetos" href="{{ url_for('usuarios.lista') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c2 .6 3.3 2.6 3.5 5.5"/></svg><span class="atajo-largo">Usuarios</span><span class="atajo-corto" aria-hidden="true">Usuarios</span></a>
+          <a class="inicio-atajo atajo-reservas" href="{{ url_for('espacios.reservas_admin_todas') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M8 2.5v4M16 2.5v4"/></svg><span class="atajo-largo">Todas las reservas</span><span class="atajo-corto" aria-hidden="true">Reservas</span></a>
+        {% else %}
         {% if g.usuario.rol == 'estudiante' %}
           <a class="inicio-atajo atajo-foro" href="{{ url_for('foro.nueva_pregunta') }}">{{ icono_pregunta }}<span class="atajo-largo">Hacer una pregunta</span><span class="atajo-corto" aria-hidden="true">Preguntar</span></a>
           <a class="inicio-atajo atajo-objetos" href="{{ url_for('objetos.publicar') }}">{{ icono_objeto }}<span class="atajo-largo">Publicar un objeto</span><span class="atajo-corto" aria-hidden="true">Publicar</span></a>
         {% endif %}
         <a class="inicio-atajo atajo-reservas" href="{{ url_for('espacios.catalogo') }}">{{ icono_espacio }}<span class="atajo-largo">Reservar un espacio</span><span class="atajo-corto" aria-hidden="true">Reservar</span></a>
+        {% endif %}
+        {% if g.usuario.rol != 'admin' %}
         <a class="inicio-atajo atajo-actividades" href="{{ url_for('actividades.crear') }}">{{ icono_actividad }}<span class="atajo-largo">{{ "Crear actividad" if g.usuario.rol == 'admin' else "Proponer actividad" }}</span><span class="atajo-corto" aria-hidden="true">{{ "Crear" if g.usuario.rol == 'admin' else "Proponer" }}</span></a>
+        {% endif %}
       </nav>
     </div>
   </section>
@@ -47,23 +56,12 @@
     </nav>
   {% endif %}
   {% if pendientes %}
-    <section class="inicio-bloque" aria-labelledby="titulo-revisar">
-      <h2 id="titulo-revisar">Para revisar</h2>
-      <div class="inicio-pendientes">
-        <a class="pendiente-tarjeta{% if pendientes.actividades %} pendiente-urgente{% endif %}" href="{{ url_for('actividades.admin_panel', estado='pendiente') }}">
-          <strong>{{ pendientes.actividades }}</strong>
-          <span>{{ "actividad por moderar" if pendientes.actividades == 1 else "actividades por moderar" }}</span>
-        </a>
-        <a class="pendiente-tarjeta" href="{{ url_for('espacios.reservas_admin_todas') }}">
-          <strong>{{ pendientes.reservas_semana }}</strong>
-          <span>{{ "reserva" if pendientes.reservas_semana == 1 else "reservas" }} en los próximos 7 días</span>
-        </a>
-        <a class="pendiente-tarjeta" href="{{ url_for('usuarios.lista', estado='bloqueado') }}">
-          <strong>{{ pendientes.bloqueados }}</strong>
-          <span>{{ "cuenta bloqueada" if pendientes.bloqueados == 1 else "cuentas bloqueadas" }}</span>
-        </a>
-      </div>
-    </section>
+    <nav class="inicio-resumen" aria-label="Para revisar">
+      <a class="resumen-item resumen-mensajes{% if not pendientes.reportes %} resumen-cero{% endif %}" href="{{ url_for('reportes.admin_cola') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4s1.5-1 4-1 4 2 7 2 3-1 3-1v10s-1 1-3 1-4-2-7-2-4 1-4 1"/></svg><span><strong>{{ pendientes.reportes }}</strong>{{ "reporte por revisar" if pendientes.reportes == 1 else "reportes por revisar" }}</span></a>
+      <a class="resumen-item resumen-actividades{% if not pendientes.actividades %} resumen-cero{% endif %}" href="{{ url_for('actividades.admin_panel', estado='pendiente') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><span><strong>{{ pendientes.actividades }}</strong>{{ "actividad por moderar" if pendientes.actividades == 1 else "actividades por moderar" }}</span></a>
+      <a class="resumen-item resumen-solicitudes" href="{{ url_for('espacios.reservas_admin_todas') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M8 2.5v4M16 2.5v4"/></svg><span><strong>{{ pendientes.reservas_semana }}</strong>{{ "reserva en 7 días" if pendientes.reservas_semana == 1 else "reservas en 7 días" }}</span></a>
+      <a class="resumen-item resumen-bloqueos" href="{{ url_for('usuarios.lista', estado='bloqueado') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg><span><strong>{{ pendientes.bloqueados }}</strong>{{ "cuenta bloqueada" if pendientes.bloqueados == 1 else "cuentas bloqueadas" }}</span></a>
+    </nav>
   {% endif %}
 
   {% if semana is defined %}
@@ -99,6 +97,17 @@
       </ul>
     </section>
 
+    {% if comunidad is defined %}
+    <section class="inicio-bloque" aria-labelledby="titulo-comunidad">
+      <h2 id="titulo-comunidad">La comunidad hoy</h2>
+      <div class="inicio-numeros">
+        <a href="{{ url_for('usuarios.lista', rol='estudiante') }}"><strong>{{ comunidad.estudiantes }}</strong><span>estudiantes{% if comunidad.nuevos %}<small>+{{ comunidad.nuevos }} esta semana</small>{% endif %}</span></a>
+        <a href="{{ url_for('foro.index') }}"><strong>{{ comunidad.preguntas }}</strong><span>preguntas{% if comunidad.preguntas_semana %}<small>+{{ comunidad.preguntas_semana }} esta semana</small>{% endif %}</span></a>
+        <a href="{{ url_for('objetos.catalogo') }}"><strong>{{ comunidad.publicaciones }}</strong><span>objetos activos</span></a>
+        <a href="{{ url_for('usuarios.lista') }}"><strong>{{ comunidad.conexiones }}</strong><span>conexiones</span></a>
+      </div>
+    </section>
+    {% else %}
     <section class="inicio-bloque" aria-labelledby="titulo-numeros">
       <h2 id="titulo-numeros">Tu paso por el Hub</h2>
       <div class="inicio-numeros">
@@ -108,6 +117,7 @@
         <a href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}"><strong>{{ numeros.conexiones }}</strong><span>{{ "conexión" if numeros.conexiones == 1 else "conexiones" }}</span></a>
       </div>
     </section>
+    {% endif %}
   {% elif g.usuario %}
     <section class="inicio-bloque" aria-labelledby="titulo-agenda">
       <h2 id="titulo-agenda">Tu agenda</h2>

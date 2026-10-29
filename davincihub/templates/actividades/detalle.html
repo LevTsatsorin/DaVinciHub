@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_persona.html" import persona %}
+{% from "reportes/_boton_reporte.html" import boton_reporte %}
 
 {% block titulo %}{{ actividad.nombre }} — Da Vinci Hub{% endblock %}
 
@@ -36,8 +37,12 @@
       {% elif act.estado == 'pendiente' and g.usuario and g.usuario.id == act.creador_id %}
         <p class="aviso">La escuela todavía no la revisó. El espacio ya está reservado para vos.</p>
       {% endif %}
+      {% if act.oculto %}<p class="aviso aviso-moderado">Ocultada por moderación: no aparece en el calendario ni se puede ver desde afuera.</p>{% endif %}
       <h2>Sobre esta actividad</h2>
       <p class="detalle-descripcion">{{ act.descripcion }}</p>
+      {% if act.estado == 'aprobada' %}
+        {{ boton_reporte('actividad', act.id, request.full_path, act.creador_id) }}
+      {% endif %}
 
       {% if g.usuario and g.usuario.rol == 'admin' and act.estado == 'pendiente' %}
         <div class="panel-acciones-moderacion">

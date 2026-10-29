@@ -83,7 +83,7 @@
         <div class="campo">
           <label for="motivo">Motivo</label>
           <textarea id="motivo" name="motivo" rows="3" maxlength="500" required
-                    placeholder="{{ 'Por qué se levanta el bloqueo' if u.bloqueado else 'Qué regla incumplió' }}"></textarea>
+                    placeholder="{{ 'Por qué se levanta el bloqueo' if u.bloqueado else 'Qué regla incumplió' }}">{{ request.args.get('motivo', '') }}</textarea>
         </div>
         <button class="boton {{ 'boton-primario' if u.bloqueado else 'boton-peligro' }}" type="submit">{{ "Desbloquear cuenta" if u.bloqueado else "Bloquear cuenta" }}</button>
       </form>

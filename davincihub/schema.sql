@@ -98,7 +98,8 @@ CREATE TABLE preguntas (
     cuerpo TEXT NOT NULL,
     creado TEXT NOT NULL,
     imagen_tipo TEXT,
-    imagen BYTEA
+    imagen BYTEA,
+    oculto INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))
 );
 
 CREATE TABLE respuestas (
@@ -108,7 +109,8 @@ CREATE TABLE respuestas (
     cuerpo TEXT NOT NULL,
     aceptada INTEGER NOT NULL DEFAULT 0 CHECK (aceptada IN (0, 1)),
     creado TEXT NOT NULL,
-    respuesta_padre_id INTEGER REFERENCES respuestas (id)
+    respuesta_padre_id INTEGER REFERENCES respuestas (id),
+    oculto INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))
 );
 
 CREATE UNIQUE INDEX idx_respuesta_aceptada ON respuestas (pregunta_id) WHERE aceptada = 1;
@@ -133,7 +135,8 @@ CREATE TABLE publicaciones (
     modalidad TEXT NOT NULL CHECK (modalidad IN ('venta', 'intercambio', 'prestamo')),
     precio REAL,
     estado TEXT NOT NULL DEFAULT 'activa' CHECK (estado IN ('activa', 'pausada', 'cerrada')),
-    creado TEXT NOT NULL
+    creado TEXT NOT NULL,
+    oculto INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))
 );
 
 CREATE TABLE solicitudes (
@@ -249,7 +252,8 @@ CREATE TABLE actividades (
         CHECK (estado IN ('pendiente', 'aprobada', 'rechazada', 'cancelada')),
     motivo_rechazo TEXT,
     reserva_id INTEGER REFERENCES reservas (id),
-    creado TEXT NOT NULL
+    creado TEXT NOT NULL,
+    oculto INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))
 );
 
 CREATE TABLE inscripciones (
@@ -292,5 +296,9 @@ CREATE TABLE reportes (
     estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'resuelto')),
     resolucion TEXT,
     resuelto_por INTEGER REFERENCES usuarios (id),
-    creado TEXT NOT NULL
+    creado TEXT NOT NULL,
+    accion TEXT,
+    resuelto TEXT
 );
+CREATE UNIQUE INDEX idx_reportes_unico ON reportes (autor_id, tipo_objeto, objeto_id);
+CREATE INDEX idx_reportes_estado ON reportes (estado, creado);

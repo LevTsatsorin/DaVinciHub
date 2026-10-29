@@ -93,7 +93,7 @@ def _completar(grupo: dict, yo: int) -> None:
         grupo["objetos"] = db.query(
             "SELECT p.id, p.titulo, p.categoria, p.modalidad, p.precio FROM coincidencias c"
             " JOIN publicaciones p ON p.id = c.publicacion_id"
-            " WHERE c.solicitud_id = :solicitud AND p.estado = 'activa'"
+            " WHERE c.solicitud_id = :solicitud AND p.estado = 'activa' AND p.oculto = 0"
             " ORDER BY c.creado DESC, c.id DESC LIMIT 3",
             solicitud=solicitud_id,
         )

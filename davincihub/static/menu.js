@@ -16,13 +16,13 @@ document.addEventListener("keydown", (evento) => {
 });
 
 document.addEventListener("click", (evento) => {
-  document.querySelectorAll(".menu-perfil[open], .chat-temas[open]").forEach((menu) => {
+  document.querySelectorAll(".menu-perfil[open], .chat-temas[open], .reporte-detalles[open]").forEach((menu) => {
     if (!menu.contains(evento.target)) menu.open = false;
   });
 });
 document.addEventListener("keydown", (evento) => {
   if (evento.key !== "Escape") return;
-  document.querySelectorAll(".menu-perfil[open], .chat-temas[open]").forEach((menu) => {
+  document.querySelectorAll(".menu-perfil[open], .chat-temas[open], .reporte-detalles[open]").forEach((menu) => {
     menu.open = false;
   });
 });

@@ -158,7 +158,7 @@ def obtener_actividad(actividad_id: int) -> dict | None:
 
 
 def _filtro_publicas(desde: str | None, hasta: str | None, excluir: int | None) -> tuple[str, dict]:
-    sql = " WHERE a.estado = 'aprobada' AND COALESCE(a.fin, a.inicio) >= :ahora"
+    sql = " WHERE a.estado = 'aprobada' AND COALESCE(a.fin, a.inicio) >= :ahora AND a.oculto = 0"
     params: dict = {"ahora": ahora_local()}
     if desde:
         sql += " AND a.inicio >= :desde"
@@ -207,7 +207,7 @@ def dias_con_actividades(desde: str, hasta: str) -> dict[str, int]:
     """Cantidad de actividades aprobadas que todavía no terminaron, por día, para el calendario."""
     filas = db.query(
         "SELECT substr(inicio, 1, 10) AS dia, count(*) AS n FROM actividades"
-        " WHERE estado = 'aprobada' AND inicio >= :desde AND inicio < :hasta"
+        " WHERE estado = 'aprobada' AND oculto = 0 AND inicio >= :desde AND inicio < :hasta"
         "   AND COALESCE(fin, inicio) >= :ahora"
         " GROUP BY substr(inicio, 1, 10)",
         desde=desde,
@@ -233,7 +233,7 @@ def listar_actividades_creador(creador_id: int) -> list[dict]:
     return filas
 
 
-def listar_actividades_admin(estado: str | None = None) -> list[dict]:
+def listar_actividades_admin(estado: str | None = None, limite: int | None = None, salto: int = 0) -> list[dict]:
     """Lista actividades para el panel de administración, opcionalmente filtrando por estado."""
     sql = (
         "SELECT a.*, u.nombre AS creador_nombre, u.apellido AS creador_apellido, u.email AS creador_email,"
@@ -246,7 +246,10 @@ def listar_actividades_admin(estado: str | None = None) -> list[dict]:
     if estado:
         sql += " WHERE a.estado = :estado"
         params["estado"] = estado
-    sql += " ORDER BY a.estado = 'pendiente' DESC, a.creado DESC"
+    sql += " ORDER BY CASE WHEN a.estado = 'pendiente' THEN 0 ELSE 1 END, a.creado DESC, a.id DESC"
+    if limite:
+        sql += " LIMIT :limite OFFSET :salto"
+        params |= {"limite": limite, "salto": salto}
 
     filas = db.query(sql, **params)
     for act in filas:

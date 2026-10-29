@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "reportes/_boton_reporte.html" import boton_reporte %}
 
 {% block titulo %}{{ estudiante.nombre }} {{ estudiante.apellido }} — Da Vinci Hub{% endblock %}
 
@@ -11,11 +12,14 @@
 {% set es_yo = g.usuario and g.usuario.id == estudiante.id %}
 <section class="contenedor pagina-modulo pagina-perfil">
   <header class="ficha-usuario perfil-cabecera fondo-oscuro">
-    {{ avatar(estudiante, "ficha-usuario-avatar perfil-avatar") }}
+    <span class="perfil-avatar-marco">
+      {{ avatar(estudiante, "ficha-usuario-avatar perfil-avatar") }}
+      {% if materias %}<img class="insignia insignia-avatar" src="{{ url_for('static', filename='img/insignias/catedra.png') }}" alt="" title="Estudiante de cátedra">{% endif %}
+    </span>
     <div class="ficha-usuario-datos">
       <div class="ficha-usuario-estados">
         <span class="estado estado-activo">Estudiante</span>
-        {% if materias %}<span class="estado estado-catedra">Cátedra</span>{% endif %}
+        {% if materias %}<span class="estado estado-catedra">Estudiante de cátedra</span>{% endif %}
       </div>
       <h1>{{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
       <ul class="cifras-cabecera">
@@ -40,6 +44,7 @@
             </form>
           {% endif %}
           <a class="boton boton-ficha" href="{{ url_for('perfil.chat', usuario_id=estudiante.id) }}">Escribir mensaje</a>
+          {{ boton_reporte('usuario', estudiante.id, request.full_path, estudiante.id) }}
         {% elif not g.usuario %}
           <a class="boton boton-primario" href="{{ url_for('auth.login') }}">Ingresá para conectar</a>
         {% else %}

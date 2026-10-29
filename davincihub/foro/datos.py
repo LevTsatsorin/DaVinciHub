@@ -83,7 +83,8 @@ def listar_preguntas(
     if autor_id is not None:
         condiciones.append("p.autor_id = :autor_id")
         parametros["autor_id"] = autor_id
-    donde = f" WHERE {' AND '.join(condiciones)}" if condiciones else ""
+    condiciones.append("p.oculto = 0")
+    donde = f" WHERE {' AND '.join(condiciones)}"
     return db.query(
         "SELECT p.id, p.autor_id, p.titulo, p.cuerpo, p.creado, m.nombre AS materia,"
         " c.nombre AS carrera, u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
@@ -93,7 +94,7 @@ def listar_preguntas(
         " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = p.autor_id) AS autor_tiene_foto"
         " FROM preguntas p JOIN materias m ON m.id = p.materia_id"
         " JOIN carreras c ON c.id = m.carrera_id JOIN usuarios u ON u.id = p.autor_id"
-        " LEFT JOIN respuestas r ON r.pregunta_id = p.id"
+        " LEFT JOIN respuestas r ON r.pregunta_id = p.id AND r.oculto = 0"
         f"{donde}"
         " GROUP BY p.id, m.nombre, m.cuatrimestre, c.nombre, u.nombre, u.apellido"
         " ORDER BY CASE WHEN COUNT(r.id) = 0 THEN 0 ELSE 1 END, p.creado DESC, p.id DESC",
@@ -106,9 +107,9 @@ def obtener_pregunta(pregunta_id: int) -> dict | None:
         "SELECT p.id, p.autor_id, p.materia_id, p.titulo, p.cuerpo, p.creado,"
         " m.nombre AS materia, m.carrera_id, c.nombre AS carrera,"
         " u.nombre AS autor_nombre, u.apellido AS autor_apellido,"
-        " u.rol AS autor_rol, ca.nombre AS autor_carrera,"
+        " u.rol AS autor_rol, ca.nombre AS autor_carrera, p.oculto,"
         " EXISTS (SELECT 1 FROM preguntas pa WHERE pa.id = p.id AND pa.imagen IS NOT NULL) AS tiene_imagen,"
-        " (SELECT COUNT(*) FROM respuestas r WHERE r.pregunta_id = p.id) AS cantidad_respuestas,"
+        " (SELECT COUNT(*) FROM respuestas r WHERE r.pregunta_id = p.id AND r.oculto = 0) AS cantidad_respuestas,"
         " (SELECT id FROM respuestas r WHERE r.pregunta_id = p.id AND r.aceptada = 1) AS respuesta_aceptada_id"
         " FROM preguntas p JOIN materias m ON m.id = p.materia_id"
         " JOIN carreras c ON c.id = m.carrera_id JOIN usuarios u ON u.id = p.autor_id"
@@ -131,7 +132,7 @@ def listar_respuestas(pregunta_id: int, usuario_id: int) -> list[dict]:
         " LEFT JOIN carreras ca ON ca.id = u.carrera_id"
         " JOIN preguntas p ON p.id = r.pregunta_id"
         " JOIN materias m ON m.id = p.materia_id"
-        " WHERE r.pregunta_id = :pregunta"
+        " WHERE r.pregunta_id = :pregunta AND r.oculto = 0"
         " ORDER BY r.creado ASC, r.id ASC",
         pregunta=pregunta_id,
         usuario=usuario_id,
@@ -150,7 +151,7 @@ def listar_respuestas(pregunta_id: int, usuario_id: int) -> list[dict]:
             padre = por_id.get(padre_id)
             if padre is not None and padre["pregunta_id"] == pregunta_id:
                 padre["respuestas_hijas"].append(respuesta)
-                continue
+            continue
         respuestas_hijas.setdefault(None, []).append(respuesta)
 
     raices = respuestas_hijas.get(None, [])
@@ -175,7 +176,7 @@ def autores(usuario_ids: set[int], yo: int) -> dict[int, dict]:
         return {}
     marcadores = ", ".join(f":u{i}" for i in range(len(usuario_ids)))
     filas = db.query(
-        "SELECT u.id, u.nombre, u.apellido, u.rol, u.anio, u.comision, c.nombre AS carrera,"
+        "SELECT u.id, u.nombre, u.apellido, u.rol, u.anio, u.comision, u.catedra, c.nombre AS carrera,"
         " EXISTS (SELECT 1 FROM fotos_perfil f WHERE f.usuario_id = u.id) AS tiene_foto,"
         " x.estado AS conexion_estado, x.solicitante_id AS conexion_solicitante"
         " FROM usuarios u LEFT JOIN carreras c ON c.id = u.carrera_id"
