@@ -376,3 +376,25 @@ def test_aceptaciones_simultaneas_no_prestan_dos_veces(app, solicitud, publicaci
     assert sorted(resultados) == ["aceptado", "ocupado"]
     with app.app_context():
         assert db.query_one("SELECT count(*) AS n FROM prestamos WHERE estado = 'aceptado'")["n"] == 1
+
+
+@pytest.mark.parametrize('excepto', [None, 7])
+def test_ocupado_no_envia_parametro_null_sin_tipo(app, monkeypatch, excepto):
+    consultas = []
+    def capturar(sql, **params):
+        consultas.append((sql, params))
+    monkeypatch.setattr(prestamos.db, 'query_one', capturar)
+    assert prestamos.ocupado(33, excepto) is False
+    sql, params = consultas[0]
+    assert 'IS NULL' not in sql
+    assert params == ({'publicacion': 33} if excepto is None else {'publicacion': 33, 'excepto': 7})
+    assert ('id <> :excepto' in sql) == (excepto is not None)
+
+
+def test_ocupado_respeta_exclusion_del_prestamo_actual(app, solicitud, publicacion):
+    with app.app_context():
+        assert not prestamos.ocupado(publicacion)
+        prestamos.cambiar(solicitud, 3, 'aceptar', fechas())
+        assert prestamos.ocupado(publicacion)
+        assert not prestamos.ocupado(publicacion, excepto=solicitud)
+        assert prestamos.ocupado(publicacion, excepto=solicitud + 100)

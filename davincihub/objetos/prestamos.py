@@ -70,11 +70,16 @@ def obtener(prestamo_id):
 
 
 def ocupado(publicacion_id, excepto=None):
+    # No enviar un NULL sin tipo a PostgreSQL ("param IS NULL" falla al preparar).
+    exclusion = " AND id <> :excepto" if excepto is not None else ""
+    params = {"publicacion": publicacion_id}
+    if excepto is not None:
+        params["excepto"] = excepto
     return db.query_one(
         "SELECT id FROM prestamos WHERE publicacion_id = :publicacion"
         " AND estado IN ('aceptado', 'en_prestamo', 'vencido')"
-        " AND (:excepto IS NULL OR id <> :excepto) LIMIT 1",
-        publicacion=publicacion_id, excepto=excepto,
+        + exclusion + " LIMIT 1",
+        **params,
     ) is not None
 
 
