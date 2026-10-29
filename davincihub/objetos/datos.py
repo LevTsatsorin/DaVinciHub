@@ -127,13 +127,15 @@ def _propia(publicacion_id: int, usuario_id: int) -> dict:
 
 
 def editar(publicacion_id: int, usuario_id: int, form):
-    from davincihub.objetos import busquedas
+    from davincihub.objetos import busquedas, prestamos
 
     with db.transaccion():
         publicacion = _propia(publicacion_id, usuario_id)
         if publicacion["estado"] == "cerrada":
             raise ErrorPublicacion({"general": "Una publicación cerrada ya no se puede editar."})
         campos = _validar(form, publicacion["carrera_id"])
+        if campos["modalidad"] != "prestamo" and prestamos.ocupado(publicacion_id):
+            raise ErrorPublicacion({"general": "Registrá la devolución o cancelá el préstamo antes de cambiar la modalidad."})
         db.execute(
             "UPDATE publicaciones SET carrera_id = :carrera_id, titulo = :titulo,"
             " descripcion = :descripcion, categoria = :categoria, estado_objeto = :estado_objeto,"
@@ -144,7 +146,7 @@ def editar(publicacion_id: int, usuario_id: int, form):
 
 
 def cambiar_estado(publicacion_id: int, usuario_id: int, estado: str):
-    from davincihub.objetos import busquedas
+    from davincihub.objetos import busquedas, prestamos
 
     with db.transaccion():
         publicacion = _propia(publicacion_id, usuario_id)
@@ -152,6 +154,8 @@ def cambiar_estado(publicacion_id: int, usuario_id: int, estado: str):
             raise ErrorPublicacion({"general": "Estado de publicación inválido."})
         if publicacion["estado"] == "cerrada":
             raise ErrorPublicacion({"general": "La publicación ya está cerrada."})
+        if estado == "cerrada" and prestamos.ocupado(publicacion_id):
+            raise ErrorPublicacion({"general": "Registrá la devolución o cancelá el préstamo antes de eliminar la publicación."})
         db.execute("UPDATE publicaciones SET estado = :estado WHERE id = :id",
                    estado=estado, id=publicacion_id)
         if estado == "activa":

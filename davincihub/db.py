@@ -149,6 +149,10 @@ def _leer_sql(nombre: str) -> str:
 
 # columnas y tablas agregadas después del primer deploy: se crean solas al arrancar
 COLUMNAS_AGREGADAS = [
+    ("prestamos", "mensaje", "TEXT NOT NULL DEFAULT ''"),
+    ("prestamos", "motivo_cierre", "TEXT NOT NULL DEFAULT ''"),
+    ("prestamos", "entregado", "TEXT"),
+    ("prestamos", "devuelto", "TEXT"),
     ("solicitudes", "modalidad", "TEXT NOT NULL DEFAULT 'cualquiera' CHECK (modalidad IN ('cualquiera', 'venta', 'intercambio', 'prestamo'))"),
     ("publicaciones", "carrera_id", "INTEGER REFERENCES carreras (id)"),
     ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
@@ -168,6 +172,15 @@ COLUMNAS_AGREGADAS = [
 ]
 
 TABLAS_AGREGADAS = {
+    "prestamos_movimientos": """CREATE TABLE IF NOT EXISTS prestamos_movimientos (
+        id {{PK}},
+        prestamo_id INTEGER NOT NULL REFERENCES prestamos (id),
+        estado_anterior TEXT,
+        estado_nuevo TEXT NOT NULL,
+        actor_id INTEGER REFERENCES usuarios (id),
+        detalle TEXT NOT NULL DEFAULT '',
+        creado TEXT NOT NULL
+    )""",
     "coincidencias": """CREATE TABLE IF NOT EXISTS coincidencias (
         id {{PK}},
         solicitud_id INTEGER NOT NULL REFERENCES solicitudes (id),

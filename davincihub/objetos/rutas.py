@@ -1,10 +1,17 @@
+from datetime import date
+
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from davincihub import seguridad
-from davincihub.objetos import busquedas, datos
-from davincihub.utiles import paginas_visibles
+from davincihub.objetos import busquedas, datos, prestamos
+from davincihub.utiles import hoy_local, paginas_visibles
 
 bp = Blueprint("objetos", __name__, url_prefix="/objetos")
+
+
+@bp.app_template_filter("fecha_prestamo")
+def fecha_prestamo(valor):
+    return date.fromisoformat(valor).strftime("%d/%m/%Y") if valor else "Sin fecha"
 
 
 @bp.app_template_filter("precio_pesos")
@@ -25,6 +32,8 @@ def opciones():
         "modalidades": datos.MODALIDADES, "estados": datos.ESTADOS,
         "modalidades_busqueda": busquedas.MODALIDADES,
         "categorias_busqueda": busquedas.CATEGORIAS,
+        "estados_prestamo": prestamos.ESTADOS,
+        "hoy": hoy_local(),
     }
 
 
@@ -107,7 +116,12 @@ def mis_publicaciones():
 @bp.get("/<int:publicacion_id>")
 @seguridad.requiere_login
 def detalle(publicacion_id: int):
-    return render_template("objetos/detalle.html", publicacion=_publicacion(publicacion_id))
+    publicacion = _publicacion(publicacion_id)
+    return render_template(
+        "objetos/detalle.html", publicacion=publicacion,
+        prestamo_abierto=prestamos.pendiente_propio(publicacion_id, g.usuario["id"]),
+        objeto_ocupado=prestamos.ocupado(publicacion_id),
+    )
 
 
 def _formulario(publicacion: dict | None = None):
@@ -236,3 +250,88 @@ def cerrar_busqueda(solicitud_id: int):
         abort(404)
     flash("Búsqueda cerrada. Ya no generará nuevas coincidencias ni avisos.")
     return redirect(url_for("objetos.detalle_busqueda", solicitud_id=solicitud_id))
+
+
+def _mi_prestamo(prestamo_id):
+    _solo_estudiante()
+    prestamo = prestamos.obtener(prestamo_id)
+    if prestamo is None or g.usuario["id"] not in (prestamo["propietario_id"], prestamo["solicitante_id"]):
+        abort(404)
+    return prestamo
+
+
+@bp.get("/prestamos")
+@seguridad.requiere_login
+def mis_prestamos():
+    _solo_estudiante()
+    try:
+        pagina = int(request.args.get("pagina", "1")[:9])
+    except ValueError:
+        pagina = 1
+    resultado = prestamos.listar(
+        g.usuario["id"], request.args.get("vista", "pedidos"), request.args.get("estado", ""), pagina,
+    )
+    return render_template("objetos/prestamos.html", **resultado)
+
+
+@bp.route("/<int:publicacion_id>/solicitar-prestamo", methods=("GET", "POST"))
+@seguridad.requiere_login
+def solicitar_prestamo(publicacion_id):
+    _solo_estudiante()
+    publicacion = _publicacion(publicacion_id)
+    if publicacion["autor_id"] == g.usuario["id"]:
+        abort(403)
+    if publicacion["modalidad"] != "prestamo":
+        return render_template("error.html", codigo=409, mensaje="Esta publicación no ofrece préstamos."), 409
+    errores = {}
+    if request.method == "POST":
+        try:
+            prestamo_id = prestamos.solicitar(publicacion_id, g.usuario["id"], request.form)
+        except prestamos.ErrorPrestamo as error:
+            errores = error.errores
+        except PermissionError:
+            abort(403)
+        except LookupError:
+            abort(404)
+        else:
+            flash("Solicitud enviada. Te avisaremos cuando el propietario responda.")
+            return redirect(url_for("objetos.detalle_prestamo", prestamo_id=prestamo_id))
+    abierto = prestamos.pendiente_propio(publicacion_id, g.usuario["id"])
+    if request.method == "GET" and abierto:
+        return redirect(url_for("objetos.detalle_prestamo", prestamo_id=abierto["id"]))
+    return render_template(
+        "objetos/prestamo_formulario.html", publicacion=publicacion, errores=errores,
+        datos_form=request.form, objeto_ocupado=prestamos.ocupado(publicacion_id),
+    ), 400 if errores else 200
+
+
+@bp.get("/prestamos/<int:prestamo_id>")
+@seguridad.requiere_login
+def detalle_prestamo(prestamo_id):
+    prestamo = _mi_prestamo(prestamo_id)
+    return _detalle_prestamo(prestamo)
+
+
+def _detalle_prestamo(prestamo, errores=None):
+    return render_template(
+        "objetos/prestamo_detalle.html", prestamo=prestamo,
+        movimientos=prestamos.movimientos(prestamo["id"]), errores=errores or {},
+        acciones=prestamos.acciones(prestamo, g.usuario["id"]),
+        datos_form=request.form if errores else prestamo,
+    )
+
+
+@bp.post("/prestamos/<int:prestamo_id>/accion")
+@seguridad.requiere_login
+def accion_prestamo(prestamo_id):
+    prestamo = _mi_prestamo(prestamo_id)
+    try:
+        prestamos.cambiar(prestamo_id, g.usuario["id"], request.form.get("accion", ""), request.form)
+    except prestamos.ErrorPrestamo as error:
+        return _detalle_prestamo(prestamos.obtener(prestamo_id), error.errores), 409 if "general" in error.errores else 400
+    except PermissionError:
+        abort(403)
+    except LookupError:
+        abort(404)
+    flash("Préstamo actualizado.")
+    return redirect(url_for("objetos.detalle_prestamo", prestamo_id=prestamo["id"]))

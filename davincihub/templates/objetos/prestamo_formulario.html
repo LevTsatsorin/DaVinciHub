@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block titulo %}Pedir prestado — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-objeto-form">
+  <a class="volver" href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">← Volver al objeto</a>
+  <div class="cabecera-modulo"><h1>Pedir prestado</h1></div>
+  <p class="ayuda">{{ publicacion.titulo }} · {{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</p>
+  {% if objeto_ocupado %}
+    <div class="estado-vacio tarjeta"><h2>El objeto tiene un préstamo en curso</h2><p>Podrás solicitarlo cuando se registre la devolución o se cancele la reserva.</p><a class="boton" href="{{ url_for('objetos.catalogo', modalidad='prestamo') }}">Ver otros objetos</a></div>
+  {% else %}
+  <form class="formulario-espacio" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if errores %}<p class="aviso aviso-error" role="alert">{{ errores.get('general', 'Revisá los campos indicados.') }}</p>{% endif %}
+    <div class="tarjeta">
+      <h2 class="titulo-tarjeta">¿Cuándo lo necesitás?</h2>
+      <div class="grilla-datos">
+        {% for campo, etiqueta in [('fecha_entrega', 'Fecha de entrega'), ('fecha_devolucion', 'Fecha de devolución')] %}
+        <div class="campo">
+          <label for="{{ campo }}">{{ etiqueta }} *</label>
+          <input type="date" id="{{ campo }}" name="{{ campo }}" min="{{ hoy }}" required value="{{ datos_form.get(campo, '') }}"{% if errores.get(campo) %} aria-invalid="true" aria-describedby="error-{{ campo }}"{% endif %}>
+          {% if errores.get(campo) %}<p class="error-texto" id="error-{{ campo }}">{{ errores[campo] }}</p>{% endif %}
+        </div>
+        {% endfor %}
+        <div class="campo campo-completo">
+          <label for="mensaje">Mensaje para el propietario <span class="opcional">(opcional)</span></label>
+          <textarea id="mensaje" name="mensaje" maxlength="2000" rows="3" placeholder="Contale para qué lo necesitás o dónde podrían encontrarse."{% if errores.get('mensaje') %} aria-invalid="true" aria-describedby="error-mensaje"{% endif %}>{{ datos_form.get('mensaje', '') }}</textarea>
+          {% if errores.get('mensaje') %}<p class="error-texto" id="error-mensaje">{{ errores.mensaje }}</p>{% endif %}
+        </div>
+      </div>
+      <p class="ayuda">El propietario debe aceptar el pedido y confirmar las fechas y condiciones antes de entregar el objeto. El préstamo es sin costo.</p>
+    </div>
+    <div class="barra-guardar"><a class="boton" href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">Cancelar</a><button class="boton boton-primario" type="submit">Enviar solicitud</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

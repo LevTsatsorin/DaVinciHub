@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS espacios;
 DROP TABLE IF EXISTS valoraciones_operaciones;
 DROP TABLE IF EXISTS ventas;
 DROP TABLE IF EXISTS intercambios;
+DROP TABLE IF EXISTS prestamos_movimientos;
 DROP TABLE IF EXISTS prestamos;
 DROP TABLE IF EXISTS coincidencias;
 DROP TABLE IF EXISTS solicitudes;
@@ -170,6 +171,20 @@ CREATE TABLE prestamos (
     fecha_entrega TEXT,
     fecha_devolucion TEXT,
     condiciones TEXT,
+    mensaje TEXT NOT NULL DEFAULT '',
+    motivo_cierre TEXT NOT NULL DEFAULT '',
+    entregado TEXT,
+    devuelto TEXT,
+    creado TEXT NOT NULL
+);
+
+CREATE TABLE prestamos_movimientos (
+    id {{PK}},
+    prestamo_id INTEGER NOT NULL REFERENCES prestamos (id),
+    estado_anterior TEXT,
+    estado_nuevo TEXT NOT NULL,
+    actor_id INTEGER REFERENCES usuarios (id),
+    detalle TEXT NOT NULL DEFAULT '',
     creado TEXT NOT NULL
 );
 
