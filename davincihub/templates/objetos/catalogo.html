@@ -13,6 +13,7 @@
           <a class="enlace-admin" href="{{ url_for('objetos.catalogo') if mias else url_for('objetos.mis_publicaciones') }}">{{ 'Ver catálogo' if mias else 'Mis publicaciones' }}</a>
           <a class="enlace-admin" href="{{ url_for('objetos.nueva_busqueda') }}">Busco un objeto</a>
           <a class="enlace-admin" href="{{ url_for('objetos.mis_busquedas') }}">Mis búsquedas</a>
+          <a class="enlace-admin" href="{{ url_for('objetos.mis_prestamos') }}">Mis préstamos</a>
         </div>
       {% endif %}
     </div>

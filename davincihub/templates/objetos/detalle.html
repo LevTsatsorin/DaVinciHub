@@ -28,6 +28,15 @@
         <div><dt>Fecha de publicación</dt><dd>{{ publicacion.creado | fecha_corta }}</dd></div>
       </dl>
       {% if not propia and g.usuario.rol == 'estudiante' %}
+        {% if publicacion.modalidad == 'prestamo' %}
+          {% if prestamo_abierto %}
+            <a class="boton boton-primario" href="{{ url_for('objetos.detalle_prestamo', prestamo_id=prestamo_abierto.id) }}">Ver mi solicitud</a>
+          {% elif objeto_ocupado %}
+            <p class="prestamo-disponibilidad">Este objeto tiene un préstamo en curso.</p>
+          {% else %}
+            <a class="boton boton-primario" href="{{ url_for('objetos.solicitar_prestamo', publicacion_id=publicacion.id) }}">Pedir prestado</a>
+          {% endif %}
+        {% endif %}
         <a class="boton boton-primario" href="{{ url_for('perfil.chat', usuario_id=publicacion.autor_id) }}">Escribirle a {{ publicacion.autor_nombre }}</a>
         {{ boton_reporte('publicacion', publicacion.id, request.full_path, publicacion.autor_id) }}
       {% endif %}
@@ -40,6 +49,7 @@
   {% if propia and publicacion.estado != 'cerrada' %}
     <section class="tarjeta objeto-controles" aria-label="Administrar mi publicación">
       <h2 class="titulo-tarjeta">Tu publicación</h2>
+      {% if publicacion.modalidad == 'prestamo' %}<p><a class="enlace-admin" href="{{ url_for('objetos.mis_prestamos', vista='otorgados') }}">Ver pedidos de préstamo</a>{% if objeto_ocupado %} · Hay un préstamo en curso.{% endif %}</p>{% endif %}
       <div class="objetos-acciones">
         <a class="boton boton-primario" href="{{ url_for('objetos.editar', publicacion_id=publicacion.id) }}">Editar</a>
         <form method="post" action="{{ url_for('objetos.estado', publicacion_id=publicacion.id) }}">

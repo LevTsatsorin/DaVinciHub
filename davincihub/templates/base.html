@@ -47,6 +47,7 @@
               <a href="{{ url_for('perfil.chats') }}"{% if request.endpoint == 'perfil.chats' %} aria-current="page"{% endif %}>Mensajes</a>
               <a href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a>
               <a href="{{ url_for('objetos.mis_busquedas') }}">Mis búsquedas</a>
+              <a href="{{ url_for('objetos.mis_prestamos') }}">Mis préstamos</a>
             {% else %}
               <a href="{{ url_for('reportes.admin_cola') }}">Reportes{% if reportes_pendientes %} <span class="campana-cantidad">{{ reportes_pendientes }}</span>{% endif %}</a>
               <a href="{{ url_for('actividades.admin_panel') }}">Moderación</a>
@@ -192,6 +193,7 @@
         {% if g.usuario.rol == 'estudiante' %}
           <a href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a>
           <a href="{{ url_for('objetos.mis_busquedas') }}">Mis búsquedas</a>
+              <a href="{{ url_for('objetos.mis_prestamos') }}">Mis préstamos</a>
           <a href="{{ url_for('foro.index', mis_dudas=1) }}">Mis preguntas</a>
         {% endif %}
       </nav>

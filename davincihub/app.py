@@ -15,7 +15,9 @@ from davincihub import (
     usuarios,
 )
 from davincihub import inicio as pagina_inicio
+from davincihub.objetos import prestamos
 from davincihub.objetos import rutas as objetos_rutas
+from davincihub.objetos.prestamos_demo import comando_seed_prestamos
 from davincihub.reportes import bp as reportes_bp
 from davincihub.reservas import rutas as reservas_rutas
 from davincihub.utiles import paginas_visibles
@@ -50,6 +52,9 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(objetos_rutas.bp)
     app.register_blueprint(reportes_bp)
     app.before_request(seguridad.cargar_usuario)
+    app.before_request(prestamos.revisar_vencidos)
+    app.cli.add_command(prestamos.marcar_vencidos_command)
+    app.cli.add_command(comando_seed_prestamos)
     app.add_template_global(seguridad.es_catedra)
 
     @app.template_global()

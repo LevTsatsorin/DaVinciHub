@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block titulo %}Préstamo de {{ prestamo.titulo }} — Da Vinci Hub{% endblock %}
+{% macro confirmar(accion, etiqueta, texto, positivo=true) %}
+<form method="post" action="{{ url_for('objetos.accion_prestamo', prestamo_id=prestamo.id) }}" data-confirmar="{{ etiqueta }}" data-confirmar-texto="{{ texto }}" data-confirmar-boton="{{ etiqueta }}"{% if positivo %} data-confirmar-tono="positivo"{% endif %}>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="{{ accion }}">
+  <button class="boton{% if positivo %} boton-primario{% endif %}" type="submit">{{ etiqueta }}</button>
+</form>
+{% endmacro %}
+{% block contenido %}
+{% set propietario = prestamo.propietario_id == g.usuario.id %}
+<section class="contenedor pagina-modulo pagina-objetos pagina-prestamo">
+  <a class="volver" href="{{ url_for('objetos.mis_prestamos', vista='otorgados' if propietario else 'pedidos') }}">← Mis préstamos</a>
+  {% if errores %}<p class="aviso aviso-error" role="alert">{{ errores.get('general', 'Revisá las fechas y condiciones indicadas.') }}</p>{% endif %}
+  <section class="tarjeta busqueda-resumen">
+    <div class="busqueda-resumen-cabecera"><span class="objeto-categoria">Préstamo · {{ categorias.get(prestamo.categoria, prestamo.categoria) }}</span><span class="prestamo-estado prestamo-estado-{{ prestamo.estado }}">{{ estados_prestamo[prestamo.estado] }}</span></div>
+    <h1>{{ prestamo.titulo }}</h1>
+    <div class="prestamo-participantes">
+      <p><span>Propietario</span><a href="{{ url_for('perfil.ver', usuario_id=prestamo.propietario_id) }}">{{ prestamo.propietario_nombre }} {{ prestamo.propietario_apellido }}</a></p>
+      <p><span>Solicitante</span><a href="{{ url_for('perfil.ver', usuario_id=prestamo.solicitante_id) }}">{{ prestamo.solicitante_nombre }} {{ prestamo.solicitante_apellido }}</a></p>
+      <p><span>{{ 'Entrega solicitada' if not prestamo.condiciones else 'Entrega acordada' }}</span>{{ prestamo.fecha_entrega | fecha_prestamo }}</p>
+      <p><span>{{ 'Devolución solicitada' if not prestamo.condiciones else 'Devolución acordada' }}</span>{{ prestamo.fecha_devolucion | fecha_prestamo }}</p>
+    </div>
+    {% if prestamo.mensaje %}<div class="prestamo-nota"><h2>Mensaje del solicitante</h2><p>{{ prestamo.mensaje }}</p></div>{% endif %}
+    {% if prestamo.condiciones %}<div class="prestamo-nota"><h2>Condiciones acordadas</h2><p>{{ prestamo.condiciones }}</p></div>{% endif %}
+    {% if prestamo.motivo_cierre %}<p class="ayuda">{{ prestamo.motivo_cierre }}</p>{% endif %}
+    {% if prestamo.estado == 'vencido' %}<p class="prestamo-alerta" role="status">La fecha de devolución ya pasó. Coordiná la devolución; el propietario debe confirmar que recibió el objeto.</p>{% endif %}
+    {% if prestamo.estado == 'pendiente' and not propietario %}<p class="ayuda">Esperando la respuesta del propietario. Te avisaremos cuando acepte o rechace el pedido.</p>{% endif %}
+    <div class="objetos-acciones prestamo-enlaces">
+      {% if prestamo.estado_publicacion == 'activa' and not prestamo.oculto and not prestamo.propietario_bloqueado %}<a class="enlace-admin" href="{{ url_for('objetos.detalle', publicacion_id=prestamo.publicacion_id) }}">Ver publicación</a>{% endif %}
+      {% if not prestamo.propietario_bloqueado and not prestamo.solicitante_bloqueado %}<a class="enlace-admin" href="{{ url_for('perfil.chat', usuario_id=prestamo.solicitante_id if propietario else prestamo.propietario_id) }}">Coordinar por mensaje</a>{% endif %}
+    </div>
+  </section>
+  {% if 'aceptar' in acciones %}
+  <section class="tarjeta prestamo-responder">
+    <h2 class="titulo-tarjeta">Responder al pedido</h2><p class="ayuda">Confirmá con el solicitante las fechas y condiciones. Al aceptar, el objeto queda reservado hasta su devolución o cancelación.</p>
+    <form class="formulario-espacio" method="post" action="{{ url_for('objetos.accion_prestamo', prestamo_id=prestamo.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="aceptar">
+      <div class="grilla-datos">
+        {% for campo, etiqueta in [('fecha_entrega', 'Fecha de entrega'), ('fecha_devolucion', 'Fecha de devolución')] %}
+        <div class="campo"><label for="{{ campo }}">{{ etiqueta }} *</label><input type="date" id="{{ campo }}" name="{{ campo }}" min="{{ hoy }}" required value="{{ datos_form.get(campo, '') or '' }}"{% if errores.get(campo) %} aria-invalid="true" aria-describedby="error-{{ campo }}"{% endif %}>{% if errores.get(campo) %}<p class="error-texto" id="error-{{ campo }}">{{ errores[campo] }}</p>{% endif %}</div>
+        {% endfor %}
+        <div class="campo campo-completo"><label for="condiciones">Condiciones del préstamo *</label><textarea id="condiciones" name="condiciones" rows="3" maxlength="2000" required placeholder="Punto de encuentro, accesorios incluidos y cuidados del material."{% if errores.get('condiciones') %} aria-invalid="true" aria-describedby="error-condiciones"{% endif %}>{{ datos_form.get('condiciones', '') or '' }}</textarea>{% if errores.get('condiciones') %}<p class="error-texto" id="error-condiciones">{{ errores.condiciones }}</p>{% endif %}</div>
+      </div>
+      <button class="boton boton-primario" type="submit">Aceptar préstamo</button>
+    </form>
+    <div class="prestamo-rechazar">{{ confirmar('rechazar', 'Rechazar solicitud', 'El solicitante recibirá un aviso. El pedido se conserva en el historial.', false) }}</div>
+  </section>
+  {% endif %}
+  {% if 'entregar' in acciones or 'devolver' in acciones or 'cancelar' in acciones %}
+  <section class="tarjeta prestamo-controles"><h2 class="titulo-tarjeta">{{ 'Registrar devolución' if 'devolver' in acciones else 'Gestionar préstamo' }}</h2>
+    {% if 'devolver' in acciones %}<p class="ayuda">Confirmá la devolución solo después de recibir el objeto. Quedará disponible para nuevos préstamos.</p>{% endif %}
+    {% if prestamo.estado == 'aceptado' %}<p class="ayuda">{{ 'El propietario registrará la entrega y luego confirmará la devolución.' if not propietario else 'Registrá la entrega cuando le des el objeto al solicitante.' }}</p>{% endif %}
+    <div class="objetos-acciones">
+      {% if 'entregar' in acciones %}
+        {% if prestamo.fecha_entrega <= hoy <= prestamo.fecha_devolucion %}{{ confirmar('entregar', 'Registrar entrega', 'Confirmás que entregaste el objeto al solicitante. Después de la entrega, el préstamo solo finaliza al registrar la devolución.') }}
+        {% else %}<p class="ayuda">La entrega se registra entre las fechas acordadas. Si el plazo pasó, cancelá el préstamo y coordiná un nuevo pedido.</p>{% endif %}
+      {% endif %}
+      {% if 'devolver' in acciones %}{{ confirmar('devolver', 'Confirmar devolución', 'Confirmás que recibiste el objeto. El préstamo pasará a Devuelto y el material volverá a estar disponible.') }}{% endif %}
+      {% if 'cancelar' in acciones %}{{ confirmar('cancelar', 'Cancelar préstamo', 'Se avisará a la otra persona. La operación se conserva en el historial.', false) }}{% endif %}
+    </div>
+  </section>
+  {% endif %}
+  <section class="tarjeta prestamo-historial"><h2 class="titulo-tarjeta">Seguimiento del préstamo</h2>
+    {% if movimientos %}<ol>{% for m in movimientos %}<li><div><strong>{{ estados_prestamo.get(m.estado_nuevo, m.estado_nuevo) }}</strong><time>{{ m.creado | fecha_corta }}</time></div><p>{{ m.detalle }}</p><span class="ayuda">{{ m.nombre ~ ' ' ~ m.apellido if m.actor_id else 'Actualización automática' }}</span></li>{% endfor %}</ol>
+    {% else %}<p class="ayuda">Préstamo registrado el {{ prestamo.creado | fecha_corta }}.</p>{% endif %}
+  </section>
+</section>
+{% include 'espacios/_dialogo.html' %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

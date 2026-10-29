@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block titulo %}Mis préstamos — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="cabecera-seccion fondo-oscuro cabecera-objetos">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/objetos.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    <h1>Mis préstamos</h1>
+    <p>Tus pedidos y los materiales que compartís, con sus fechas y estado.</p>
+    <div class="acciones-cabecera"><a class="boton boton-primario" href="{{ url_for('objetos.catalogo', modalidad='prestamo') }}">Encontrar un objeto</a><a class="enlace-admin" href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a></div>
+  </div>
+</section>
+<section class="contenedor pagina-modulo pagina-objetos">
+  <nav class="objetos-estados" aria-label="Tipo de préstamo">
+    <a href="{{ url_for('objetos.mis_prestamos', vista='pedidos', estado=estado) }}"{% if vista == 'pedidos' %} aria-current="page"{% endif %}>Pedí prestado</a>
+    <a href="{{ url_for('objetos.mis_prestamos', vista='otorgados', estado=estado) }}"{% if vista == 'otorgados' %} aria-current="page"{% endif %}>Presté</a>
+  </nav>
+  <form class="prestamos-filtros" method="get">
+    <input type="hidden" name="vista" value="{{ vista }}">
+    <div class="campo"><label for="estado">Estado del préstamo</label><select id="estado" name="estado"><option value="">Todos los estados</option>{% for valor, nombre in estados_prestamo.items() %}<option value="{{ valor }}"{% if estado == valor %} selected{% endif %}>{{ nombre }}</option>{% endfor %}</select></div>
+    <button class="boton" type="submit">Filtrar</button>
+    <p class="resultado-filtros"><strong>{{ total }}</strong> {{ 'préstamo' if total == 1 else 'préstamos' }}</p>
+  </form>
+  {% if prestamos %}
+  <div class="busquedas-lista">
+    {% for pr in prestamos %}
+    <a class="tarjeta prestamo-tarjeta" href="{{ url_for('objetos.detalle_prestamo', prestamo_id=pr.id) }}">
+      <div><span class="objeto-categoria">{{ categorias.get(pr.categoria, pr.categoria) }}</span><h2>{{ pr.titulo }}</h2><p>{{ 'Propietario' if vista == 'pedidos' else 'Solicitante' }}: {{ (pr.propietario_nombre ~ ' ' ~ pr.propietario_apellido) if vista == 'pedidos' else (pr.solicitante_nombre ~ ' ' ~ pr.solicitante_apellido) }}</p><p class="prestamo-fechas">{{ pr.fecha_entrega | fecha_prestamo }} → {{ pr.fecha_devolucion | fecha_prestamo }}</p></div>
+      <div class="prestamo-tarjeta-estado"><span class="prestamo-estado prestamo-estado-{{ pr.estado }}">{{ estados_prestamo[pr.estado] }}</span><span class="prestamo-ver">Ver préstamo →</span></div>
+    </a>
+    {% endfor %}
+  </div>
+  {% if paginas > 1 %}{% set enlaces = paginacion('objetos.mis_prestamos', pagina, paginas, vista=vista, estado=estado) %}{% set etiqueta_paginacion = 'Páginas de préstamos' %}{% include '_paginacion.html' %}{% endif %}
+  {% else %}
+  <div class="estado-vacio"><h2>No hay préstamos para mostrar</h2><p>{{ 'Buscá un material y enviá tu primer pedido.' if vista == 'pedidos' else 'Acá aparecerán los pedidos sobre tus publicaciones.' }}</p><a class="boton boton-suave" href="{{ url_for('objetos.catalogo', modalidad='prestamo') }}">Ver objetos para préstamo</a></div>
+  {% endif %}
+</section>
+{% endblock %}
