@@ -8,6 +8,7 @@ DROP TABLE IF EXISTS reservas;
 DROP TABLE IF EXISTS horarios_espacios;
 DROP TABLE IF EXISTS espacios;
 DROP TABLE IF EXISTS valoraciones_operaciones;
+DROP TABLE IF EXISTS acuerdos_movimientos;
 DROP TABLE IF EXISTS ventas;
 DROP TABLE IF EXISTS intercambios;
 DROP TABLE IF EXISTS prestamos_movimientos;
@@ -196,6 +197,10 @@ CREATE TABLE intercambios (
     publicacion_ofrecida_id INTEGER REFERENCES publicaciones (id),
     estado TEXT NOT NULL DEFAULT 'propuesto'
         CHECK (estado IN ('propuesto', 'aceptado', 'completado', 'cancelado')),
+    confirmado_propietario INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_propietario IN (0, 1)),
+    confirmado_solicitante INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_solicitante IN (0, 1)),
+    motivo_cierre TEXT NOT NULL DEFAULT '',
+    completado TEXT,
     creado TEXT NOT NULL
 );
 
@@ -206,6 +211,22 @@ CREATE TABLE ventas (
     precio_acordado REAL,
     estado TEXT NOT NULL DEFAULT 'propuesta'
         CHECK (estado IN ('propuesta', 'aceptada', 'completada', 'cancelada')),
+    confirmado_propietario INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_propietario IN (0, 1)),
+    confirmado_solicitante INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_solicitante IN (0, 1)),
+    motivo_cierre TEXT NOT NULL DEFAULT '',
+    completado TEXT,
+    mensaje TEXT NOT NULL DEFAULT '',
+    creado TEXT NOT NULL
+);
+
+CREATE TABLE acuerdos_movimientos (
+    id {{PK}},
+    tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('intercambio', 'venta')),
+    operacion_id INTEGER NOT NULL,
+    estado_anterior TEXT,
+    estado_nuevo TEXT NOT NULL,
+    actor_id INTEGER REFERENCES usuarios (id),
+    detalle TEXT NOT NULL DEFAULT '',
     creado TEXT NOT NULL
 );
 

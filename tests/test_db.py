@@ -200,3 +200,53 @@ def test_postgres_detalle_objeto_y_ocupacion_sin_exclusion():
     respuesta = cliente.get(f"/objetos/{publicacion}")
     assert respuesta.status_code == 200
     assert "Cámara para verificar PostgreSQL" in respuesta.text
+
+
+def test_postgres_c4_migracion_y_ciclos_completos():
+    import os
+
+    from davincihub.app import create_app
+    from davincihub.objetos import acuerdos, datos
+
+    url = os.environ.get("TEST_DATABASE_URL", "")
+    if not url:
+        pytest.skip("sin TEST_DATABASE_URL")
+    aplicacion = create_app({"TESTING": True, "WTF_CSRF_ENABLED": False, "DATABASE_URL": url})
+    with aplicacion.app_context():
+        # Solo una base de pruebas desechable; nunca DATABASE_URL de producción.
+        db.init_db(demo=True)
+        publicaciones = db.query_one("SELECT count(*) AS n FROM publicaciones")["n"]
+        for tabla, columna, _ in db.COLUMNAS_AGREGADAS:
+            if tabla in ("ventas", "intercambios"):
+                db.execute(f"ALTER TABLE {tabla} DROP COLUMN {columna}")
+        db.execute("DROP TABLE acuerdos_movimientos")
+        db.migrar()
+        db.migrar()
+        assert db.query_one("SELECT count(*) AS n FROM publicaciones")["n"] == publicaciones
+        for tipo in ("venta", "intercambio"):
+            pid = datos.crear(3, {
+                "titulo": f"Material PostgreSQL {tipo}", "descripcion": "Material para estudiar.",
+                "categoria": "dibujo_diseno", "estado_objeto": "usado_buen_estado",
+                "modalidad": tipo, "precio": "30000",
+            })
+            form = {"oferta": "Ofrezco un libro de diseño.", "precio_acordado": "25000"}
+            _, aid = acuerdos.proponer(pid, 2, form)
+            _, competidor = acuerdos.proponer(pid, 4, form)
+            acuerdos.cambiar(tipo, aid, 3, "aceptar")
+            assert acuerdos.obtener(tipo, competidor)["estado"] == "cancelado"
+            acuerdos.cambiar(tipo, aid, 2, "confirmar")
+            assert acuerdos.obtener(tipo, aid)["estado"] == "aceptado"
+            acuerdos.cambiar(tipo, aid, 3, "confirmar")
+            assert acuerdos.obtener(tipo, aid)["estado"] == "completado"
+            assert datos.obtener(pid)["estado"] == "cerrada"
+            assert acuerdos.movimientos(tipo, aid)[-1]["estado_nuevo"] == "completado"
+            assert acuerdos.listar(2, tipo=tipo, estado="completado")["total"] == 1
+            cliente = aplicacion.test_client()
+            with cliente.session_transaction() as sesion:
+                sesion["usuario_id"] = 2
+            for ruta in ("/objetos/acuerdos", f"/objetos/acuerdos/{tipo}/{aid}"):
+                assert cliente.get(ruta).status_code == 200
+            assert cliente.get(f"/objetos/{pid}").status_code == 404  # Cerrada: solo su dueño.
+            with cliente.session_transaction() as sesion:
+                sesion["usuario_id"] = 3
+            assert cliente.get(f"/objetos/{pid}").status_code == 200

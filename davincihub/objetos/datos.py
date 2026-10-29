@@ -127,13 +127,15 @@ def _propia(publicacion_id: int, usuario_id: int) -> dict:
 
 
 def editar(publicacion_id: int, usuario_id: int, form):
-    from davincihub.objetos import busquedas, prestamos
+    from davincihub.objetos import acuerdos, busquedas, prestamos
 
     with db.transaccion():
         publicacion = _propia(publicacion_id, usuario_id)
         if publicacion["estado"] == "cerrada":
             raise ErrorPublicacion({"general": "Una publicación cerrada ya no se puede editar."})
         campos = _validar(form, publicacion["carrera_id"])
+        if campos["modalidad"] != publicacion["modalidad"] and acuerdos.reservada(publicacion_id):
+            raise ErrorPublicacion({"general": "Cancelá el acuerdo en curso antes de cambiar la modalidad."})
         if campos["modalidad"] != "prestamo" and prestamos.ocupado(publicacion_id):
             raise ErrorPublicacion({"general": "Registrá la devolución o cancelá el préstamo antes de cambiar la modalidad."})
         db.execute(
@@ -146,7 +148,7 @@ def editar(publicacion_id: int, usuario_id: int, form):
 
 
 def cambiar_estado(publicacion_id: int, usuario_id: int, estado: str):
-    from davincihub.objetos import busquedas, prestamos
+    from davincihub.objetos import acuerdos, busquedas, prestamos
 
     with db.transaccion():
         publicacion = _propia(publicacion_id, usuario_id)
@@ -154,6 +156,8 @@ def cambiar_estado(publicacion_id: int, usuario_id: int, estado: str):
             raise ErrorPublicacion({"general": "Estado de publicación inválido."})
         if publicacion["estado"] == "cerrada":
             raise ErrorPublicacion({"general": "La publicación ya está cerrada."})
+        if estado == "cerrada" and acuerdos.reservada(publicacion_id):
+            raise ErrorPublicacion({"general": "Completá o cancelá el acuerdo en curso antes de eliminar la publicación."})
         if estado == "cerrada" and prestamos.ocupado(publicacion_id):
             raise ErrorPublicacion({"general": "Registrá la devolución o cancelá el préstamo antes de eliminar la publicación."})
         db.execute("UPDATE publicaciones SET estado = :estado WHERE id = :id",

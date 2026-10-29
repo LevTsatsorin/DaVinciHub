@@ -17,6 +17,7 @@ from davincihub import (
 from davincihub import inicio as pagina_inicio
 from davincihub.objetos import prestamos
 from davincihub.objetos import rutas as objetos_rutas
+from davincihub.objetos.acuerdos_demo import comando_seed_acuerdos
 from davincihub.objetos.prestamos_demo import comando_seed_prestamos
 from davincihub.reportes import bp as reportes_bp
 from davincihub.reservas import rutas as reservas_rutas
@@ -55,6 +56,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.before_request(prestamos.revisar_vencidos)
     app.cli.add_command(prestamos.marcar_vencidos_command)
     app.cli.add_command(comando_seed_prestamos)
+    app.cli.add_command(comando_seed_acuerdos)
     app.add_template_global(seguridad.es_catedra)
 
     @app.template_global()
