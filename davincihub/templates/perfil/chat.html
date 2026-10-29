@@ -38,10 +38,14 @@
       <a class="boton boton-ficha" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">Ver perfil</a>
     </header>
 
-    <ol class="chat-mensajes" aria-label="Conversación">
+    <ol class="chat-mensajes" aria-label="Conversación" aria-live="polite" data-nuevos="{{ url_for('perfil.chat_nuevos', usuario_id=estudiante.id) }}" data-anteriores="{{ url_for('perfil.chat_anteriores', usuario_id=estudiante.id) }}" data-otro="{{ estudiante.nombre }}">
+      {% if hay_anteriores %}<li class="chat-cargando" data-chat-cargando>Cargando mensajes anteriores…</li>{% endif %}
       {% for mensaje in mensajes %}
+        {% if mensaje.id == primer_nuevo %}
+          <li class="chat-separador-nuevos" data-primer-nuevo><span>{{ cantidad_nuevos }} {{ "mensaje nuevo" if cantidad_nuevos == 1 else "mensajes nuevos" }}</span></li>
+        {% endif %}
         {% set propio = mensaje.emisor_id == g.usuario.id %}
-        <li class="chat-mensaje {{ 'chat-mensaje-propio' if propio else 'chat-mensaje-ajeno' }}">
+        <li class="chat-mensaje {{ 'chat-mensaje-propio' if propio else 'chat-mensaje-ajeno' }}" data-mensaje-id="{{ mensaje.id }}">
           <span class="chat-mensaje-autor">{{ "Yo" if propio else mensaje.emisor_nombre }}</span>
           <p>{{ mensaje.cuerpo }}</p>
           <time datetime="{{ mensaje.creado }}">{{ mensaje.creado | fecha_corta }}</time>
@@ -55,9 +59,9 @@
       {% endfor %}
     </ol>
 
-    <form class="chat-componer" method="post">
+    <form class="chat-componer" method="post" data-chat-enviar>
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {% if error %}<p class="error-texto">{{ error }}</p>{% endif %}
+      <p class="error-texto" data-chat-error{% if not error %} hidden{% endif %}>{{ error or "" }}</p>
       <div class="chat-componer-campo">
         <label class="visualmente-oculto" for="cuerpo">Mensaje</label>
         <textarea id="cuerpo" name="cuerpo" rows="1" maxlength="2000" placeholder="Escribí un mensaje…" required>{{ cuerpo }}</textarea>
@@ -70,23 +74,4 @@
 </section>
 {% endblock %}
 
-{% block scripts %}
-<script>
-  const conversacion = document.querySelector(".chat-mensajes");
-  const campo = document.getElementById("cuerpo");
-  conversacion.scrollTop = conversacion.scrollHeight;
-  const ajustar = () => {
-    campo.style.height = "auto";
-    campo.style.height = Math.min(campo.scrollHeight, 160) + "px";
-  };
-  campo.addEventListener("input", ajustar);
-  campo.addEventListener("keydown", (evento) => {
-    if (evento.key === "Enter" && !evento.shiftKey && !evento.isComposing) {
-      evento.preventDefault();
-      if (campo.value.trim()) campo.form.requestSubmit();
-    }
-  });
-  ajustar();
-  campo.focus();
-</script>
-{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='chat_vivo.js') }}" defer></script>{% endblock %}

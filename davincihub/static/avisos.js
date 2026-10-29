@@ -25,3 +25,31 @@ if (avisos) {
     });
   });
 }
+
+const campanaViva = document.querySelector(".campana[data-contador]");
+
+if (campanaViva && !document.querySelector("[data-nuevos], [data-bandeja][data-estado]")) {
+  const consultar = async () => {
+    if (document.hidden) return;
+    try {
+      const respuesta = await fetch(campanaViva.dataset.contador, { headers: { "X-Requested-With": "fetch" } });
+      if (!respuesta.ok) return;
+      const { avisos: cantidad } = await respuesta.json();
+      if (Number(campanaViva.dataset.avisos) === cantidad) return;
+      campanaViva.dataset.avisos = cantidad;
+      campanaViva.setAttribute("aria-label", cantidad ? `Notificaciones: ${cantidad} sin leer` : "Notificaciones");
+      let globo = campanaViva.querySelector(".campana-cantidad");
+      if (!cantidad) return globo?.remove();
+      if (!globo) {
+        globo = document.createElement("span");
+        globo.className = "campana-cantidad";
+        campanaViva.append(globo);
+      }
+      globo.textContent = cantidad < 10 ? cantidad : "9+";
+    } catch {
+      // se reintenta en la próxima vuelta
+    }
+  };
+  setInterval(consultar, 30000);
+  document.addEventListener("visibilitychange", consultar);
+}

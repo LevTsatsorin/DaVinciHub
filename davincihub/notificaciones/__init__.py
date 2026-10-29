@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, g, redirect, render_template, url_for
+from flask import Blueprint, abort, g, jsonify, redirect, render_template, url_for
 
 from davincihub import db, seguridad
 from davincihub.utiles import ahora, fecha_corta
@@ -83,6 +83,12 @@ def abrir(aviso_id: int):
     if not enlace or not _es_interno(enlace):
         enlace = url_for("notificaciones.bandeja")
     return redirect(enlace)
+
+
+@bp.get("/contador")
+@seguridad.requiere_login
+def contador():
+    return jsonify(avisos=sin_leer(g.usuario["id"]))
 
 
 @bp.route("/leer-todas", methods=("POST",))
