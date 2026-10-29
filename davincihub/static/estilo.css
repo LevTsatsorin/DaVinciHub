@@ -5124,7 +5124,8 @@ body { overflow-x: clip; }
 .foro-autor-insignia > span { display: grid; gap: 2px; }
 .foro-autor-insignia strong { color: #8ff3df; font-size: 13px; }
 .foro-autor-insignia span span { color: #c9c4d8; font-size: 12px; line-height: 1.35; }
-.estado-catedra { background: rgba(0, 201, 167, 0.18); color: #8ff3df; }
+.estado-catedra { background: rgba(0, 201, 167, 0.14); color: #06705d; }
+.fondo-oscuro .estado-catedra { background: rgba(0, 201, 167, 0.18); color: #8ff3df; }
 
 /* --- chat: historial y nuevos --- */
 .chat-cargando { align-self: center; padding: 6px 12px; color: var(--chat-hora); font-size: 12px; }
