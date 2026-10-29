@@ -5,6 +5,7 @@ from flask import (
     abort,
     flash,
     g,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -15,8 +16,16 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from davincihub import db, seguridad, validacion
 from davincihub.notificaciones import notificar
+from davincihub.notificaciones import sin_leer as notificaciones_sin_leer
 from davincihub.usuarios import datos as usuarios_datos
-from davincihub.utiles import ahora, ahora_local, paginas_visibles, sin_acentos, tipo_imagen
+from davincihub.utiles import (
+    ahora,
+    ahora_local,
+    fecha_corta,
+    paginas_visibles,
+    sin_acentos,
+    tipo_imagen,
+)
 
 bp = Blueprint("perfil", __name__, url_prefix="/estudiantes")
 MAX_FOTO_BYTES = 3 * 1024 * 1024
@@ -491,12 +500,8 @@ def conexiones(usuario_id: int):
     )
 
 
-@bp.get("/chats")
-@seguridad.requiere_login
-def chats():
-    if g.usuario["rol"] != "estudiante":
-        abort(403)
-    conversaciones = db.query(
+def _conversaciones() -> list[dict]:
+    return db.query(
         "SELECT u.id, u.nombre, u.apellido,"
         " CASE WHEN f.usuario_id IS NULL THEN 0 ELSE 1 END AS tiene_foto,"
         " m.cuerpo AS ultimo_mensaje, m.creado AS ultimo_creado,"
@@ -516,72 +521,188 @@ def chats():
         " ORDER BY m.creado DESC, m.id DESC",
         yo=g.usuario["id"],
     )
-    return render_template("perfil/chats.html", conversaciones=conversaciones)
+
+
+def _solo_estudiante():
+    if g.usuario["rol"] != "estudiante":
+        abort(403)
+
+
+@bp.get("/chats")
+@seguridad.requiere_login
+def chats():
+    _solo_estudiante()
+    return render_template("perfil/chats.html", conversaciones=_conversaciones())
+
+
+@bp.get("/chats/estado")
+@seguridad.requiere_login
+def chats_estado():
+    _solo_estudiante()
+    conversaciones = _conversaciones()
+    return jsonify(
+        avisos=notificaciones_sin_leer(g.usuario["id"]),
+        mensajes=sum(c["sin_leer"] for c in conversaciones),
+        con_sin_leer=sum(1 for c in conversaciones if c["sin_leer"]),
+        conversaciones=len(conversaciones),
+        bandeja=render_template("perfil/_bandeja.html", conversaciones=conversaciones),
+    )
+
+
+def _chat_con(usuario_id: int) -> dict:
+    _solo_estudiante()
+    estudiante = None if usuario_id == g.usuario["id"] else _estudiante_publico(usuario_id)
+    if estudiante is None:
+        abort(404)
+    return estudiante
+
+
+def _marcar_leidos(otro_id: int):
+    with db.transaccion():
+        db.execute(
+            "UPDATE mensajes SET leido = 1 WHERE receptor_id = :yo AND emisor_id = :otro AND leido = 0",
+            yo=g.usuario["id"],
+            otro=otro_id,
+        )
+        db.execute(
+            "UPDATE notificaciones SET leida = 1 WHERE usuario_id = :yo AND enlace = :e AND leida = 0",
+            yo=g.usuario["id"],
+            e=url_for("perfil.chat", usuario_id=otro_id),
+        )
+
+
+MENSAJES_POR_TANDA = 30
+MAXIMO_NUEVOS = 200
+
+
+def _mensajes(otro_id: int, desde: int = 0, antes: int | None = None, limite: int | None = None) -> list[dict]:
+    """Mensajes de la conversación en orden; con `antes` o `limite` trae los más recientes de ese tramo."""
+    condiciones = "m.id > :desde" + (" AND m.id < :antes" if antes else "")
+    orden = " ORDER BY m.id DESC LIMIT :limite" if limite else " ORDER BY m.id"
+    filas = db.query(
+        "SELECT m.id, m.emisor_id, m.receptor_id, m.cuerpo, m.creado, m.leido,"
+        " emisor.nombre AS emisor_nombre, emisor.apellido AS emisor_apellido"
+        " FROM mensajes m JOIN usuarios emisor ON emisor.id = m.emisor_id"
+        " WHERE ((m.emisor_id = :yo AND m.receptor_id = :otro)"
+        f" OR (m.emisor_id = :otro AND m.receptor_id = :yo)) AND {condiciones}{orden}",
+        yo=g.usuario["id"],
+        otro=otro_id,
+        desde=desde,
+        antes=antes,
+        limite=limite,
+    )
+    return filas[::-1] if limite else filas
+
+
+def _hay_anteriores(otro_id: int, primero: int | None) -> bool:
+    return primero is not None and db.query_one(
+        "SELECT 1 AS hay FROM mensajes WHERE id < :primero AND ((emisor_id = :yo AND receptor_id = :otro)"
+        " OR (emisor_id = :otro AND receptor_id = :yo)) LIMIT 1",
+        primero=primero, yo=g.usuario["id"], otro=otro_id,
+    ) is not None
+
+
+def _como_json(mensaje: dict) -> dict:
+    propio = mensaje["emisor_id"] == g.usuario["id"]
+    return {
+        "id": mensaje["id"],
+        "propio": propio,
+        "autor": "Yo" if propio else mensaje["emisor_nombre"],
+        "cuerpo": mensaje["cuerpo"],
+        "creado": mensaje["creado"],
+        "hora": fecha_corta(mensaje["creado"]),
+    }
+
+
+def _enviar(otro_id: int, cuerpo: str) -> dict:
+    enlace = url_for("perfil.chat", usuario_id=g.usuario["id"])
+    with db.transaccion():
+        fila = db.query_one(
+            "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, creado)"
+            " VALUES (:emisor, :receptor, :cuerpo, :creado) RETURNING id",
+            emisor=g.usuario["id"],
+            receptor=otro_id,
+            cuerpo=cuerpo,
+            creado=ahora(),
+        )
+        if not db.query_one(
+            "SELECT id FROM notificaciones WHERE usuario_id = :u AND enlace = :e AND leida = 0",
+            u=otro_id,
+            e=enlace,
+        ):
+            notificar(
+                otro_id,
+                "mensaje",
+                f"{g.usuario['nombre']} {g.usuario['apellido']} te escribió un mensaje.",
+                enlace,
+            )
+    return _mensajes(otro_id, desde=fila["id"] - 1)[0]
 
 
 @bp.route("/<int:usuario_id>/chat", methods=("GET", "POST"))
 @seguridad.requiere_login
 def chat(usuario_id: int):
-    if g.usuario["rol"] != "estudiante":
-        abort(403)
-    if usuario_id == g.usuario["id"] or _estudiante_publico(usuario_id) is None:
-        abort(404)
+    estudiante = _chat_con(usuario_id)
+    por_fetch = request.headers.get("X-Requested-With") == "fetch"
     error = None
     cuerpo = (request.form.get("cuerpo") or "").replace("\r\n", "\n").strip()
     if request.method == "POST":
         if not cuerpo or len(cuerpo) > 2000:
             error = "El mensaje debe tener entre 1 y 2000 caracteres."
+            if por_fetch:
+                return jsonify(error=error), 400
         else:
-            enlace = url_for("perfil.chat", usuario_id=g.usuario["id"])
-            with db.transaccion():
-                db.execute(
-                    "INSERT INTO mensajes (emisor_id, receptor_id, cuerpo, creado)"
-                    " VALUES (:emisor, :receptor, :cuerpo, :creado)",
-                    emisor=g.usuario["id"],
-                    receptor=usuario_id,
-                    cuerpo=cuerpo,
-                    creado=ahora(),
-                )
-                if not db.query_one(
-                    "SELECT id FROM notificaciones WHERE usuario_id = :u AND enlace = :e AND leida = 0",
-                    u=usuario_id,
-                    e=enlace,
-                ):
-                    notificar(
-                        usuario_id,
-                        "mensaje",
-                        f"{g.usuario['nombre']} {g.usuario['apellido']} te escribió un mensaje.",
-                        enlace,
-                    )
+            mensaje = _enviar(usuario_id, cuerpo)
+            if por_fetch:
+                return jsonify(mensaje=_como_json(mensaje)), 201
             return redirect(url_for("perfil.chat", usuario_id=usuario_id))
-    with db.transaccion():
-        db.execute(
-            "UPDATE mensajes SET leido = 1 WHERE receptor_id = :yo AND emisor_id = :otro AND leido = 0",
-            yo=g.usuario["id"],
-            otro=usuario_id,
-        )
-        db.execute(
-            "UPDATE notificaciones SET leida = 1 WHERE usuario_id = :yo AND enlace = :e AND leida = 0",
-            yo=g.usuario["id"],
-            e=url_for("perfil.chat", usuario_id=usuario_id),
-        )
-    mensajes = db.query(
-        "SELECT m.emisor_id, m.receptor_id, m.cuerpo, m.creado,"
-        " emisor.nombre AS emisor_nombre, emisor.apellido AS emisor_apellido"
-        " FROM mensajes m JOIN usuarios emisor ON emisor.id = m.emisor_id"
-        " WHERE (m.emisor_id = :yo AND m.receptor_id = :otro)"
-        " OR (m.emisor_id = :otro AND m.receptor_id = :yo) ORDER BY m.creado, m.id",
-        yo=g.usuario["id"],
-        otro=usuario_id,
+    primer_nuevo = db.query_one(
+        "SELECT MIN(id) AS id, COUNT(*) AS cantidad FROM mensajes"
+        " WHERE emisor_id = :otro AND receptor_id = :yo AND leido = 0",
+        otro=usuario_id, yo=g.usuario["id"],
     )
+    mensajes = _mensajes(usuario_id, limite=MENSAJES_POR_TANDA)
+    if primer_nuevo["id"] and (not mensajes or primer_nuevo["id"] < mensajes[0]["id"]):
+        contexto = _mensajes(usuario_id, antes=primer_nuevo["id"], limite=5)
+        desde = contexto[0]["id"] - 1 if contexto else primer_nuevo["id"] - 1
+        mensajes = _mensajes(usuario_id, desde=desde, limite=MAXIMO_NUEVOS + 5)
+    _marcar_leidos(usuario_id)
     return render_template(
         "perfil/chat.html",
         temas=TEMAS_CHAT,
-        estudiante=_estudiante_publico(usuario_id),
+        estudiante=estudiante,
         mensajes=mensajes,
+        primer_nuevo=primer_nuevo["id"],
+        cantidad_nuevos=primer_nuevo["cantidad"],
+        hay_anteriores=_hay_anteriores(usuario_id, mensajes[0]["id"] if mensajes else None),
         error=error,
         cuerpo=cuerpo,
     )
+
+
+@bp.get("/<int:usuario_id>/chat/anteriores")
+@seguridad.requiere_login
+def chat_anteriores(usuario_id: int):
+    _chat_con(usuario_id)
+    antes = request.args.get("antes", 0, type=int) or 0
+    if antes <= 0:
+        abort(400)
+    mensajes = _mensajes(usuario_id, antes=antes, limite=MENSAJES_POR_TANDA)
+    return jsonify(
+        mensajes=[_como_json(m) for m in mensajes],
+        hay_mas=_hay_anteriores(usuario_id, mensajes[0]["id"] if mensajes else None),
+    )
+
+
+@bp.get("/<int:usuario_id>/chat/nuevos")
+@seguridad.requiere_login
+def chat_nuevos(usuario_id: int):
+    _chat_con(usuario_id)
+    desde = request.args.get("desde", 0, type=int) or 0
+    nuevos = _mensajes(usuario_id, desde)
+    if any(m["emisor_id"] == usuario_id for m in nuevos):
+        _marcar_leidos(usuario_id)
+    return jsonify(mensajes=[_como_json(m) for m in nuevos], avisos=notificaciones_sin_leer(g.usuario["id"]))
 
 
 @bp.post("/<int:usuario_id>/chat/tema")

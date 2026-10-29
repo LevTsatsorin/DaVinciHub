@@ -64,7 +64,7 @@
       {% endif %}
     </div>
     {% if g.usuario %}
-      <a class="campana" href="{{ url_for('notificaciones.bandeja') }}" data-avisos="{{ avisos_sin_leer }}"
+      <a class="campana" href="{{ url_for('notificaciones.bandeja') }}" data-avisos="{{ avisos_sin_leer }}" data-contador="{{ url_for('notificaciones.contador') }}"
          aria-label="Notificaciones{% if avisos_sin_leer %}: {{ avisos_sin_leer }} sin leer{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
         {% if avisos_sin_leer %}<span class="campana-cantidad">{{ avisos_sin_leer if avisos_sin_leer < 10 else "9+" }}</span>{% endif %}
