@@ -3,7 +3,7 @@ from datetime import date
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from davincihub import seguridad
-from davincihub.objetos import busquedas, datos, prestamos
+from davincihub.objetos import acuerdos, busquedas, datos, prestamos
 from davincihub.utiles import hoy_local, paginas_visibles
 
 bp = Blueprint("objetos", __name__, url_prefix="/objetos")
@@ -33,6 +33,8 @@ def opciones():
         "modalidades_busqueda": busquedas.MODALIDADES,
         "categorias_busqueda": busquedas.CATEGORIAS,
         "estados_prestamo": prestamos.ESTADOS,
+        "tipos_acuerdo": acuerdos.TIPOS,
+        "estados_acuerdo": acuerdos.ESTADOS,
         "hoy": hoy_local(),
     }
 
@@ -121,6 +123,8 @@ def detalle(publicacion_id: int):
         "objetos/detalle.html", publicacion=publicacion,
         prestamo_abierto=prestamos.pendiente_propio(publicacion_id, g.usuario["id"]),
         objeto_ocupado=prestamos.ocupado(publicacion_id),
+        acuerdo_abierto=acuerdos.abierta_propia(publicacion_id, g.usuario["id"]),
+        acuerdo_reservado=acuerdos.reservada(publicacion_id),
     )
 
 
@@ -335,3 +339,88 @@ def accion_prestamo(prestamo_id):
         abort(404)
     flash("Préstamo actualizado.")
     return redirect(url_for("objetos.detalle_prestamo", prestamo_id=prestamo["id"]))
+
+
+def _mi_acuerdo(tipo, acuerdo_id):
+    _solo_estudiante()
+    try:
+        acuerdo = acuerdos.obtener(tipo, acuerdo_id)
+    except LookupError:
+        abort(404)
+    if acuerdo is None or g.usuario["id"] not in (acuerdo["propietario_id"], acuerdo["solicitante_id"]):
+        abort(404)
+    return acuerdo
+
+
+@bp.get("/acuerdos")
+@seguridad.requiere_login
+def mis_acuerdos():
+    _solo_estudiante()
+    try:
+        pagina = int(request.args.get("pagina", "1")[:9])
+    except ValueError:
+        pagina = 1
+    resultado = acuerdos.listar(g.usuario["id"], request.args.get("vista", "enviadas"),
+                               request.args.get("tipo", ""), request.args.get("estado", ""), pagina)
+    return render_template("objetos/acuerdos.html", **resultado)
+
+
+@bp.route("/<int:publicacion_id>/proponer", methods=("GET", "POST"))
+@seguridad.requiere_login
+def proponer_acuerdo(publicacion_id):
+    _solo_estudiante()
+    publicacion = _publicacion(publicacion_id)
+    if publicacion["autor_id"] == g.usuario["id"]:
+        abort(403)
+    if publicacion["modalidad"] not in acuerdos.TIPOS:
+        return render_template("error.html", codigo=409, mensaje="Esta publicación ofrece un préstamo. Usá Pedir prestado."), 409
+    errores = {}
+    if request.method == "POST":
+        try:
+            tipo, acuerdo_id = acuerdos.proponer(publicacion_id, g.usuario["id"], request.form)
+        except acuerdos.ErrorAcuerdo as error:
+            errores = error.errores
+        except PermissionError:
+            abort(403)
+        except LookupError:
+            abort(404)
+        else:
+            flash("Propuesta enviada. Te avisaremos cuando el propietario responda.")
+            return redirect(url_for("objetos.detalle_acuerdo", tipo=tipo, acuerdo_id=acuerdo_id))
+    abierta = acuerdos.abierta_propia(publicacion_id, g.usuario["id"])
+    if request.method == "GET" and abierta:
+        return redirect(url_for("objetos.detalle_acuerdo", tipo=abierta["tipo"], acuerdo_id=abierta["id"]))
+    inicial = {"precio_acordado": publicacion["precio"]} if publicacion["modalidad"] == "venta" else {}
+    return render_template(
+        "objetos/acuerdo_formulario.html", publicacion=publicacion, errores=errores,
+        datos_form=request.form if request.method == "POST" else inicial,
+        ofrecibles=acuerdos.ofrecibles(g.usuario["id"]), acuerdo_reservado=acuerdos.reservada(publicacion_id),
+    ), 400 if errores else 200
+
+
+def _detalle_acuerdo(acuerdo, errores=None):
+    return render_template("objetos/acuerdo_detalle.html", acuerdo=acuerdo, errores=errores or {},
+                           movimientos=acuerdos.movimientos(acuerdo["tipo"], acuerdo["id"]),
+                           acciones=acuerdos.acciones(acuerdo, g.usuario["id"]))
+
+
+@bp.get("/acuerdos/<tipo>/<int:acuerdo_id>")
+@seguridad.requiere_login
+def detalle_acuerdo(tipo, acuerdo_id):
+    return _detalle_acuerdo(_mi_acuerdo(tipo, acuerdo_id))
+
+
+@bp.post("/acuerdos/<tipo>/<int:acuerdo_id>/accion")
+@seguridad.requiere_login
+def accion_acuerdo(tipo, acuerdo_id):
+    _mi_acuerdo(tipo, acuerdo_id)
+    try:
+        acuerdos.cambiar(tipo, acuerdo_id, g.usuario["id"], request.form.get("accion", ""))
+    except acuerdos.ErrorAcuerdo as error:
+        return _detalle_acuerdo(acuerdos.obtener(tipo, acuerdo_id), error.errores), 409
+    except PermissionError:
+        abort(403)
+    except LookupError:
+        abort(404)
+    flash("Acuerdo actualizado.")
+    return redirect(url_for("objetos.detalle_acuerdo", tipo=tipo, acuerdo_id=acuerdo_id))

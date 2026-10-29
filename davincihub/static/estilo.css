@@ -5177,3 +5177,15 @@ body { overflow-x: clip; }
   .prestamo-participantes { grid-template-columns: minmax(0, 1fr); }
   .prestamos-filtros .resultado-filtros { width: 100%; margin: 0; }
 }
+
+/* Intercambios y ventas — C4 */
+.acuerdo-estado-propuesto { background: #fff1cf; color: #795000; }
+.acuerdo-estado-aceptado { background: #e9e0ff; color: #6344a4; }
+.acuerdo-estado-completado { background: #e0f6ec; color: #166344; }
+.acuerdo-nota { margin-top: 20px; }
+.acuerdo-precio { font-size: 24px; font-weight: 700; margin: 10px 0; }
+.acuerdo-confirmaciones { padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 12px 30px; margin: 20px 0; }
+.acuerdo-confirmaciones li { padding: 10px 14px; background: var(--fondo-suave); border: 1px solid var(--borde); border-radius: 10px; }
+.acuerdo-completado { padding: 16px; border-radius: 12px; background: #e0f6ec; color: #166344; margin: 20px 0 0; }
+.objeto-ficha-datos > .boton { margin: 6px 8px 0 0; }
+.objeto-controles > p .enlace-admin { color: var(--gris-texto); }

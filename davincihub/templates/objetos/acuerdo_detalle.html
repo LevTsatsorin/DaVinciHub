@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block titulo %}{{ tipos_acuerdo[acuerdo.tipo] }} de {{ acuerdo.titulo }} — Da Vinci Hub{% endblock %}
+{% macro confirmar(accion, etiqueta, texto, positivo=true) %}
+<form method="post" action="{{ url_for('objetos.accion_acuerdo', tipo=acuerdo.tipo, acuerdo_id=acuerdo.id) }}" data-confirmar="{{ etiqueta }}" data-confirmar-texto="{{ texto }}" data-confirmar-boton="{{ etiqueta }}"{% if positivo %} data-confirmar-tono="positivo"{% endif %}>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="{{ accion }}"><button class="boton{% if positivo %} boton-primario{% endif %}" type="submit">{{ etiqueta }}</button>
+</form>
+{% endmacro %}
+{% block contenido %}
+{% set propietario = acuerdo.propietario_id == g.usuario.id %}
+<section class="contenedor pagina-modulo pagina-objetos pagina-prestamo">
+  <a class="volver" href="{{ url_for('objetos.mis_acuerdos', vista='recibidas' if propietario else 'enviadas') }}">← Intercambios y ventas</a>
+  {% if errores %}<p class="aviso aviso-error" role="alert">{{ errores.general }}</p>{% endif %}
+  <section class="tarjeta busqueda-resumen">
+    <div class="busqueda-resumen-cabecera"><span class="objeto-categoria">{{ tipos_acuerdo[acuerdo.tipo] }} · {{ categorias.get(acuerdo.categoria, acuerdo.categoria) }}</span><span class="prestamo-estado acuerdo-estado-{{ acuerdo.estado }}">{{ estados_acuerdo[acuerdo.estado] }}</span></div>
+    <h1>{{ acuerdo.titulo }}</h1>
+    <div class="prestamo-participantes"><p><span>Propietario</span><a href="{{ url_for('perfil.ver', usuario_id=acuerdo.propietario_id) }}">{{ acuerdo.propietario_nombre }} {{ acuerdo.propietario_apellido }}</a></p><p><span>{{ 'Comprador' if acuerdo.tipo == 'venta' else 'Proponente' }}</span><a href="{{ url_for('perfil.ver', usuario_id=acuerdo.solicitante_id) }}">{{ acuerdo.solicitante_nombre }} {{ acuerdo.solicitante_apellido }}</a></p></div>
+    {% if acuerdo.tipo == 'venta' %}<div class="prestamo-nota"><h2>{{ 'Precio propuesto' if acuerdo.estado == 'propuesto' else 'Precio del acuerdo' }}</h2><p class="acuerdo-precio">{{ acuerdo.precio_acordado | precio_pesos }}</p><p class="ayuda">La plataforma registra el acuerdo y no procesa pagos.</p></div>{% endif %}
+    {% if acuerdo.oferta %}<div class="prestamo-nota"><h2>{{ 'Oferta de intercambio' if acuerdo.tipo == 'intercambio' else 'Mensaje del comprador' }}</h2><p>{{ acuerdo.oferta }}</p>{% if acuerdo.publicacion_ofrecida_id %}<p><strong>Objeto ofrecido:</strong> {{ acuerdo.titulo_ofrecido }}</p>{% endif %}</div>{% endif %}
+    {% if acuerdo.motivo_cierre %}<p class="ayuda acuerdo-nota">{{ acuerdo.motivo_cierre }}</p>{% endif %}
+    {% if acuerdo.estado == 'completado' %}<p class="acuerdo-completado">Ambas personas confirmaron la operación. {{ 'Las dos publicaciones se cerraron.' if acuerdo.publicacion_ofrecida_id else 'La publicación se cerró.' }}</p>{% endif %}
+    <div class="objetos-acciones prestamo-enlaces">
+      {% if acuerdo.estado_publicacion == 'activa' and not acuerdo.oculto and not acuerdo.propietario_bloqueado %}<a class="enlace-admin" href="{{ url_for('objetos.detalle', publicacion_id=acuerdo.publicacion_id) }}">Ver publicación</a>{% endif %}
+      {% if not acuerdo.propietario_bloqueado and not acuerdo.solicitante_bloqueado %}<a class="enlace-admin" href="{{ url_for('perfil.chat', usuario_id=acuerdo.solicitante_id if propietario else acuerdo.propietario_id) }}">Coordinar por mensaje</a>{% endif %}
+    </div>
+  </section>
+  {% if acciones %}<section class="tarjeta prestamo-controles"><h2 class="titulo-tarjeta">{{ 'Responder a la propuesta' if acuerdo.estado == 'propuesto' and propietario else 'Gestionar acuerdo' }}</h2>
+    {% if acuerdo.estado == 'propuesto' %}<p class="ayuda">{{ 'Al aceptar, los objetos quedan reservados y las otras propuestas pendientes se rechazan automáticamente.' if propietario else 'Esperando la respuesta del propietario. Te avisaremos cuando acepte o rechace la propuesta.' }}</p>{% endif %}
+    {% if acuerdo.estado == 'aceptado' %}
+      <p class="ayuda">{{ 'Confirmá solo después de entregar el objeto y recibir el pago acordado por fuera de la plataforma.' if acuerdo.tipo == 'venta' and propietario else ('Confirmá solo después de recibir el objeto y concretar el pago acordado por fuera de la plataforma.' if acuerdo.tipo == 'venta' else 'Confirmá solo después de entregar y recibir lo acordado. Ambas personas deben confirmar para completar el intercambio.') }}</p>
+      <ul class="acuerdo-confirmaciones"><li>{{ acuerdo.propietario_nombre }}: <strong>{{ 'confirmó' if acuerdo.confirmado_propietario else 'falta confirmar' }}</strong></li><li>{{ acuerdo.solicitante_nombre }}: <strong>{{ 'confirmó' if acuerdo.confirmado_solicitante else 'falta confirmar' }}</strong></li></ul>
+    {% endif %}
+    <div class="objetos-acciones">
+      {% if 'aceptar' in acciones %}{{ confirmar('aceptar', 'Aceptar propuesta', 'Se reservarán los objetos del acuerdo y se rechazarán las demás propuestas pendientes sobre ellos.') }}{% endif %}
+      {% if 'rechazar' in acciones %}{{ confirmar('rechazar', 'Rechazar propuesta', 'Se avisará al proponente. La propuesta se conserva en el historial.', false) }}{% endif %}
+      {% if 'confirmar' in acciones %}{{ confirmar('confirmar', 'Confirmar operación', 'Confirmás que concretaste tu parte. Cuando ambas personas confirmen, la operación finalizará y las publicaciones se cerrarán.') }}{% endif %}
+      {% if 'cancelar' in acciones %}{{ confirmar('cancelar', 'Cancelar acuerdo', 'Se avisará a la otra persona y se liberarán los objetos. Si ya realizaron una entrega, coordinen antes la devolución. El acuerdo queda en el historial.', false) }}{% endif %}
+    </div>
+  </section>{% endif %}
+  <section class="tarjeta prestamo-historial"><h2 class="titulo-tarjeta">Seguimiento del acuerdo</h2>
+    {% if movimientos %}<ol>{% for m in movimientos %}<li><div><strong>{{ estados_acuerdo.get(m.estado_nuevo, m.estado_nuevo) }}</strong><time>{{ m.creado | fecha_corta }}</time></div><p>{{ m.detalle }}</p><span class="ayuda">{{ m.nombre ~ ' ' ~ m.apellido if m.actor_id else 'Actualización automática' }}</span></li>{% endfor %}</ol>{% else %}<p class="ayuda">Acuerdo registrado el {{ acuerdo.creado | fecha_corta }}.</p>{% endif %}
+  </section>
+</section>
+{% include 'espacios/_dialogo.html' %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

@@ -149,6 +149,15 @@ def _leer_sql(nombre: str) -> str:
 
 # columnas y tablas agregadas después del primer deploy: se crean solas al arrancar
 COLUMNAS_AGREGADAS = [
+    ("intercambios", "confirmado_propietario", "INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_propietario IN (0, 1))"),
+    ("intercambios", "confirmado_solicitante", "INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_solicitante IN (0, 1))"),
+    ("intercambios", "motivo_cierre", "TEXT NOT NULL DEFAULT ''"),
+    ("intercambios", "completado", "TEXT"),
+    ("ventas", "confirmado_propietario", "INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_propietario IN (0, 1))"),
+    ("ventas", "confirmado_solicitante", "INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_solicitante IN (0, 1))"),
+    ("ventas", "motivo_cierre", "TEXT NOT NULL DEFAULT ''"),
+    ("ventas", "completado", "TEXT"),
+    ("ventas", "mensaje", "TEXT NOT NULL DEFAULT ''"),
     ("prestamos", "mensaje", "TEXT NOT NULL DEFAULT ''"),
     ("prestamos", "motivo_cierre", "TEXT NOT NULL DEFAULT ''"),
     ("prestamos", "entregado", "TEXT"),
@@ -172,6 +181,16 @@ COLUMNAS_AGREGADAS = [
 ]
 
 TABLAS_AGREGADAS = {
+    "acuerdos_movimientos": """CREATE TABLE IF NOT EXISTS acuerdos_movimientos (
+        id {{PK}},
+        tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('intercambio', 'venta')),
+        operacion_id INTEGER NOT NULL,
+        estado_anterior TEXT,
+        estado_nuevo TEXT NOT NULL,
+        actor_id INTEGER REFERENCES usuarios (id),
+        detalle TEXT NOT NULL DEFAULT '',
+        creado TEXT NOT NULL
+    )""",
     "prestamos_movimientos": """CREATE TABLE IF NOT EXISTS prestamos_movimientos (
         id {{PK}},
         prestamo_id INTEGER NOT NULL REFERENCES prestamos (id),

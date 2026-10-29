@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titulo %}Intercambios y ventas — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="cabecera-seccion fondo-oscuro cabecera-objetos">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/objetos.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido"><h1>Intercambios y ventas</h1><p>Tus propuestas, acuerdos y operaciones completadas entre estudiantes.</p><div class="acciones-cabecera"><a class="boton boton-primario" href="{{ url_for('objetos.catalogo') }}">Encontrar un objeto</a><a class="enlace-admin" href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a></div></div>
+</section>
+<section class="contenedor pagina-modulo pagina-objetos">
+  <nav class="objetos-estados" aria-label="Tipo de propuestas">{% for valor, nombre in [('enviadas', 'Enviadas'), ('recibidas', 'Recibidas')] %}<a href="{{ url_for('objetos.mis_acuerdos', vista=valor, tipo=tipo, estado=estado) }}"{% if vista == valor %} aria-current="page"{% endif %}>{{ nombre }}</a>{% endfor %}</nav>
+  <form class="prestamos-filtros" method="get"><input type="hidden" name="vista" value="{{ vista }}">
+    <div class="campo"><label for="tipo">Operación</label><select id="tipo" name="tipo"><option value="">Intercambios y ventas</option>{% for valor, nombre in tipos_acuerdo.items() %}<option value="{{ valor }}"{% if tipo == valor %} selected{% endif %}>{{ nombre }}</option>{% endfor %}</select></div>
+    <div class="campo"><label for="estado">Estado del acuerdo</label><select id="estado" name="estado"><option value="">Todos los estados</option>{% for valor, nombre in estados_acuerdo.items() %}<option value="{{ valor }}"{% if estado == valor %} selected{% endif %}>{{ nombre }}</option>{% endfor %}</select></div>
+    <button class="boton" type="submit">Filtrar</button><p class="resultado-filtros"><strong>{{ total }}</strong> {{ 'acuerdo' if total == 1 else 'acuerdos' }}</p>
+  </form>
+  {% if acuerdos %}<div class="busquedas-lista">{% for a in acuerdos %}
+    <a class="tarjeta prestamo-tarjeta" href="{{ url_for('objetos.detalle_acuerdo', tipo=a.tipo, acuerdo_id=a.id) }}">
+      <div><span class="objeto-categoria">{{ tipos_acuerdo[a.tipo] }} · {{ categorias.get(a.categoria, a.categoria) }}</span><h2>{{ a.titulo }}</h2><p>{{ 'Propietario: ' ~ a.propietario_nombre ~ ' ' ~ a.propietario_apellido if vista == 'enviadas' else 'Proponente: ' ~ a.solicitante_nombre ~ ' ' ~ a.solicitante_apellido }}</p>{% if a.tipo == 'venta' %}<p class="prestamo-fechas">{{ 'Precio propuesto' if a.estado == 'propuesto' else 'Precio del acuerdo' }}: {{ a.precio_acordado | precio_pesos }}</p>{% endif %}{% if a.estado == 'aceptado' %}<p>{{ 'Confirmaste tu parte. Falta la otra persona.' if (a.confirmado_propietario if g.usuario.id == a.propietario_id else a.confirmado_solicitante) else 'Coordiná la entrega y confirmá cuando esté realizada.' }}</p>{% endif %}</div>
+      <div class="prestamo-tarjeta-estado"><span class="prestamo-estado acuerdo-estado-{{ a.estado }}">{{ estados_acuerdo[a.estado] }}</span><span class="prestamo-ver">Ver acuerdo →</span></div>
+    </a>
+  {% endfor %}</div>
+  {% if paginas > 1 %}{% set enlaces = paginacion('objetos.mis_acuerdos', pagina, paginas, vista=vista, tipo=tipo, estado=estado) %}{% set etiqueta_paginacion = 'Páginas de acuerdos' %}{% include '_paginacion.html' %}{% endif %}
+  {% else %}<div class="estado-vacio"><h2>No hay acuerdos para mostrar</h2><p>{{ 'Explorá el catálogo y enviá una propuesta de compra o intercambio.' if vista == 'enviadas' else 'Acá aparecerán las propuestas sobre tus publicaciones.' }}</p><a class="boton boton-suave" href="{{ url_for('objetos.catalogo') }}">Ver catálogo</a></div>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}{{ 'Proponer intercambio' if publicacion.modalidad == 'intercambio' else 'Proponer compra' }} — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-objeto-form">
+  <a class="volver" href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">← Volver al objeto</a>
+  <div class="cabecera-modulo"><h1>{{ 'Proponer intercambio' if publicacion.modalidad == 'intercambio' else 'Proponer compra' }}</h1></div>
+  <p class="ayuda">{{ publicacion.titulo }} · {{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</p>
+  {% if acuerdo_reservado %}
+  <div class="estado-vacio tarjeta"><h2>Este objeto ya tiene un acuerdo</h2><p>El propietario aceptó otra propuesta. Podés explorar otros materiales disponibles.</p><a class="boton" href="{{ url_for('objetos.catalogo', modalidad=publicacion.modalidad) }}">Ver otros objetos</a></div>
+  {% else %}
+  <form class="formulario-espacio" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if errores %}<p class="aviso aviso-error" role="alert">{{ errores.get('general', 'Revisá los campos indicados.') }}</p>{% endif %}
+    <div class="tarjeta">
+      <h2 class="titulo-tarjeta">{{ 'Qué ofrecés a cambio' if publicacion.modalidad == 'intercambio' else 'Tu propuesta de compra' }}</h2>
+      <div class="grilla-datos">
+        {% if publicacion.modalidad == 'venta' %}
+        <div class="campo campo-completo">
+          <label for="precio_acordado">Precio propuesto en pesos *</label>
+          <input type="number" id="precio_acordado" name="precio_acordado" min="0.01" max="999999999.99" step="0.01" inputmode="decimal" required value="{{ datos_form.get('precio_acordado', '') }}"{% if errores.get('precio_acordado') %} aria-invalid="true" aria-describedby="error-precio_acordado"{% endif %}>
+          {% if errores.get('precio_acordado') %}<p class="error-texto" id="error-precio_acordado">{{ errores.precio_acordado }}</p>{% endif %}
+          <p class="ayuda">Precio publicado: {{ publicacion.precio | precio_pesos }}. El propietario puede aceptar o rechazar tu propuesta.</p>
+        </div>
+        {% endif %}
+        <div class="campo campo-completo">
+          <label for="oferta">{{ 'Descripción de lo que ofrecés *' if publicacion.modalidad == 'intercambio' else 'Mensaje para el propietario (opcional)' }}</label>
+          <textarea id="oferta" name="oferta" maxlength="2000" rows="4"{% if publicacion.modalidad == 'intercambio' %} required{% endif %} placeholder="{{ 'Describí el material, su estado y los accesorios incluidos.' if publicacion.modalidad == 'intercambio' else 'Coordiná las condiciones y el punto de encuentro.' }}"{% if errores.get('oferta') %} aria-invalid="true" aria-describedby="error-oferta"{% endif %}>{{ datos_form.get('oferta', '') }}</textarea>
+          {% if errores.get('oferta') %}<p class="error-texto" id="error-oferta">{{ errores.oferta }}</p>{% endif %}
+        </div>
+        {% if publicacion.modalidad == 'intercambio' %}
+        <div class="campo campo-completo">
+          <label for="publicacion_ofrecida_id">Uno de tus objetos publicados <span class="opcional">(opcional)</span></label>
+          <select id="publicacion_ofrecida_id" name="publicacion_ofrecida_id"{% if errores.get('publicacion_ofrecida_id') %} aria-invalid="true" aria-describedby="error-publicacion_ofrecida_id"{% endif %}>
+            <option value="">Solo describir lo que ofrezco</option>
+            {% for p in ofrecibles %}<option value="{{ p.id }}"{% if datos_form.get('publicacion_ofrecida_id', '') | string == p.id | string %} selected{% endif %}>{{ p.titulo }}</option>{% endfor %}
+          </select>
+          {% if errores.get('publicacion_ofrecida_id') %}<p class="error-texto" id="error-publicacion_ofrecida_id">{{ errores.publicacion_ofrecida_id }}</p>{% endif %}
+          <p class="ayuda">Solo aparecen tus objetos disponibles para intercambio. Si adjuntás uno, ambos objetos se reservan al aceptar y ambas publicaciones se cierran al completar el intercambio.</p>
+        </div>
+        {% endif %}
+      </div>
+      <p class="ayuda acuerdo-nota">{{ 'La plataforma registra el acuerdo y no procesa pagos. Coordiná el pago y la entrega con el propietario.' if publicacion.modalidad == 'venta' else 'El propietario revisará tu oferta. Una vez aceptada, ambas personas deben confirmar que concretaron el intercambio.' }}</p>
+    </div>
+    <div class="barra-guardar"><a class="boton" href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">Cancelar</a><button class="boton boton-primario" type="submit">Enviar propuesta</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

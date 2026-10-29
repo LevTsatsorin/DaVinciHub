@@ -37,7 +37,12 @@
             <a class="boton boton-primario" href="{{ url_for('objetos.solicitar_prestamo', publicacion_id=publicacion.id) }}">Pedir prestado</a>
           {% endif %}
         {% endif %}
-        <a class="boton boton-primario" href="{{ url_for('perfil.chat', usuario_id=publicacion.autor_id) }}">Escribirle a {{ publicacion.autor_nombre }}</a>
+        {% if publicacion.modalidad in tipos_acuerdo %}
+          {% if acuerdo_abierto %}<a class="boton boton-primario" href="{{ url_for('objetos.detalle_acuerdo', tipo=acuerdo_abierto.tipo, acuerdo_id=acuerdo_abierto.id) }}">Ver mi propuesta</a>
+          {% elif acuerdo_reservado %}<p class="prestamo-disponibilidad">Este objeto ya tiene un acuerdo en curso.</p>
+          {% else %}<a class="boton boton-primario" href="{{ url_for('objetos.proponer_acuerdo', publicacion_id=publicacion.id) }}">{{ 'Proponer intercambio' if publicacion.modalidad == 'intercambio' else 'Proponer compra' }}</a>{% endif %}
+        {% endif %}
+        <a class="boton" href="{{ url_for('perfil.chat', usuario_id=publicacion.autor_id) }}">Escribirle a {{ publicacion.autor_nombre }}</a>
         {{ boton_reporte('publicacion', publicacion.id, request.full_path, publicacion.autor_id) }}
       {% endif %}
     </div>
@@ -50,6 +55,7 @@
     <section class="tarjeta objeto-controles" aria-label="Administrar mi publicación">
       <h2 class="titulo-tarjeta">Tu publicación</h2>
       {% if publicacion.modalidad == 'prestamo' %}<p><a class="enlace-admin" href="{{ url_for('objetos.mis_prestamos', vista='otorgados') }}">Ver pedidos de préstamo</a>{% if objeto_ocupado %} · Hay un préstamo en curso.{% endif %}</p>{% endif %}
+      {% if publicacion.modalidad in tipos_acuerdo %}<p><a class="enlace-admin" href="{{ url_for('objetos.mis_acuerdos', vista='recibidas') }}">Ver propuestas de intercambio y compra</a>{% if acuerdo_reservado %} · Hay un acuerdo en curso.{% endif %}</p>{% endif %}
       <div class="objetos-acciones">
         <a class="boton boton-primario" href="{{ url_for('objetos.editar', publicacion_id=publicacion.id) }}">Editar</a>
         <form method="post" action="{{ url_for('objetos.estado', publicacion_id=publicacion.id) }}">
