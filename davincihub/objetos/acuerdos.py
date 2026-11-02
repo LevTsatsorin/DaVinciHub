@@ -206,9 +206,9 @@ def _cancelar(a, usuario_id, motivo):
     _movimiento(a, a["estado"], "cancelado", usuario_id, motivo)
 
 
-def _rechazar_otras(a, usuario_id):
-    vistas = {(a["tipo"], a["id"])}
-    for publicacion in _publicaciones(a):
+def _cancelar_propuestas(publicaciones, motivo, aviso, excepto=None, avisar_a=None):
+    vistas = {excepto}
+    for publicacion in publicaciones:
         for ref in _relacionadas(publicacion):
             clave = (ref["tipo"], ref["id"])
             if clave in vistas:
@@ -219,9 +219,24 @@ def _rechazar_otras(a, usuario_id):
                 continue
             tabla, _, _ = _config(otra["tipo"])
             db.bloquear_fila(tabla, otra["id"])
-            _cancelar(otra, usuario_id, "Rechazada automáticamente: se aceptó otra propuesta para uno de los objetos.")
+            _cancelar(otra, None, motivo)
             for usuario in (otra["propietario_id"], otra["solicitante_id"]):
-                _aviso(usuario, otra, f'La propuesta para «{otra["titulo"]}» fue rechazada porque se aceptó otra operación.')
+                if avisar_a is None or usuario not in avisar_a:
+                    _aviso(usuario, otra, aviso.format(titulo=otra["titulo"]))
+
+
+def _rechazar_otras(a, usuario_id):
+    _cancelar_propuestas(
+        _publicaciones(a), "Rechazada automáticamente: se aceptó otra propuesta para uno de los objetos.",
+        "La propuesta para «{titulo}» fue rechazada porque se aceptó otra operación.",
+        excepto=(a["tipo"], a["id"]), avisar_a={usuario_id},
+    )
+
+
+def cancelar_pendientes(publicacion_id, usuario_id, motivo):
+    prestamos.cancelar_pendientes(publicacion_id, motivo)
+    _cancelar_propuestas([publicacion_id], motivo, "La propuesta para «{titulo}» se canceló: " + motivo[:1].lower() + motivo[1:],
+                         avisar_a={usuario_id})
 
 
 def cambiar(tipo, acuerdo_id, usuario_id, accion):
@@ -250,6 +265,11 @@ def cambiar(tipo, acuerdo_id, usuario_id, accion):
             _rechazar_otras(a, usuario_id)
             _aviso(otro, a, f'Tu propuesta para «{a["titulo"]}» fue aceptada. Coordiná la entrega.')
         elif accion == "confirmar":
+            ofrecida = datos.obtener(a["publicacion_ofrecida_id"]) if a["publicacion_ofrecida_id"] else None
+            if a["oculto"] or (ofrecida and ofrecida["oculto"]):
+                _error("Uno de los objetos fue ocultado por moderación. Cancelá la operación.")
+            if a["propietario_bloqueado"] or a["solicitante_bloqueado"]:
+                _error("La otra persona está bloqueada. Cancelá la operación.")
             campo = "confirmado_propietario" if usuario_id == a["propietario_id"] else "confirmado_solicitante"
             db.execute(f"UPDATE {tabla} SET {campo} = 1 WHERE id = :id", id=acuerdo_id)
             actualizado = obtener(tipo, acuerdo_id)
@@ -258,6 +278,7 @@ def cambiar(tipo, acuerdo_id, usuario_id, accion):
                            estado=estados["completado"], fecha=ahora(), id=acuerdo_id)
                 for p in _publicaciones(a):
                     db.execute("UPDATE publicaciones SET estado = 'cerrada' WHERE id = :id", id=p)
+                    prestamos.cancelar_pendientes(p, "El objeto ya se entregó en otra operación.")
                 _movimiento(a, "aceptado", "completado", usuario_id, "Ambas partes confirmaron la operación. Publicaciones cerradas.")
                 for usuario in (a["propietario_id"], a["solicitante_id"]):
                     _aviso(usuario, a, f'La operación de {tipo} de «{a["titulo"]}» se completó.')

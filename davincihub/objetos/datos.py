@@ -144,6 +144,8 @@ def editar(publicacion_id: int, usuario_id: int, form):
             " modalidad = :modalidad, precio = :precio WHERE id = :id",
             id=publicacion_id, **campos,
         )
+        if campos["modalidad"] != publicacion["modalidad"]:
+            acuerdos.cancelar_pendientes(publicacion_id, usuario_id, "La publicación cambió de modalidad.")
         busquedas.detectar_para_publicacion(publicacion_id)
 
 
@@ -162,6 +164,8 @@ def cambiar_estado(publicacion_id: int, usuario_id: int, estado: str):
             raise ErrorPublicacion({"general": "Registrá la devolución o cancelá el préstamo antes de eliminar la publicación."})
         db.execute("UPDATE publicaciones SET estado = :estado WHERE id = :id",
                    estado=estado, id=publicacion_id)
+        if estado == "cerrada":
+            acuerdos.cancelar_pendientes(publicacion_id, usuario_id, "La publicación se cerró.")
         if estado == "activa":
             busquedas.detectar_para_publicacion(publicacion_id)
 

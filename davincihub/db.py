@@ -241,7 +241,14 @@ INDICES_AGREGADOS = [
          " ON respuestas (pregunta_id) WHERE aceptada = 1"),
     ),
     ("mensajes", "CREATE INDEX IF NOT EXISTS idx_mensajes_conversacion ON mensajes (receptor_id, emisor_id, creado)"),
+    ("prestamos", "CREATE INDEX IF NOT EXISTS idx_prestamos_estado ON prestamos (estado, fecha_devolucion)",
+     "estado", "fecha_devolucion"),
+    ("prestamos", "CREATE INDEX IF NOT EXISTS idx_prestamos_publicacion ON prestamos (publicacion_id, estado)",
+     "publicacion_id", "estado"),
 ]
+
+# en PostgreSQL REAL tiene 4 bytes y pierde los centavos
+COLUMNAS_PRECIO = [("publicaciones", "precio"), ("solicitudes", "presupuesto_max"), ("ventas", "precio_acordado")]
 
 
 def _columnas(tabla: str) -> set[str]:
@@ -269,14 +276,24 @@ def migrar():
                 execute(definicion.replace("{{PK}}", _clave_primaria()))
         if _columnas("conexiones") and not _existe_indice_conexiones():
             _normalizar_conexiones()
-        for tabla, indice in INDICES_AGREGADOS:
-            if _columnas(tabla):
+        for tabla, indice, *requeridas in INDICES_AGREGADOS:
+            columnas = _columnas(tabla)
+            if columnas and set(requeridas) <= columnas:
                 execute(indice)
     for tabla, columna, definicion in COLUMNAS_AGREGADAS:
         existentes = _columnas(tabla)
         if existentes and columna not in existentes:
             si_falta = " IF NOT EXISTS" if g.db_es_pg else ""
             execute(f"ALTER TABLE {tabla} ADD COLUMN{si_falta} {columna} {definicion}")
+    if g.db_es_pg:
+        for tabla, columna in COLUMNAS_PRECIO:
+            if query_one(
+                "SELECT 1 AS real FROM information_schema.columns WHERE table_schema = current_schema()"
+                " AND table_name = :tabla AND column_name = :columna AND data_type = 'real'",
+                tabla=tabla, columna=columna,
+            ):
+                execute(f"ALTER TABLE {tabla} ALTER COLUMN {columna} TYPE DOUBLE PRECISION"
+                        f" USING round({columna}::numeric, 2)::double precision")
 
 
 def _existe_indice_conexiones() -> bool:

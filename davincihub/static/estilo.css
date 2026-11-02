@@ -3620,10 +3620,10 @@ a.enlace-ficha:hover { color: #ffffff; }
   width: 280px; max-width: calc(100vw - 80px); padding: 12px 14px;
   border-radius: 10px; background: var(--tinta); color: #ffffff;
   box-shadow: 0 8px 24px rgba(21, 19, 26, 0.18); font-size: 13px; line-height: 1.5;
-  visibility: hidden; opacity: 0; transition: opacity 120ms ease;
+  display: none;
 }
 .objeto-eliminar:hover .objeto-tooltip,
-.objeto-eliminar:focus-within .objeto-tooltip { visibility: visible; opacity: 1; }
+.objeto-eliminar:focus-within .objeto-tooltip { display: block; }
 @media (max-width: 760px) {
   .objetos-grilla { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .objeto-ficha { grid-template-columns: minmax(0, 1fr); gap: 22px; }
@@ -5188,4 +5188,9 @@ body { overflow-x: clip; }
 .acuerdo-confirmaciones li { padding: 10px 14px; background: var(--fondo-suave); border: 1px solid var(--borde); border-radius: 10px; }
 .acuerdo-completado { padding: 16px; border-radius: 12px; background: #e0f6ec; color: #166344; margin: 20px 0 0; }
 .objeto-ficha-datos > .boton { margin: 6px 8px 0 0; }
+.objeto-acciones-contacto { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 6px; }
+.objeto-acciones-contacto .prestamo-disponibilidad { flex-basis: 100%; margin: 0; }
+.objeto-acciones-contacto .reporte-abrir { width: 44px; height: 44px; padding: 0; justify-content: center; font-size: 0; }
+.objeto-acciones-contacto .reporte-abrir svg { width: 17px; height: 17px; }
+@media (min-width: 601px) { .objeto-acciones-contacto .reporte-form { left: auto; right: 0; } }
 .objeto-controles > p .enlace-admin { color: var(--gris-texto); }

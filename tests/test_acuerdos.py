@@ -235,7 +235,8 @@ def test_revalida_publicacion_y_solicitante_al_aceptar(app, cambio):
             datos.editar(p, 3, PUBLICACION | {"modalidad": "prestamo"})
         with pytest.raises(acuerdos.ErrorAcuerdo):
             acuerdos.cambiar(t, aid, 3, "aceptar")
-        assert acuerdos.obtener(t, aid)["estado"] == "propuesto"
+        esperado = "cancelado" if cambio in ("cerrada", "modalidad") else "propuesto"
+        assert acuerdos.obtener(t, aid)["estado"] == esperado
 
 
 def test_venta_conserva_precio_propuesto_y_no_toma_objeto_adjuntado(app):
@@ -396,3 +397,57 @@ def test_confirmaciones_simultaneas_completan_una_sola_vez(app):
         assert acuerdos.obtener(t, aid)["estado"] == "completado"
         assert len(db.query("SELECT * FROM acuerdos_movimientos WHERE estado_nuevo = 'completado'")) == 1
         assert len(db.query("SELECT * FROM notificaciones WHERE cuerpo LIKE '%se completó%'")) == 2
+
+
+@pytest.mark.parametrize("tipo", ["intercambio", "venta"])
+@pytest.mark.parametrize("cambio", ["oculta", "ofrecida_oculta", "bloqueado"])
+def test_no_completa_con_contenido_oculto_o_persona_bloqueada(app, tipo, cambio):
+    if tipo == "venta" and cambio == "ofrecida_oculta":
+        pytest.skip("las ventas no llevan objeto ofrecido")
+    with app.app_context():
+        p = publicar(tipo=tipo)
+        ofrecida = publicar(2, titulo="Libro ofrecido") if tipo == "intercambio" else None
+        extra = {"publicacion_ofrecida_id": str(ofrecida)} if ofrecida else {}
+        t, aid = acuerdos.proponer(p, 2, FORM | extra)
+        acuerdos.cambiar(t, aid, 3, "aceptar")
+        acuerdos.cambiar(t, aid, 2, "confirmar")
+        if cambio == "bloqueado":
+            db.execute("UPDATE usuarios SET bloqueado = 1 WHERE id = 2")
+        else:
+            db.execute("UPDATE publicaciones SET oculto = 1 WHERE id = :id", id=p if cambio == "oculta" else ofrecida)
+        with pytest.raises(acuerdos.ErrorAcuerdo):
+            acuerdos.cambiar(t, aid, 3, "confirmar")
+        assert acuerdos.obtener(t, aid)["estado"] == "aceptado"
+        assert datos.obtener(p)["estado"] == "activa"
+        acuerdos.cambiar(t, aid, 3, "cancelar")
+
+
+@pytest.mark.parametrize("cambio", ["cerrada", "modalidad", "ofrecida_cerrada"])
+def test_cerrar_o_cambiar_modalidad_cancela_propuestas_pendientes(app, cambio):
+    with app.app_context():
+        p = publicar()
+        ofrecida = publicar(2, titulo="Libro ofrecido")
+        t, aid = acuerdos.proponer(p, 2, FORM | {"publicacion_ofrecida_id": str(ofrecida)})
+        db.execute("DELETE FROM notificaciones")
+        if cambio == "cerrada":
+            datos.cambiar_estado(p, 3, "cerrada")
+        elif cambio == "modalidad":
+            datos.editar(p, 3, PUBLICACION | {"modalidad": "venta"})
+        else:
+            datos.cambiar_estado(ofrecida, 2, "cerrada")
+        a = acuerdos.obtener(t, aid)
+        assert a["estado"] == "cancelado" and a["motivo_cierre"]
+        assert acuerdos.movimientos(t, aid)[-1]["actor_id"] is None
+        avisados = [n["usuario_id"] for n in db.query("SELECT usuario_id FROM notificaciones")]
+        assert avisados == [3 if cambio == "ofrecida_cerrada" else 2]
+
+
+def test_rechazo_automatico_no_avisa_a_quien_acepto_ni_lo_registra_como_actor(app):
+    with app.app_context():
+        p = publicar()
+        t, primera = acuerdos.proponer(p, 2, FORM)
+        _, segunda = acuerdos.proponer(p, 4, FORM)
+        db.execute("DELETE FROM notificaciones")
+        acuerdos.cambiar(t, primera, 3, "aceptar")
+        assert acuerdos.movimientos(t, segunda)[-1]["actor_id"] is None
+        assert sorted(n["usuario_id"] for n in db.query("SELECT usuario_id FROM notificaciones")) == [2, 4]
