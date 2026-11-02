@@ -3,7 +3,7 @@
 from datetime import date
 
 import click
-from flask import g, request
+from flask import current_app, g, request
 from flask.cli import with_appcontext
 
 from davincihub import db
@@ -176,6 +176,8 @@ def cambiar(prestamo_id, usuario_id, accion, form=None):
             destinatarios = [pr["solicitante_id"]]
             texto = f'Tu pedido de préstamo de «{pr["titulo"]}» fue aceptado. Revisá las condiciones y fechas.'
         elif accion == "entregar":
+            if pr["oculto"]:
+                _error("La publicación fue ocultada por moderación. Cancelá el préstamo.")
             if not pr["fecha_entrega"] <= hoy_local() <= pr["fecha_devolucion"]:
                 _error("La entrega debe registrarse entre las fechas acordadas.")
             if pr["solicitante_bloqueado"]:
@@ -203,9 +205,18 @@ def cambiar(prestamo_id, usuario_id, accion, form=None):
             _aviso(destinatario, prestamo_id, texto)
 
 
+def cancelar_pendientes(publicacion_id, motivo):
+    for fila in db.query("SELECT id FROM prestamos WHERE publicacion_id = :p AND estado = 'pendiente'", p=publicacion_id):
+        pr = obtener(fila["id"])
+        db.execute("UPDATE prestamos SET estado = 'cancelado', motivo_cierre = :motivo WHERE id = :id",
+                   motivo=motivo, id=pr["id"])
+        _movimiento(pr["id"], "pendiente", "cancelado", None, motivo)
+        _aviso(pr["solicitante_id"], pr["id"], f'Tu pedido de préstamo de «{pr["titulo"]}» se canceló: {motivo[0].lower()}{motivo[1:]}')
+
+
 def actualizar_vencidos():
     candidatos = db.query(
-        "SELECT id, publicacion_id FROM prestamos WHERE estado = 'en_prestamo'"
+        "SELECT id, publicacion_id FROM prestamos WHERE estado IN ('aceptado', 'en_prestamo')"
         " AND fecha_devolucion < :hoy ORDER BY publicacion_id, id", hoy=hoy_local(),
     )
     cantidad = 0
@@ -214,19 +225,37 @@ def actualizar_vencidos():
             db.bloquear_fila("publicaciones", candidato["publicacion_id"])
             db.bloquear_fila("prestamos", candidato["id"])
             pr = obtener(candidato["id"])
-            if pr is None or pr["estado"] != "en_prestamo" or pr["fecha_devolucion"] >= hoy_local():
+            if pr is None or pr["estado"] not in ("aceptado", "en_prestamo") or pr["fecha_devolucion"] >= hoy_local():
                 continue
-            db.execute("UPDATE prestamos SET estado = 'vencido' WHERE id = :id", id=pr["id"])
-            _movimiento(pr["id"], "en_prestamo", "vencido", None, "Pasó la fecha de devolución acordada.")
+            if pr["estado"] == "aceptado":
+                motivo = "No se registró la entrega antes de la fecha de devolución."
+                db.execute("UPDATE prestamos SET estado = 'cancelado', motivo_cierre = :motivo WHERE id = :id",
+                           motivo=motivo, id=pr["id"])
+                _movimiento(pr["id"], "aceptado", "cancelado", None, motivo)
+                texto = f'El préstamo de «{pr["titulo"]}» se canceló porque no se registró la entrega a tiempo.'
+            else:
+                db.execute("UPDATE prestamos SET estado = 'vencido' WHERE id = :id", id=pr["id"])
+                _movimiento(pr["id"], "en_prestamo", "vencido", None, "Pasó la fecha de devolución acordada.")
+                texto = f'El préstamo de «{pr["titulo"]}» está vencido. Coordiná la devolución.'
+                cantidad += 1
             for usuario in (pr["propietario_id"], pr["solicitante_id"]):
-                _aviso(usuario, pr["id"], f'El préstamo de «{pr["titulo"]}» está vencido. Coordiná la devolución.')
-            cantidad += 1
+                _aviso(usuario, pr["id"], texto)
     return cantidad
 
 
 def revisar_vencidos():
-    if g.get("usuario") and request.endpoint and request.endpoint != "static":
+    # Los vencimientos cambian solo con la fecha: un barrido por día alcanza.
+    if not g.get("usuario") or not request.endpoint or request.endpoint == "static":
+        return
+    hoy = hoy_local()
+    if current_app.extensions.get("prestamos_revisados") == hoy:
+        return
+    try:
         actualizar_vencidos()
+    except Exception:
+        current_app.logger.exception("No se pudieron actualizar los préstamos vencidos.")
+        return
+    current_app.extensions["prestamos_revisados"] = hoy
 
 
 def movimientos(prestamo_id):

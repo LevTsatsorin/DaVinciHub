@@ -135,7 +135,7 @@ CREATE TABLE publicaciones (
     categoria TEXT NOT NULL,
     estado_objeto TEXT NOT NULL,
     modalidad TEXT NOT NULL CHECK (modalidad IN ('venta', 'intercambio', 'prestamo')),
-    precio REAL,
+    precio DOUBLE PRECISION,
     estado TEXT NOT NULL DEFAULT 'activa' CHECK (estado IN ('activa', 'pausada', 'cerrada')),
     creado TEXT NOT NULL,
     oculto INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))
@@ -149,7 +149,7 @@ CREATE TABLE solicitudes (
     categoria TEXT NOT NULL,
     modalidad TEXT NOT NULL DEFAULT 'cualquiera'
         CHECK (modalidad IN ('cualquiera', 'venta', 'intercambio', 'prestamo')),
-    presupuesto_max REAL,
+    presupuesto_max DOUBLE PRECISION,
     estado TEXT NOT NULL DEFAULT 'activa' CHECK (estado IN ('activa', 'cerrada')),
     creado TEXT NOT NULL
 );
@@ -178,6 +178,8 @@ CREATE TABLE prestamos (
     devuelto TEXT,
     creado TEXT NOT NULL
 );
+CREATE INDEX idx_prestamos_estado ON prestamos (estado, fecha_devolucion);
+CREATE INDEX idx_prestamos_publicacion ON prestamos (publicacion_id, estado);
 
 CREATE TABLE prestamos_movimientos (
     id {{PK}},
@@ -208,7 +210,7 @@ CREATE TABLE ventas (
     id {{PK}},
     publicacion_id INTEGER NOT NULL REFERENCES publicaciones (id),
     comprador_id INTEGER NOT NULL REFERENCES usuarios (id),
-    precio_acordado REAL,
+    precio_acordado DOUBLE PRECISION,
     estado TEXT NOT NULL DEFAULT 'propuesta'
         CHECK (estado IN ('propuesta', 'aceptada', 'completada', 'cancelada')),
     confirmado_propietario INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_propietario IN (0, 1)),

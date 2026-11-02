@@ -3,7 +3,7 @@
 {% block contenido %}
 <section class="cabecera-seccion fondo-oscuro cabecera-objetos">
   <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/objetos.png') }}" alt="">
-  <div class="contenedor cabecera-seccion-contenido"><h1>Intercambios y ventas</h1><p>Tus propuestas, acuerdos y operaciones completadas entre estudiantes.</p><div class="acciones-cabecera"><a class="boton boton-primario" href="{{ url_for('objetos.catalogo') }}">Encontrar un objeto</a><a class="enlace-admin" href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a></div></div>
+  <div class="contenedor cabecera-seccion-contenido"><h1>Intercambios y ventas</h1><p>Tus propuestas, acuerdos y operaciones completadas entre estudiantes.</p><div class="acciones-cabecera"><a class="boton boton-grande" href="{{ url_for('objetos.catalogo') }}">Encontrar un objeto</a><div class="enlaces-admin"><a class="enlace-admin" href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a></div></div></div>
 </section>
 <section class="contenedor pagina-modulo pagina-objetos">
   <nav class="objetos-estados" aria-label="Tipo de propuestas">{% for valor, nombre in [('enviadas', 'Enviadas'), ('recibidas', 'Recibidas')] %}<a href="{{ url_for('objetos.mis_acuerdos', vista=valor, tipo=tipo, estado=estado) }}"{% if vista == valor %} aria-current="page"{% endif %}>{{ nombre }}</a>{% endfor %}</nav>

@@ -28,6 +28,7 @@
         <div><dt>Fecha de publicación</dt><dd>{{ publicacion.creado | fecha_corta }}</dd></div>
       </dl>
       {% if not propia and g.usuario.rol == 'estudiante' %}
+      <div class="objeto-acciones-contacto">
         {% if publicacion.modalidad == 'prestamo' %}
           {% if prestamo_abierto %}
             <a class="boton boton-primario" href="{{ url_for('objetos.detalle_prestamo', prestamo_id=prestamo_abierto.id) }}">Ver mi solicitud</a>
@@ -44,6 +45,7 @@
         {% endif %}
         <a class="boton" href="{{ url_for('perfil.chat', usuario_id=publicacion.autor_id) }}">Escribirle a {{ publicacion.autor_nombre }}</a>
         {{ boton_reporte('publicacion', publicacion.id, request.full_path, publicacion.autor_id) }}
+      </div>
       {% endif %}
     </div>
   </div>

@@ -250,3 +250,41 @@ def test_postgres_c4_migracion_y_ciclos_completos():
             with cliente.session_transaction() as sesion:
                 sesion["usuario_id"] = 3
             assert cliente.get(f"/objetos/{pid}").status_code == 200
+
+
+def test_precios_conservan_centavos(app):
+    with app.app_context():
+        fila = db.query_one(
+            "INSERT INTO publicaciones (autor_id, titulo, descripcion, categoria, estado_objeto, modalidad,"
+            " precio, creado) VALUES (3, 'Monitor', 'Usado', 'computacion', 'usado_buen_estado', 'venta',"
+            " :precio, '2026-11-01T10:00:00+00:00') RETURNING id", precio=999999999.99,
+        )
+        db.execute("INSERT INTO ventas (publicacion_id, comprador_id, precio_acordado, creado)"
+                   " VALUES (:p, 2, :precio, '2026-11-01T10:00:00+00:00')", p=fila["id"], precio=1234567.89)
+        assert db.query_one("SELECT precio FROM publicaciones WHERE id = :id", id=fila["id"])["precio"] == 999999999.99
+        assert db.query_one("SELECT precio_acordado FROM ventas")["precio_acordado"] == 1234567.89
+
+
+def test_postgres_migra_precios_real_a_doble_precision():
+    import os
+
+    url = os.environ.get("TEST_DATABASE_URL", "")
+    if not url:
+        pytest.skip("sin TEST_DATABASE_URL")
+    from davincihub.app import create_app
+
+    aplicacion = create_app({"TESTING": True, "DATABASE_URL": url})
+    with aplicacion.app_context():
+        db.init_db(demo=True)
+        db.execute("ALTER TABLE publicaciones ALTER COLUMN precio TYPE REAL")
+        db.execute("ALTER TABLE ventas ALTER COLUMN precio_acordado TYPE REAL")
+        db.execute("INSERT INTO publicaciones (autor_id, titulo, descripcion, categoria, estado_objeto, modalidad,"
+                   " precio, creado) SELECT id, 'Regla', 'Usada', 'utiles', 'usado_buen_estado', 'venta', 12500.5,"
+                   " '2026-11-01T10:00:00+00:00' FROM usuarios LIMIT 1")
+        for _ in range(2):
+            db.migrar()
+        tipos = db.query("SELECT table_name AS tabla, data_type AS tipo FROM information_schema.columns"
+                         " WHERE column_name IN ('precio', 'precio_acordado', 'presupuesto_max')"
+                         " AND table_schema = current_schema()")
+        assert {f["tipo"] for f in tipos} == {"double precision"}
+        assert db.query_one("SELECT precio FROM publicaciones WHERE titulo = 'Regla'")["precio"] == 12500.5

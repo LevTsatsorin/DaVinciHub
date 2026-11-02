@@ -208,14 +208,65 @@ def test_vencimiento_avisa_una_vez_a_ambos_y_permite_devolver(app, client, solic
         assert prestamos.obtener(solicitud)["estado"] == "devuelto"
 
 
-def test_no_marca_aceptado_sin_entrega_como_vencido(app, solicitud, monkeypatch):
+def test_aceptado_sin_entrega_se_cancela_al_pasar_la_devolucion(app, solicitud, publicacion, monkeypatch):
     with app.app_context():
         prestamos.cambiar(solicitud, 3, "aceptar", fechas())
+        db.execute("DELETE FROM notificaciones")
+        monkeypatch.setattr(prestamos, "hoy_local", lambda: "2026-11-02")
+        prestamos.actualizar_vencidos()
+        assert prestamos.obtener(solicitud)["estado"] == "aceptado"
         monkeypatch.setattr(prestamos, "hoy_local", lambda: "2026-11-03")
         assert prestamos.actualizar_vencidos() == 0
+        pr = prestamos.obtener(solicitud)
+        assert pr["estado"] == "cancelado" and "entrega" in pr["motivo_cierre"]
+        assert prestamos.movimientos(solicitud)[-1]["actor_id"] is None
+        assert sorted(a["usuario_id"] for a in db.query("SELECT usuario_id FROM notificaciones")) == [2, 3]
+        assert not prestamos.ocupado(publicacion)
+
+
+def test_no_registra_entrega_de_publicacion_oculta(app, solicitud, publicacion):
+    with app.app_context():
+        prestamos.cambiar(solicitud, 3, "aceptar", fechas())
+        db.execute("UPDATE publicaciones SET oculto = 1 WHERE id = :id", id=publicacion)
         with pytest.raises(prestamos.ErrorPrestamo):
             prestamos.cambiar(solicitud, 3, "entregar")
+        assert prestamos.obtener(solicitud)["estado"] == "aceptado"
         prestamos.cambiar(solicitud, 3, "cancelar")
+
+
+@pytest.mark.parametrize("cambio", ["cerrada", "venta"])
+def test_cerrar_o_cambiar_modalidad_cancela_pedidos_pendientes(app, solicitud, publicacion, cambio):
+    with app.app_context():
+        db.execute("DELETE FROM notificaciones")
+        if cambio == "cerrada":
+            datos.cambiar_estado(publicacion, 3, "cerrada")
+        else:
+            datos.editar(publicacion, 3, PUBLICACION | {"modalidad": "venta", "precio": "100"})
+        pr = prestamos.obtener(solicitud)
+        assert pr["estado"] == "cancelado" and pr["motivo_cierre"]
+        assert [a["usuario_id"] for a in db.query("SELECT usuario_id FROM notificaciones")] == [2]
+
+
+def test_pausar_o_editar_sin_cambiar_modalidad_conserva_pedidos(app, solicitud, publicacion):
+    with app.app_context():
+        datos.cambiar_estado(publicacion, 3, "pausada")
+        datos.editar(publicacion, 3, PUBLICACION | {"titulo": "Cámara Canon con trípode"})
+        assert prestamos.obtener(solicitud)["estado"] == "pendiente"
+
+
+def test_barrido_automatico_una_vez_por_dia_y_sin_romper_paginas(app, client, monkeypatch):
+    llamadas = []
+    monkeypatch.setattr(prestamos, "actualizar_vencidos", lambda: llamadas.append(1))
+    login(client)
+    client.get("/notificaciones/")
+    client.get("/notificaciones/")
+    assert len(llamadas) == 1
+    monkeypatch.setattr(prestamos, "hoy_local", lambda: "2026-10-30")
+
+    def falla():
+        raise RuntimeError("base ocupada")
+    monkeypatch.setattr(prestamos, "actualizar_vencidos", falla)
+    assert client.get("/notificaciones/").status_code == 200
 
 
 def test_solo_participantes_y_rutas_protegidas(app, client, solicitud, publicacion):
