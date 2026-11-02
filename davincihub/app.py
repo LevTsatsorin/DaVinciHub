@@ -11,6 +11,7 @@ from davincihub import (
     foro,
     notificaciones,
     perfil,
+    reputacion,
     seguridad,
     usuarios,
 )
@@ -44,6 +45,7 @@ def create_app(config: dict | None = None) -> Flask:
     db.registrar(app)
     app.register_blueprint(auth.bp)
     app.register_blueprint(perfil.bp)
+    app.register_blueprint(reputacion.bp)
     app.register_blueprint(notificaciones.bp)
     app.register_blueprint(reservas_rutas.bp)
     app.register_blueprint(actividades.bp)

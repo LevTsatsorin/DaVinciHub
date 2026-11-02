@@ -2,8 +2,9 @@ from datetime import date
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
-from davincihub import seguridad
+from davincihub import db, seguridad
 from davincihub.objetos import acuerdos, busquedas, datos, prestamos
+from davincihub.reputacion import propia
 from davincihub.utiles import hoy_local, paginas_visibles
 
 bp = Blueprint("objetos", __name__, url_prefix="/objetos")
@@ -113,6 +114,23 @@ def catalogo():
 def mis_publicaciones():
     _solo_estudiante()
     return _listado(mias=True)
+
+
+@bp.get("/opiniones/<int:opinion_id>/publicacion")
+@seguridad.requiere_login
+def publicacion_opinion(opinion_id):
+    opinion = db.query_one("SELECT * FROM valoraciones_operaciones WHERE id = :id", id=opinion_id)
+    if opinion is None:
+        abort(404)
+    tipo = opinion["tipo_operacion"]
+    operacion = (prestamos.obtener(opinion["operacion_id"]) if tipo == "prestamo"
+                 else acuerdos.obtener(tipo, opinion["operacion_id"]))
+    if operacion is None or operacion["estado"] != ("devuelto" if tipo == "prestamo" else "completado"):
+        abort(404)
+    publicacion = datos.obtener(operacion["publicacion_id"])
+    if publicacion is None or publicacion["oculto"] or publicacion["autor_bloqueado"]:
+        abort(404)
+    return render_template("objetos/detalle.html", publicacion=publicacion, historica=True)
 
 
 @bp.get("/<int:publicacion_id>")
@@ -319,6 +337,7 @@ def detalle_prestamo(prestamo_id):
 def _detalle_prestamo(prestamo, errores=None):
     return render_template(
         "objetos/prestamo_detalle.html", prestamo=prestamo,
+        valoracion_propia=propia("prestamo", prestamo["id"], g.usuario["id"]),
         movimientos=prestamos.movimientos(prestamo["id"]), errores=errores or {},
         acciones=prestamos.acciones(prestamo, g.usuario["id"]),
         datos_form=request.form if errores else prestamo,
@@ -400,6 +419,7 @@ def proponer_acuerdo(publicacion_id):
 
 def _detalle_acuerdo(acuerdo, errores=None):
     return render_template("objetos/acuerdo_detalle.html", acuerdo=acuerdo, errores=errores or {},
+                           valoracion_propia=propia(acuerdo["tipo"], acuerdo["id"], g.usuario["id"]),
                            movimientos=acuerdos.movimientos(acuerdo["tipo"], acuerdo["id"]),
                            acciones=acuerdos.acciones(acuerdo, g.usuario["id"]))
 

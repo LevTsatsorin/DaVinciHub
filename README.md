@@ -10,6 +10,14 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 flask --app davincihub.app run --debug
 ```
+Para windows:
+
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+flask --app davincihub.app run --debug
+flask --app davincihub.app init-db --demo
+
 
 ## Foro académico
 

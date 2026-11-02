@@ -1,0 +1,15 @@
+{% for opinion in opiniones %}
+<article class="tarjeta reputacion-opinion reputacion-opinion-{{ opinion.tipo_operacion }}">
+  <div class="reputacion-opinion-cabecera">
+    <a class="reputacion-autor" href="{{ url_for('perfil.ver', usuario_id=opinion.autor_id) }}">
+      <span class="reputacion-autor-avatar" aria-hidden="true">{{ opinion.nombre[:1] }}{{ opinion.apellido[:1] }}</span>
+      <span class="reputacion-autor-datos"><strong>{{ opinion.nombre }} {{ opinion.apellido }}</strong></span>
+    </a>
+  <div class="reputacion-opinion-meta"><a class="reputacion-tipo" href="{{ url_for('objetos.publicacion_opinion', opinion_id=opinion.id) }}" title="Ver el producto de esta operación">{{ {'prestamo': 'Préstamo', 'intercambio': 'Intercambio', 'venta': 'Venta'}[opinion.tipo_operacion] }}</a><time class="ayuda" datetime="{{ opinion.creado }}">{{ opinion.creado | fecha_corta }}</time></div>
+  </div>
+  <div class="reputacion-opinion-cuerpo">
+  <div class="reputacion-opinion-puntuacion"><strong class="reputacion-puntuacion"><span class="reputacion-estrella" aria-hidden="true">★</span> {{ opinion.valor }} / 5</strong></div>
+  {% if opinion.comentario %}<p class="reputacion-comentario">{{ opinion.comentario }}</p>{% endif %}
+  </div>
+</article>
+{% else %}<div class="perfil-vacio"><p>Todavía no recibió opiniones de operaciones finalizadas.</p></div>{% endfor %}

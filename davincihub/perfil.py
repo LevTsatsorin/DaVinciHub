@@ -168,6 +168,11 @@ def ver(usuario_id: int):
         " WHERE receptor_id = :id",
         id=usuario_id,
     )
+    opiniones = db.query(
+        "SELECT v.*, u.nombre, u.apellido FROM valoraciones_operaciones v"
+        " JOIN usuarios u ON u.id = v.autor_id WHERE v.receptor_id = :id"
+        " ORDER BY v.creado DESC, v.id DESC LIMIT 2", id=usuario_id,
+    )
     intercambios = db.query_one(
         "SELECT"
         " (SELECT COUNT(*) FROM intercambios i JOIN publicaciones p ON p.id = i.publicacion_id"
@@ -181,7 +186,7 @@ def ver(usuario_id: int):
     )
     respuestas_utiles = db.query_one(
         "SELECT COUNT(*) AS total FROM respuestas"
-        " WHERE autor_id = :id AND aceptada = 1",
+        " WHERE autor_id = :id AND oculto = 0 AND (aceptada = 1 OR EXISTS (SELECT 1 FROM valoraciones_respuestas v WHERE v.respuesta_id = respuestas.id))",
         id=usuario_id,
     )
     actividades = db.query(
@@ -204,6 +209,7 @@ def ver(usuario_id: int):
         estudiante=estudiante,
         materias=materias,
         reputacion=reputacion,
+        opiniones=opiniones,
         intercambios=intercambios["total"],
         respuestas_utiles=respuestas_utiles["total"],
         actividades=actividades,
@@ -211,6 +217,29 @@ def ver(usuario_id: int):
         actividades_pasadas=totales["pasadas"],
         proximas_total=totales["total"] - totales["pasadas"],
         conexion=conexion,
+    )
+
+
+@bp.get("/<int:usuario_id>/opiniones")
+def opiniones(usuario_id: int):
+    estudiante = _estudiante_publico(usuario_id)
+    if estudiante is None:
+        abort(404)
+    total = db.query_one(
+        "SELECT COUNT(*) AS n FROM valoraciones_operaciones WHERE receptor_id = :id",
+        id=usuario_id,
+    )["n"]
+    paginas = max(1, (total + 19) // 20)
+    pagina = min(max(1, request.args.get("pagina", 1, type=int) or 1), paginas)
+    filas = db.query(
+        "SELECT v.*, u.nombre, u.apellido FROM valoraciones_operaciones v"
+        " JOIN usuarios u ON u.id = v.autor_id WHERE v.receptor_id = :id"
+        " ORDER BY v.creado DESC, v.id DESC LIMIT 20 OFFSET :salto",
+        id=usuario_id, salto=(pagina - 1) * 20,
+    )
+    return render_template(
+        "perfil/opiniones.html", estudiante=estudiante, opiniones=filas,
+        pagina=pagina, paginas=paginas,
     )
 
 

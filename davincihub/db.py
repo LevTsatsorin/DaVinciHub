@@ -181,6 +181,18 @@ COLUMNAS_AGREGADAS = [
 ]
 
 TABLAS_AGREGADAS = {
+    "valoraciones_operaciones": """CREATE TABLE IF NOT EXISTS valoraciones_operaciones (
+    id {{PK}},
+    tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('prestamo', 'intercambio', 'venta')),
+    operacion_id INTEGER NOT NULL,
+    autor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    receptor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    valor INTEGER NOT NULL CHECK (valor BETWEEN 1 AND 5),
+    comentario TEXT,
+    creado TEXT NOT NULL,
+    UNIQUE (tipo_operacion, operacion_id, autor_id),
+    CHECK (autor_id <> receptor_id)
+)""",
     "acuerdos_movimientos": """CREATE TABLE IF NOT EXISTS acuerdos_movimientos (
         id {{PK}},
         tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('intercambio', 'venta')),

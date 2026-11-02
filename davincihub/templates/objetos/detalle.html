@@ -7,6 +7,7 @@
   <a class="volver" href="{{ url_for('objetos.mis_publicaciones') if propia else url_for('objetos.catalogo') }}">← {{ 'Mis publicaciones' if propia else 'Catálogo de objetos' }}</a>
   {% if publicacion.oculto %}<p class="aviso aviso-moderado">Ocultada por moderación: no la ve ningún estudiante. Si creés que es un error, escribí a la escuela.</p>{% endif %}
   {% if publicacion.estado != 'activa' %}<p class="aviso aviso-advertencia">Esta publicación está {{ publicacion.estado }} y no aparece en el catálogo.</p>{% endif %}
+  {% if historica %}<p class="aviso">Publicación vinculada a una operación finalizada.</p>{% endif %}
   <div class="objeto-ficha">
     <div class="objeto-ilustracion objeto-ilustracion-detalle objeto-{{ publicacion.categoria }}">{% include "objetos/_icono.html" %}</div>
     <div class="objeto-ficha-datos">
@@ -27,7 +28,7 @@
         <div><dt>Publicado por</dt><dd><a href="{{ url_for('perfil.ver', usuario_id=publicacion.autor_id) }}">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</a></dd></div>
         <div><dt>Fecha de publicación</dt><dd>{{ publicacion.creado | fecha_corta }}</dd></div>
       </dl>
-      {% if not propia and g.usuario.rol == 'estudiante' %}
+      {% if not historica and not propia and g.usuario.rol == 'estudiante' %}
       <div class="objeto-acciones-contacto">
         {% if publicacion.modalidad == 'prestamo' %}
           {% if prestamo_abierto %}
@@ -53,7 +54,7 @@
     <h2 class="titulo-tarjeta">Sobre este material</h2>
     <p>{{ publicacion.descripcion }}</p>
   </section>
-  {% if propia and publicacion.estado != 'cerrada' %}
+  {% if not historica and propia and publicacion.estado != 'cerrada' %}
     <section class="tarjeta objeto-controles" aria-label="Administrar mi publicación">
       <h2 class="titulo-tarjeta">Tu publicación</h2>
       {% if publicacion.modalidad == 'prestamo' %}<p><a class="enlace-admin" href="{{ url_for('objetos.mis_prestamos', vista='otorgados') }}">Ver pedidos de préstamo</a>{% if objeto_ocupado %} · Hay un préstamo en curso.{% endif %}</p>{% endif %}
@@ -78,6 +79,6 @@
     </section>
   {% endif %}
 </section>
-{% if propia and publicacion.estado != 'cerrada' %}{% include "espacios/_dialogo.html" %}{% endif %}
+{% if not historica and propia and publicacion.estado != 'cerrada' %}{% include "espacios/_dialogo.html" %}{% endif %}
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

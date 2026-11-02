@@ -56,12 +56,18 @@
 
   <h2 class="subtitulo">Actividad en el Hub</h2>
   <dl class="perfil-metricas">
-    <div><dt>Reputación</dt><dd>{% if reputacion.cantidad %}{{ reputacion.promedio | round(1) }}<small> / 5</small>{% else %}<span class="perfil-metrica-vacia">Sin valoraciones todavía</span>{% endif %}</dd></div>
+    <div><dt>Reputación</dt><dd>{% if reputacion.cantidad %}<span class="reputacion-estrella" aria-hidden="true">★</span> {{ reputacion.promedio | round(1) }}{% else %}<span class="perfil-metrica-vacia">Sin valoraciones todavía</span>{% endif %}</dd></div>
     <div><dt>Intercambios completados</dt><dd>{{ intercambios }}</dd></div>
     <div><dt>Respuestas útiles</dt><dd>{{ respuestas_utiles }}</dd></div>
     <div><dt>Actividades</dt><dd>{{ actividades_total }}</dd></div>
   </dl>
   <p class="perfil-nota">La reputación se calcula con el promedio de las valoraciones recibidas en operaciones.</p>
+
+  <h2 class="subtitulo">Últimas opiniones recibidas</h2>
+  {% include 'perfil/_opiniones.html' %}
+  {% if reputacion.cantidad > 2 %}
+    <div class="reputacion-ver-todas"><a class="enlace-ver-mas" href="{{ url_for('perfil.opiniones', usuario_id=estudiante.id) }}">Ver todos los comentarios <span aria-hidden="true">→</span></a></div>
+  {% endif %}
 
   {% if materias %}
     <h2 class="subtitulo">Materias de cátedra</h2>
