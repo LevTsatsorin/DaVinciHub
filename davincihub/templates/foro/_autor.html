@@ -1,3 +1,4 @@
+{% from "_insignia.html" import insignia_reputacion %}
 {% macro avatar(persona, clase="foro-avatar") -%}
   {%- if persona.tiene_foto %}<img class="{{ clase }}" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
   {%- else %}<span class="{{ clase }}" aria-hidden="true">{{ persona.nombre[:1] }}{{ persona.apellido[:1] }}</span>{% endif -%}
@@ -5,7 +6,7 @@
 
 {% macro autor(persona, con_avatar=True, catedra=False) %}
   <span class="foro-autor">
-    {% if con_avatar %}<span class="foro-avatar-marco">{{ avatar(persona) }}{% if catedra %}<img class="insignia insignia-mini" src="{{ url_for('static', filename='img/insignias/catedra.png') }}" alt="" title="Estudiante de cátedra en esta materia">{% endif %}</span>{% endif %}
+    {% if con_avatar %}<span class="foro-avatar-marco">{{ avatar(persona) }}{% if catedra %}<img class="insignia insignia-mini" src="{{ url_for('static', filename='img/insignias/catedra.png') }}" alt="" title="Estudiante de cátedra en esta materia">{% endif %}{{ insignia_reputacion(persona.id, "insignia-mini insignia-mini-reputacion") }}</span>{% endif %}
     {% if persona.rol == 'estudiante' %}
       <a class="foro-autor-enlace" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">{{ persona.nombre }} {{ persona.apellido }}</a>
       <div class="foro-autor-tarjeta" role="group" aria-label="Sobre {{ persona.nombre }}">
@@ -19,6 +20,10 @@
         </span>
         {% if persona.catedra %}
           <span class="foro-autor-insignia"><img class="insignia" src="{{ url_for('static', filename='img/insignias/catedra.png') }}" alt=""><span><strong>Estudiante de cátedra</strong><span>Ya cursó las materias de su año y ayuda en el foro.</span></span></span>
+        {% endif %}
+        {% set reputacion = reputacion_de(persona.id) %}
+        {% if reputacion.insignia %}
+          <span class="foro-autor-insignia">{{ insignia_reputacion(persona.id, "") }}<span><strong>Reputación {{ reputacion.insignia.nombre }}</strong><span>{{ reputacion.promedio }} de 5 en {{ reputacion.opiniones }}.</span></span></span>
         {% endif %}
         <span class="foro-autor-tarjeta-acciones">
           <a class="boton boton-suave" href="{{ url_for('perfil.ver', usuario_id=persona.id) }}">Ver perfil</a>

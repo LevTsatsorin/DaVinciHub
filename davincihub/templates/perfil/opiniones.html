@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}Opiniones de {{ estudiante.nombre }} {{ estudiante.apellido }} — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-perfil">
+  <a class="volver" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">← Volver al perfil</a>
+  <h1>Opiniones recibidas por {{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
+  {% include 'perfil/_opiniones.html' %}
+  {% if paginas > 1 %}
+    {% set enlaces = paginacion('perfil.opiniones', pagina, paginas, usuario_id=estudiante.id) %}
+    {% set etiqueta_paginacion = 'Páginas de opiniones' %}
+    {% include '_paginacion.html' %}
+  {% endif %}
+</section>
+{% endblock %}

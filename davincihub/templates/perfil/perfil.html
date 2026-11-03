@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "reportes/_boton_reporte.html" import boton_reporte %}
+{% from "_insignia.html" import insignia_reputacion %}
 
 {% block titulo %}{{ estudiante.nombre }} {{ estudiante.apellido }} — Da Vinci Hub{% endblock %}
 
@@ -15,11 +16,13 @@
     <span class="perfil-avatar-marco">
       {{ avatar(estudiante, "ficha-usuario-avatar perfil-avatar") }}
       {% if materias %}<img class="insignia insignia-avatar" src="{{ url_for('static', filename='img/insignias/catedra.png') }}" alt="" title="Estudiante de cátedra">{% endif %}
+      {{ insignia_reputacion(estudiante.id, "insignia-avatar insignia-avatar-reputacion") }}
     </span>
     <div class="ficha-usuario-datos">
       <div class="ficha-usuario-estados">
         <span class="estado estado-activo">Estudiante</span>
         {% if materias %}<span class="estado estado-catedra">Estudiante de cátedra</span>{% endif %}
+        {% if reputacion.insignia %}<span class="estado estado-reputacion">Reputación {{ reputacion.insignia.nombre }}</span>{% endif %}
       </div>
       <h1>{{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
       <ul class="cifras-cabecera">
@@ -56,12 +59,18 @@
 
   <h2 class="subtitulo">Actividad en el Hub</h2>
   <dl class="perfil-metricas">
-    <div><dt>Reputación</dt><dd>{% if reputacion.cantidad %}{{ reputacion.promedio | round(1) }}<small> / 5</small>{% else %}<span class="perfil-metrica-vacia">Sin valoraciones todavía</span>{% endif %}</dd></div>
-    <div><dt>Intercambios completados</dt><dd>{{ intercambios }}</dd></div>
+    <div><dt>Reputación{% if reputacion.cantidad %} · {{ reputacion.opiniones }}{% endif %}</dt><dd>{% if reputacion.cantidad %}<span class="reputacion-estrella" aria-hidden="true">★</span> {{ reputacion.promedio }}{% else %}<span class="perfil-metrica-vacia">Sin valoraciones todavía</span>{% endif %}</dd></div>
+    <div><dt>Operaciones completadas</dt><dd>{{ intercambios }}</dd></div>
     <div><dt>Respuestas útiles</dt><dd>{{ respuestas_utiles }}</dd></div>
     <div><dt>Actividades</dt><dd>{{ actividades_total }}</dd></div>
   </dl>
   <p class="perfil-nota">La reputación se calcula con el promedio de las valoraciones recibidas en operaciones.</p>
+
+  <h2 class="subtitulo">Últimas opiniones recibidas</h2>
+  {% include 'perfil/_opiniones.html' %}
+  {% if reputacion.cantidad > 2 %}
+    <div class="reputacion-ver-todas"><a class="enlace-ver-mas" href="{{ url_for('perfil.opiniones', usuario_id=estudiante.id) }}">Ver todos los comentarios <span aria-hidden="true">→</span></a></div>
+  {% endif %}
 
   {% if materias %}
     <h2 class="subtitulo">Materias de cátedra</h2>

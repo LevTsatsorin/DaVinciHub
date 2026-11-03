@@ -60,11 +60,12 @@
     </div>
   </section>
   {% endif %}
+  {% with operacion=prestamo, tipo_operacion='prestamo' %}{% include 'objetos/_valoracion.html' %}{% endwith %}
   <section class="tarjeta prestamo-historial"><h2 class="titulo-tarjeta">Seguimiento del préstamo</h2>
-    {% if movimientos %}<ol>{% for m in movimientos %}<li><div><strong>{{ estados_prestamo.get(m.estado_nuevo, m.estado_nuevo) }}</strong><time>{{ m.creado | fecha_corta }}</time></div><p>{{ m.detalle }}</p><span class="ayuda">{{ m.nombre ~ ' ' ~ m.apellido if m.actor_id else 'Actualización automática' }}</span></li>{% endfor %}</ol>
+    {% if movimientos %}<ol>{% for m in movimientos %}<li class="seguimiento-{{ 'automatico' if not m.actor_id else ('propio' if m.actor_id == g.usuario.id else 'otro') }}"><div><strong>{{ estados_prestamo.get(m.estado_nuevo, m.estado_nuevo) }}</strong><time>{{ m.creado | fecha_corta }}</time></div><p>{{ m.detalle }}</p><span class="ayuda">{{ ('Vos · ' if m.actor_id == g.usuario.id else '') ~ m.nombre ~ ' ' ~ m.apellido if m.actor_id else 'Actualización automática' }}</span></li>{% endfor %}</ol>
     {% else %}<p class="ayuda">Préstamo registrado el {{ prestamo.creado | fecha_corta }}.</p>{% endif %}
   </section>
 </section>
 {% include 'espacios/_dialogo.html' %}
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='reputacion.js') }}" defer></script><script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

@@ -1,3 +1,4 @@
+{% from "_insignia.html" import insignia_reputacion %}
 <article class="objeto-tarjeta objeto-tarjeta-{{ publicacion.modalidad }}">
   <a class="objeto-enlace" href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">
     <div class="objeto-ilustracion objeto-{{ publicacion.categoria }}">
@@ -20,7 +21,7 @@
         {% endif %}
         <span class="objeto-ir" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg></span>
       </div>
-      <p class="objeto-autor"><span class="objeto-autor-avatar" aria-hidden="true">{{ publicacion.autor_nombre[:1] }}{{ publicacion.autor_apellido[:1] }}</span>{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</p>
+      <p class="objeto-autor"><span class="objeto-autor-avatar" aria-hidden="true">{{ publicacion.autor_nombre[:1] }}{{ publicacion.autor_apellido[:1] }}</span><span class="objeto-autor-nombre">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</span>{{ insignia_reputacion(publicacion.autor_id) }}</p>
     </div>
   </a>
   {% if mias %}

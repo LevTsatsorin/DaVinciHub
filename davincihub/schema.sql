@@ -244,6 +244,7 @@ CREATE TABLE valoraciones_operaciones (
     UNIQUE (tipo_operacion, operacion_id, autor_id),
     CHECK (autor_id <> receptor_id)
 );
+CREATE INDEX idx_valoraciones_receptor ON valoraciones_operaciones (receptor_id, creado);
 
 CREATE TABLE espacios (
     id {{PK}},
