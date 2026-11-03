@@ -1,3 +1,4 @@
+{% from "_insignia.html" import insignia_reputacion %}
 <a class="objeto-compacto" href="{{ url_for('objetos.detalle', publicacion_id=publicacion.id) }}">
   <span class="objeto-compacto-imagen objeto-{{ publicacion.categoria }}" aria-hidden="true">{% include "objetos/_icono.html" %}</span>
   <span class="objeto-compacto-datos">
@@ -12,7 +13,7 @@
       {% else %}
         <span class="objeto-compacto-precio objeto-precio-{{ publicacion.modalidad }}">Sin costo</span>
       {% endif %}
-      <span class="objeto-compacto-autor">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</span>
+      <span class="objeto-compacto-autor"><span class="objeto-autor-nombre">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</span>{{ insignia_reputacion(publicacion.autor_id) }}</span>
     </span>
   </span>
 </a>

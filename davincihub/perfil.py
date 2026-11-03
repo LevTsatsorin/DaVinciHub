@@ -15,6 +15,7 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from davincihub import db, seguridad, validacion
+from davincihub import reputacion as reputacion_datos
 from davincihub.notificaciones import notificar
 from davincihub.notificaciones import sin_leer as notificaciones_sin_leer
 from davincihub.usuarios import datos as usuarios_datos
@@ -163,16 +164,8 @@ def ver(usuario_id: int):
         abort(404)
 
     materias = usuarios_datos.materias_con_catedra(estudiante)
-    reputacion = db.query_one(
-        "SELECT AVG(valor) AS promedio, COUNT(*) AS cantidad FROM valoraciones_operaciones"
-        " WHERE receptor_id = :id",
-        id=usuario_id,
-    )
-    opiniones = db.query(
-        "SELECT v.*, u.nombre, u.apellido FROM valoraciones_operaciones v"
-        " JOIN usuarios u ON u.id = v.autor_id WHERE v.receptor_id = :id"
-        " ORDER BY v.creado DESC, v.id DESC LIMIT 2", id=usuario_id,
-    )
+    reputacion = reputacion_datos.reputacion_de(usuario_id)
+    opiniones = reputacion_datos.opiniones_de(usuario_id, 2)
     intercambios = db.query_one(
         "SELECT"
         " (SELECT COUNT(*) FROM intercambios i JOIN publicaciones p ON p.id = i.publicacion_id"
@@ -225,18 +218,10 @@ def opiniones(usuario_id: int):
     estudiante = _estudiante_publico(usuario_id)
     if estudiante is None:
         abort(404)
-    total = db.query_one(
-        "SELECT COUNT(*) AS n FROM valoraciones_operaciones WHERE receptor_id = :id",
-        id=usuario_id,
-    )["n"]
+    total = reputacion_datos.reputacion_de(usuario_id)["cantidad"]
     paginas = max(1, (total + 19) // 20)
     pagina = min(max(1, request.args.get("pagina", 1, type=int) or 1), paginas)
-    filas = db.query(
-        "SELECT v.*, u.nombre, u.apellido FROM valoraciones_operaciones v"
-        " JOIN usuarios u ON u.id = v.autor_id WHERE v.receptor_id = :id"
-        " ORDER BY v.creado DESC, v.id DESC LIMIT 20 OFFSET :salto",
-        id=usuario_id, salto=(pagina - 1) * 20,
-    )
+    filas = reputacion_datos.opiniones_de(usuario_id, 20, (pagina - 1) * 20)
     return render_template(
         "perfil/opiniones.html", estudiante=estudiante, opiniones=filas,
         pagina=pagina, paginas=paginas,

@@ -5195,64 +5195,49 @@ body { overflow-x: clip; }
 @media (min-width: 601px) { .objeto-acciones-contacto .reporte-form { left: auto; right: 0; } }
 .objeto-controles > p .enlace-admin { color: var(--gris-texto); }
 
-/* Reputación de operaciones */
-.reputacion-opinion { margin-bottom: 1rem; }
-.reputacion-opinion-cabecera { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.reputacion-comentario { white-space: pre-wrap; overflow-wrap: anywhere; }
-
-/* Puntuación y opiniones: colores de la comunidad. */
-.reputacion-estrella { color: #facc15; text-shadow: 0 2px 10px rgba(250, 204, 21, .22); }
+/* --- reputación de operaciones --- */
+.reputacion-estrella { color: var(--ambar); }
+.reputacion-comentario { flex: 1; min-width: 0; margin: 0; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .reputacion-selector { max-width: 540px; }
 .reputacion-selector-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .reputacion-selector-cabecera label { margin: 0; }
-.reputacion-puntuacion { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: #f4efff; color: #5825a8; font-weight: 700; white-space: nowrap; }
-.campo input.reputacion-rango { --avance: 50%; appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 12px; min-height: 0; padding: 0; margin: 12px 0; border: 0; border-radius: 99px; cursor: pointer; background: linear-gradient(180deg, rgba(255, 255, 255, .35), transparent 60%), linear-gradient(110deg, var(--magenta), #ba24bc 48%, var(--violeta)) 0 / var(--avance) 100% no-repeat, #eadff1; box-shadow: inset 0 1px 3px rgba(100, 30, 130, .16), 0 2px 12px rgba(229, 9, 127, .16); transition: box-shadow .2s ease; }
-.reputacion-rango::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 26px; height: 26px; border: 4px solid #fff; border-radius: 50%; background: linear-gradient(135deg, var(--magenta), var(--violeta)); box-shadow: 0 2px 10px rgba(229, 9, 127, .35), 0 0 0 2px rgba(124, 58, 237, .12); transition: box-shadow .2s ease; }
-.reputacion-rango::-moz-range-thumb { width: 18px; height: 18px; border: 4px solid #fff; border-radius: 50%; background: linear-gradient(135deg, var(--magenta), var(--violeta)); box-shadow: 0 2px 10px rgba(229, 9, 127, .35), 0 0 0 2px rgba(124, 58, 237, .12); transition: box-shadow .2s ease; }
+.reputacion-puntuacion { display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: #f4efff; color: #5825a8; font-weight: 700; white-space: nowrap; }
+.campo input.reputacion-rango { --avance: 50%; appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 12px; min-height: 0; padding: 0; margin: 12px 0; border: 0; border-radius: 99px; cursor: pointer; background: linear-gradient(110deg, var(--magenta), var(--violeta)) 0 / var(--avance) 100% no-repeat, #eadff1; }
+.reputacion-rango::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 26px; height: 26px; border: 4px solid #fff; border-radius: 50%; background: var(--magenta); box-shadow: 0 2px 8px rgba(229, 9, 127, .35); }
+.reputacion-rango::-moz-range-thumb { width: 18px; height: 18px; border: 4px solid #fff; border-radius: 50%; background: var(--magenta); box-shadow: 0 2px 8px rgba(229, 9, 127, .35); }
 .campo input.reputacion-rango:focus-visible { outline: 3px solid var(--violeta); outline-offset: 7px; }
 .reputacion-escala { display: flex; justify-content: space-between; padding: 0 7px; color: var(--gris-texto); font-size: 13px; font-weight: 700; }
+
 .prestamo-historial li { position: relative; --color-seguimiento: #94a3b8; border-left-color: var(--color-seguimiento); padding-left: 22px; }
-.prestamo-historial li.seguimiento-propio { --color-seguimiento: var(--magenta); background: linear-gradient(90deg, rgba(229, 9, 127, .10), rgba(124, 58, 237, .03) 55%, transparent); }
-.prestamo-historial li.seguimiento-otro { --color-seguimiento: var(--violeta); background: linear-gradient(90deg, rgba(124, 58, 237, .10), rgba(229, 9, 127, .03) 55%, transparent); }
+.prestamo-historial li.seguimiento-propio { --color-seguimiento: var(--magenta); }
+.prestamo-historial li.seguimiento-otro { --color-seguimiento: var(--violeta); }
 .prestamo-historial li::after { content: ''; position: absolute; bottom: 0; left: -7px; width: 11px; height: 11px; border-radius: 50%; background: var(--color-seguimiento); box-shadow: 0 0 0 3px #fff; }
-.reputacion-opinion { border-left: 3px solid var(--violeta); }
-.reputacion-opinion-cabecera { align-items: center; }
-.reputacion-autor { display: inline-flex; align-items: center; gap: 12px; color: var(--tinta); text-decoration: none; border-radius: 12px; }
-.reputacion-autor-avatar { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, var(--violeta), var(--magenta)); color: #fff; font-weight: 800; font-size: 15px; text-transform: uppercase; }
-.reputacion-autor-datos { display: grid; gap: 4px; }
-.reputacion-autor-datos strong { font-size: 15px; }
-.reputacion-autor-datos small { color: var(--gris-texto); font-size: 12px; }
-.reputacion-autor:hover strong { color: var(--violeta); }
-.reputacion-autor:focus-visible { outline: 2px solid var(--violeta); outline-offset: 5px; }
 
-.campo input.reputacion-rango:hover,
-.campo input.reputacion-rango:active { box-shadow: inset 0 1px 3px rgba(100, 30, 130, .16), 0 0 16px rgba(229, 9, 127, .28), 0 0 24px rgba(124, 58, 237, .16); }
-@media (prefers-reduced-motion: reduce) {
-  .campo input.reputacion-rango,
-  .reputacion-rango::-webkit-slider-thumb { transition: none; }
-  .reputacion-rango::-moz-range-thumb { transition: none; }
-}
-
-/* Opiniones compactas y modalidades de operación. */
-.reputacion-opinion { --tono-opinion: var(--violeta); --fondo-opinion: #f4efff; --texto-opinion: #5825a8; text-align: left; padding: 16px 20px 10px; border-left-color: var(--tono-opinion); }
+.reputacion-opinion { --tono-opinion: var(--violeta); --fondo-opinion: #f4efff; --texto-opinion: #5825a8; margin-bottom: 1rem; padding: 16px 20px; border-left: 3px solid var(--tono-opinion); text-align: left; }
 .reputacion-opinion-venta { --tono-opinion: var(--magenta); --fondo-opinion: #fff0f7; --texto-opinion: #b00661; }
-.reputacion-opinion-intercambio { --tono-opinion: var(--violeta); --fondo-opinion: #f4efff; --texto-opinion: #5825a8; }
 .reputacion-opinion-prestamo { --tono-opinion: var(--cian); --fondo-opinion: #e7faf6; --texto-opinion: #087462; }
-.reputacion-opinion .reputacion-opinion-cabecera { flex-direction: row; justify-content: space-between; gap: 10px 20px; }
-.reputacion-opinion .reputacion-autor { flex-direction: row; gap: 10px; }
-.reputacion-opinion .reputacion-autor-datos strong { font-size: 15px; }
-.reputacion-opinion-meta { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 0; }
-.reputacion-tipo { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; background: var(--fondo-opinion); color: var(--texto-opinion); font-size: 12px; font-weight: 700; }
-.reputacion-opinion .reputacion-comentario { flex: 1; min-width: 0; margin: 0; line-height: 1.6; }
-.reputacion-opinion-cuerpo { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
-.reputacion-opinion-puntuacion { display: flex; align-items: center; flex-shrink: 0; order: 1; margin: 0 0 0 auto; }
-.reputacion-opinion-puntuacion .reputacion-puntuacion { padding: 4px 9px; font-size: 13px; }
-.reputacion-opinion .reputacion-autor-avatar { width: 36px; height: 36px; border-radius: 11px; font-size: 13px; }
+.reputacion-opinion-cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
+.reputacion-autor { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: var(--tinta); font-size: 15px; text-decoration: none; border-radius: 12px; overflow-wrap: anywhere; }
+a.reputacion-autor:hover strong { color: var(--violeta); }
+a.reputacion-autor:focus-visible { outline: 2px solid var(--violeta); outline-offset: 5px; }
+.reputacion-autor-avatar { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 11px; object-fit: cover; background: linear-gradient(135deg, var(--violeta), var(--magenta)); color: #fff; font-weight: 800; font-size: 13px; text-transform: uppercase; }
+.reputacion-opinion-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
 .reputacion-opinion-meta time { margin: 0; font-size: 12px; }
+.reputacion-tipo { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; background: var(--fondo-opinion); color: var(--texto-opinion); font-size: 12px; font-weight: 700; text-decoration: none; }
+a.reputacion-tipo:hover { text-decoration: underline; }
+a.reputacion-tipo:focus-visible { outline: 2px solid var(--tono-opinion); outline-offset: 3px; }
+.reputacion-opinion-cuerpo { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 10px; }
+.reputacion-opinion-cuerpo .reputacion-puntuacion { padding: 4px 9px; font-size: 13px; }
 .reputacion-ver-todas { display: flex; justify-content: center; margin: 20px 0 32px; }
 .reputacion-ver-todas a { display: inline-flex; align-items: center; gap: 12px; }
 .reputacion-ver-todas a span { font-size: 22px; }
 
-.reputacion-tipo { text-decoration: none; }
-a.reputacion-tipo:hover { text-decoration: underline; }
-a.reputacion-tipo:focus-visible { outline: 2px solid var(--tono-opinion); outline-offset: 3px; }
+/* --- insignias de reputación --- */
+.insignia-avatar-reputacion { right: auto; left: -10px; }
+.insignia-mini-reputacion { right: auto; left: -7px; }
+@media (max-width: 600px) { .perfil-avatar-marco .insignia-avatar { width: 28px; height: 28px; right: -8px; bottom: -6px; } .perfil-avatar-marco .insignia-avatar-reputacion { right: auto; left: -8px; } }
+.insignia-autor { display: inline-block; flex: none; width: 24px; height: 24px; margin-left: 4px; vertical-align: -5px; filter: none; }
+.objeto-autor-nombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.objeto-compacto-autor { display: inline-flex; align-items: center; min-width: 0; }
+.estado-reputacion { background: rgba(245, 166, 35, 0.16); color: #7a4d00; }
+.fondo-oscuro .estado-reputacion { background: rgba(245, 166, 35, 0.2); color: #ffd58a; }

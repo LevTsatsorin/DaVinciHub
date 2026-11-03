@@ -1,15 +1,22 @@
+{% from "foro/_autor.html" import avatar %}
 {% for opinion in opiniones %}
 <article class="tarjeta reputacion-opinion reputacion-opinion-{{ opinion.tipo_operacion }}">
+  {% set tipo_nombre = {'prestamo': 'Préstamo', 'intercambio': 'Intercambio', 'venta': 'Venta'}[opinion.tipo_operacion] %}
+  {% set persona = {'id': opinion.autor_id, 'nombre': opinion.nombre, 'apellido': opinion.apellido, 'tiene_foto': opinion.tiene_foto and not opinion.autor_bloqueado} %}
   <div class="reputacion-opinion-cabecera">
-    <a class="reputacion-autor" href="{{ url_for('perfil.ver', usuario_id=opinion.autor_id) }}">
-      <span class="reputacion-autor-avatar" aria-hidden="true">{{ opinion.nombre[:1] }}{{ opinion.apellido[:1] }}</span>
-      <span class="reputacion-autor-datos"><strong>{{ opinion.nombre }} {{ opinion.apellido }}</strong></span>
-    </a>
-  <div class="reputacion-opinion-meta"><a class="reputacion-tipo" href="{{ url_for('objetos.publicacion_opinion', opinion_id=opinion.id) }}" title="Ver el producto de esta operación">{{ {'prestamo': 'Préstamo', 'intercambio': 'Intercambio', 'venta': 'Venta'}[opinion.tipo_operacion] }}</a><time class="ayuda" datetime="{{ opinion.creado }}">{{ opinion.creado | fecha_corta }}</time></div>
+    {% if opinion.autor_bloqueado %}
+    <span class="reputacion-autor">{{ avatar(persona, "reputacion-autor-avatar") }}<strong>{{ opinion.nombre }} {{ opinion.apellido }}</strong></span>
+    {% else %}
+    <a class="reputacion-autor" href="{{ url_for('perfil.ver', usuario_id=opinion.autor_id) }}">{{ avatar(persona, "reputacion-autor-avatar") }}<strong>{{ opinion.nombre }} {{ opinion.apellido }}</strong></a>
+    {% endif %}
+    <div class="reputacion-opinion-meta">
+      {% if opinion.publicacion_visible %}<a class="reputacion-tipo" href="{{ url_for('objetos.publicacion_opinion', opinion_id=opinion.id) }}" title="Ver el producto de esta operación">{{ tipo_nombre }}</a>{% else %}<span class="reputacion-tipo">{{ tipo_nombre }}</span>{% endif %}
+      <time class="ayuda" datetime="{{ opinion.creado }}">{{ opinion.creado | fecha_corta }}</time>
+    </div>
   </div>
   <div class="reputacion-opinion-cuerpo">
-  <div class="reputacion-opinion-puntuacion"><strong class="reputacion-puntuacion"><span class="reputacion-estrella" aria-hidden="true">★</span> {{ opinion.valor }} / 5</strong></div>
-  {% if opinion.comentario %}<p class="reputacion-comentario">{{ opinion.comentario }}</p>{% endif %}
+    {% if opinion.comentario %}<p class="reputacion-comentario">{{ opinion.comentario }}</p>{% endif %}
+    <strong class="reputacion-puntuacion"><span class="reputacion-estrella" aria-hidden="true">★</span> {{ opinion.valor }} / 5</strong>
   </div>
 </article>
 {% else %}<div class="perfil-vacio"><p>Todavía no recibió opiniones de operaciones finalizadas.</p></div>{% endfor %}

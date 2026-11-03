@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "reportes/_boton_reporte.html" import boton_reporte %}
+{% from "_insignia.html" import insignia_reputacion %}
 {% block titulo %}{{ publicacion.titulo }} — Da Vinci Hub{% endblock %}
 {% block contenido %}
 <section class="contenedor pagina-modulo pagina-objeto-detalle">
@@ -25,7 +26,9 @@
       <dl class="objeto-atributos">
         <div><dt>Estado del objeto</dt><dd>{{ condiciones.get(publicacion.estado_objeto, publicacion.estado_objeto) }}</dd></div>
         {% if publicacion.carrera %}<div><dt>Carrera</dt><dd>{{ publicacion.carrera }}</dd></div>{% endif %}
-        <div><dt>Publicado por</dt><dd><a href="{{ url_for('perfil.ver', usuario_id=publicacion.autor_id) }}">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</a></dd></div>
+        <div><dt>Publicado por</dt><dd><a href="{{ url_for('perfil.ver', usuario_id=publicacion.autor_id) }}">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</a>{{ insignia_reputacion(publicacion.autor_id) }}</dd></div>
+        {% set reputacion_autor = reputacion_de(publicacion.autor_id) %}
+        <div><dt>Reputación</dt><dd>{% if reputacion_autor.cantidad %}<span class="reputacion-estrella" aria-hidden="true">★</span> {{ reputacion_autor.promedio }} · {{ reputacion_autor.opiniones }}{% else %}Sin valoraciones todavía{% endif %}</dd></div>
         <div><dt>Fecha de publicación</dt><dd>{{ publicacion.creado | fecha_corta }}</dd></div>
       </dl>
       {% if not historica and not propia and g.usuario.rol == 'estudiante' %}
