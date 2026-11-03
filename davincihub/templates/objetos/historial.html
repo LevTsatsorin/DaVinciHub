@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block titulo %}Mi historial — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="cabecera-seccion fondo-oscuro cabecera-objetos">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/objetos.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    <h1>Mi historial</h1>
+    <p>Todo lo que publicaste, prestaste, intercambiaste y vendiste, con su estado y sus fechas.</p>
+    <div class="acciones-cabecera"><a class="boton boton-grande" href="{{ url_for('objetos.catalogo') }}">Ver catálogo</a><div class="enlaces-admin"><a class="enlace-admin" href="{{ url_for('objetos.mis_publicaciones') }}">Mis publicaciones</a><a class="enlace-admin" href="{{ url_for('objetos.mis_prestamos') }}">Mis préstamos</a><a class="enlace-admin" href="{{ url_for('objetos.mis_acuerdos') }}">Intercambios y ventas</a></div></div>
+  </div>
+</section>
+<section class="contenedor pagina-modulo pagina-objetos">
+  <nav class="objetos-estados" aria-label="Tipo de operación">
+    <a href="{{ url_for('objetos.historial', estado=estado) }}"{% if not tipo %} aria-current="page"{% endif %}>Todo <span class="historial-cantidad">{{ cantidades.values() | sum }}</span></a>
+    {% for clave, nombre in tipos_historial.items() %}
+    <a href="{{ url_for('objetos.historial', tipo=clave, estado=estado if estado in estados_por_tipo[clave] else '') }}"{% if tipo == clave %} aria-current="page"{% endif %}>{{ nombre }} <span class="historial-cantidad">{{ cantidades.get(clave, 0) }}</span></a>
+    {% endfor %}
+  </nav>
+  <form class="prestamos-filtros" method="get">
+    {% if tipo %}<input type="hidden" name="tipo" value="{{ tipo }}">{% endif %}
+    <div class="campo"><label for="estado">Estado</label><select id="estado" name="estado"><option value="">Todos los estados</option>{% for valor, nombre in estados_disponibles.items() %}<option value="{{ valor }}"{% if estado == valor %} selected{% endif %}>{{ nombre }}</option>{% endfor %}</select></div>
+    <button class="boton" type="submit">Filtrar</button>
+    <p class="resultado-filtros"><strong>{{ total }}</strong> {{ 'registro' if total == 1 else 'registros' }}</p>
+  </form>
+  {% if operaciones %}
+  <div class="busquedas-lista">
+    {% for o in operaciones %}
+    {% set publicacion = o %}
+    {% if o.tipo == 'publicacion' %}{% set ruta = url_for('objetos.detalle', publicacion_id=o.id) %}
+    {% elif o.tipo == 'prestamo' %}{% set ruta = url_for('objetos.detalle_prestamo', prestamo_id=o.id) %}
+    {% else %}{% set ruta = url_for('objetos.detalle_acuerdo', tipo=o.tipo, acuerdo_id=o.id) %}{% endif %}
+    {% set roles = {'prestamo': ('Le prestaste a', 'Te prestó'), 'venta': ('Le vendiste a', 'Le compraste a'), 'intercambio': ('Intercambio con', 'Intercambio con')} %}
+    <article class="historial-item">
+      <div class="historial-imagen objeto-{{ o.categoria }}" aria-hidden="true">{% include "objetos/_icono.html" %}</div>
+      <div class="historial-cuerpo">
+        <div class="historial-cabecera">
+          <span class="objeto-categoria">{{ categorias.get(o.categoria, o.categoria) }}</span>
+          <span class="historial-estados">
+            {% if o.oculto %}<span class="prestamo-estado prestamo-estado-vencido">Oculta por moderación</span>{% endif %}
+            <span class="prestamo-estado prestamo-estado-{{ o.estado }} acuerdo-estado-{{ o.estado }}">{{ estados_historial[o.estado] }}</span>
+          </span>
+        </div>
+        <h2><a href="{{ ruta }}">{{ o.titulo }}</a></h2>
+        <div class="historial-datos">
+          <span class="objeto-modalidad objeto-modalidad-{{ o.modalidad }}">{{ 'Publicación · ' if o.tipo == 'publicacion' }}{{ modalidades.get(o.modalidad, o.modalidad) }}</span>
+          {% if o.importe is not none and o.modalidad == 'venta' %}<strong class="historial-precio">{{ o.importe | precio_corto }}</strong>{% endif %}
+          {% if o.tipo == 'prestamo' %}<span class="historial-plazo">{{ o.fecha_entrega | fecha_prestamo }} → {{ o.fecha_devolucion | fecha_prestamo }}</span>{% endif %}
+        </div>
+        <div class="historial-pie">
+          {% if o.otro_nombre %}
+          <p class="historial-persona">
+            {% if o.otro_tiene_foto %}<img class="objeto-autor-avatar" src="{{ url_for('perfil.foto', usuario_id=o.otro_id) }}" alt="">{% else %}<span class="objeto-autor-avatar" aria-hidden="true">{{ o.otro_nombre[:1] }}{{ o.otro_apellido[:1] }}</span>{% endif %}
+            <span>{{ roles[o.tipo][0 if o.es_propietario else 1] }} {{ o.otro_nombre }} {{ o.otro_apellido }}</span>
+          </p>
+          {% endif %}
+          <p class="historial-fechas">Creada el {{ o.creado | fecha_corta }}{% if o.cierre %} · {{ 'Cancelada' if o.estado == 'cancelado' else 'Finalizada' }} el {{ o.cierre | fecha_corta }}{% endif %}</p>
+          {% if o.estado in estados_finalizados %}
+            {% if o.valor %}<span class="historial-valoracion">Tu valoración: <span class="reputacion-estrella" aria-hidden="true">★</span> {{ o.valor }} / 5</span>
+            {% else %}<a class="boton boton-primario historial-valorar" href="{{ ruta }}#valorar">Valorar a {{ o.otro_nombre }}</a>{% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% if paginas > 1 %}{% set enlaces = paginacion('objetos.historial', pagina, paginas, tipo=tipo, estado=estado) %}{% set etiqueta_paginacion = 'Páginas del historial' %}{% include '_paginacion.html' %}{% endif %}
+  {% else %}
+  <div class="estado-vacio"><h2>No hay nada para mostrar</h2><p>{{ 'Probá con otro tipo o estado.' if tipo or estado else 'Cuando publiques un objeto o hagas una operación, va a aparecer acá.' }}</p><a class="boton boton-suave" href="{{ url_for('objetos.historial') if tipo or estado else url_for('objetos.catalogo') }}">{{ 'Ver todo el historial' if tipo or estado else 'Ver catálogo' }}</a></div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,5 +1,5 @@
 {% if operacion.estado == ('devuelto' if tipo_operacion == 'prestamo' else 'completado') %}
-<section class="tarjeta prestamo-responder">
+<section class="tarjeta prestamo-responder" id="valorar">
 <h2 class="titulo-tarjeta">{{ 'Tu valoración' if valoracion_propia else '¿Cómo fue tu experiencia?' }}</h2>
 {% if valoracion_propia %}
 <p><strong>{{ valoracion_propia.valor }} / 5 ★</strong></p>

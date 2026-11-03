@@ -41,6 +41,7 @@ El repo incluye `render.yaml` (Blueprint): web service + PostgreSQL gestionado.
 3. `SECRET_KEY` y `DATABASE_URL` quedan configurados por el blueprint; no se versionan secretos.
 4. Opcional, para probar con mucho contenido: `flask --app davincihub.app seed-amplio` suma ~30 estudiantes, foro, objetos, búsquedas, chats y actividades sobre la base demo sin borrar nada (se carga una sola vez).
 5. Opcional, para ver la reputación: `flask --app davincihub.app seed-reputacion` suma operaciones finalizadas con opiniones para que mica, tomas y lucia tengan insignia de oro, plata y bronce, sin borrar nada.
+6. Opcional, después de `seed-amplio`: `flask --app davincihub.app seed-operaciones` da a cada estudiante préstamos, intercambios, ventas, opiniones, búsquedas y reservas en todos los estados, sin borrar nada y se puede repetir.
 
 Ojo: la base PostgreSQL free de Render se elimina unos 30 días después de creada. Si la entrega es más tarde, recrearla y volver a correr `init-db`.
 

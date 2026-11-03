@@ -5241,3 +5241,46 @@ a.reputacion-tipo:focus-visible { outline: 2px solid var(--tono-opinion); outlin
 .objeto-compacto-autor { display: inline-flex; align-items: center; min-width: 0; }
 .estado-reputacion { background: rgba(245, 166, 35, 0.16); color: #7a4d00; }
 .fondo-oscuro .estado-reputacion { background: rgba(245, 166, 35, 0.2); color: #ffd58a; }
+
+/* --- historial de operaciones --- */
+.historial-cantidad { margin-left: 4px; font-weight: 500; opacity: .75; }
+.historial-item { position: relative; display: grid; grid-template-columns: 132px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--borde); border-radius: 16px; background: var(--fondo); transition: transform 150ms ease, border-color 150ms ease; }
+.historial-item:hover { transform: translateY(-2px); border-color: var(--cian); }
+.historial-imagen { display: grid; place-items: center; }
+.historial-imagen svg { width: 56px; height: 56px; }
+.historial-cuerpo { display: flex; min-width: 0; flex-direction: column; gap: 10px; padding: 16px 20px; }
+.historial-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.historial-estados { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.historial-item h2 { margin: 0; font-size: 18px; line-height: 1.3; overflow-wrap: anywhere; }
+.historial-item h2 a { color: var(--tinta); text-decoration: none; }
+.historial-item h2 a::after { content: ""; position: absolute; inset: 0; }
+.historial-item h2 a:focus-visible { outline: none; }
+.historial-item:has(h2 a:focus-visible) { outline: 2px solid var(--violeta); outline-offset: 2px; }
+.historial-datos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.historial-precio { color: var(--tinta); font: 800 20px/1.1 "Montserrat", sans-serif; }
+.historial-plazo { color: var(--tinta); font-size: 14px; font-weight: 500; }
+.historial-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-top: 12px; border-top: 1px solid var(--borde); }
+.historial-persona { display: flex; min-width: 0; align-items: center; gap: 8px; margin: 0; color: var(--tinta); font-size: 13px; font-weight: 500; }
+img.objeto-autor-avatar { object-fit: cover; }
+.historial-fechas { margin: 0; color: var(--gris-texto); font-size: 12px; }
+.historial-valoracion { margin-left: auto; color: var(--gris-texto); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.historial-valorar { position: relative; z-index: 1; margin-left: auto; }
+.prestamo-estado-activa { background: #e0f6ec; color: #166344; }
+.prestamo-estado-pausada { background: #fff1cf; color: #795000; }
+@media (max-width: 600px) {
+  .historial-item { grid-template-columns: 64px minmax(0, 1fr); border-radius: 14px; }
+  .historial-imagen { align-items: start; padding-top: 18px; }
+  .historial-imagen svg { width: 30px; height: 30px; }
+  .historial-cuerpo { gap: 8px; padding: 12px 14px; }
+  .historial-cabecera { align-items: flex-start; }
+  .historial-item h2 { font-size: 16px; }
+  .historial-item .objeto-modalidad { padding: 4px 9px; font-size: 11px; }
+  .historial-precio { font-size: 17px; }
+  .historial-plazo { font-size: 13px; }
+  .historial-pie { gap: 6px 12px; padding-top: 10px; }
+  .historial-valorar, .historial-valoracion { width: 100%; margin-left: 0; text-align: center; }
+  .pagina-objetos .prestamos-filtros { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; margin: 18px 0; }
+  .pagina-objetos .prestamos-filtros .campo { min-width: 0; }
+  .pagina-objetos .prestamos-filtros .resultado-filtros { grid-column: 1 / -1; margin: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .historial-item { transition: none; } .historial-item:hover { transform: none; } }

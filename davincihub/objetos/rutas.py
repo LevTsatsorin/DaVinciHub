@@ -4,6 +4,7 @@ from flask import Blueprint, abort, flash, g, redirect, render_template, request
 
 from davincihub import db, seguridad
 from davincihub.objetos import acuerdos, busquedas, datos, prestamos
+from davincihub.objetos import historial as historial_datos
 from davincihub.reputacion import propia
 from davincihub.utiles import hoy_local, paginas_visibles
 
@@ -114,6 +115,24 @@ def catalogo():
 def mis_publicaciones():
     _solo_estudiante()
     return _listado(mias=True)
+
+
+@bp.get("/historial")
+@seguridad.requiere_login
+def historial():
+    _solo_estudiante()
+    try:
+        pagina = int(request.args.get("pagina", "1")[:9])
+    except ValueError:
+        pagina = 1
+    return render_template(
+        "objetos/historial.html",
+        **historial_datos.listar(g.usuario["id"], request.args.get("tipo", ""), request.args.get("estado", ""), pagina),
+        cantidades=historial_datos.cantidades(g.usuario["id"]),
+        tipos_historial=historial_datos.TIPOS, nombres_historial=historial_datos.NOMBRES,
+        estados_historial=historial_datos.ESTADOS, estados_por_tipo=historial_datos.ESTADOS_POR_TIPO,
+        estados_finalizados=historial_datos.FINALIZADOS,
+    )
 
 
 @bp.get("/opiniones/<int:opinion_id>/publicacion")
