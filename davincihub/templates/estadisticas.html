@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block titulo %}Estadísticas — Da Vinci Hub{% endblock %}
 {% block contenido %}
-<section class="cabecera-seccion fondo-oscuro">
+<section class="cabecera-seccion fondo-oscuro cabecera-estadisticas">
   <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/admin.png') }}" alt="">
   <div class="contenedor cabecera-seccion-contenido">
     <h1>Estadísticas del Hub</h1>
@@ -29,9 +29,9 @@
     </dl>
   </section>
   <section class="tarjeta estadisticas-evolucion" id="evolucion" aria-labelledby="titulo-evolucion">
-    <div class="estadisticas-titulo"><div><p class="estadisticas-etiqueta">En el tiempo</p><h2 id="titulo-evolucion">Evolución semanal</h2></div>
+    <div class="estadisticas-titulo estadisticas-evolucion-cabecera"><div><p class="estadisticas-etiqueta">En el tiempo</p><h2 id="titulo-evolucion">Evolución semanal</h2></div>
       <form class="estadisticas-periodo" method="get" action="{{ url_for('estadisticas.panel') }}#evolucion">
-        <label for="semanas">Período</label><select id="semanas" name="semanas">{% for n in (4, 8, 12) %}<option value="{{ n }}"{% if semanas == n %} selected{% endif %}>Últimas {{ n }} semanas</option>{% endfor %}</select><button class="boton" type="submit">Aplicar</button>
+        <label for="semanas">Período</label><select id="semanas" name="semanas" data-periodo-estadisticas>{% for n in (4, 8, 12) %}<option value="{{ n }}"{% if semanas == n %} selected{% endif %}>Últimas {{ n }} semanas</option>{% endfor %}</select><noscript><button class="boton" type="submit">Aplicar</button></noscript>
       </form>
     </div>
     <p class="ayuda" id="nota-semanas">Semanas de lunes a domingo, hora de Buenos Aires. La semana actual es parcial.</p>
@@ -45,8 +45,10 @@
     <details class="estadisticas-definiciones"><summary>Qué incluye la actividad semanal</summary><p>Contenidos y servicios: publicaciones, preguntas, respuestas, reservas y actividades. Interacciones: mensajes, conexiones actualmente aceptadas, pedidos y propuestas, préstamos devueltos, ventas e intercambios completados, opiniones, votos de utilidad, inscripciones y búsquedas guardadas. Un pedido y su finalización son registros distintos. Las conexiones e inscripciones reflejan el estado actual de la base; no se conserva un historial de todos sus cambios.</p><p>Se cuentan las creaciones de registros y las operaciones completadas por su fecha de finalización; si falta esa fecha en un registro anterior, se usa la de creación. La moderación se aplica también a las semanas anteriores: ocultar un contenido lo excluye de sus indicadores relacionados.</p></details>
   </section>
   <div class="estadisticas-rankings">
-    <section class="tarjeta" aria-labelledby="titulo-materias"><p class="estadisticas-etiqueta">Foro académico</p><h2 id="titulo-materias">Materias con más preguntas</h2><p class="ayuda">Las 5 primeras desde el inicio, sin preguntas ocultas.</p><ol class="estadisticas-ranking">{% for m in materias %}<li><div><strong>{{ m.nombre }}</strong><span>{{ m.carrera }}</span></div><span class="estadisticas-ranking-total">{{ m.cantidad }} <small>{{ 'pregunta' if m.cantidad == 1 else 'preguntas' }}</small></span></li>{% else %}<li class="ayuda">Todavía no hay preguntas para mostrar.</li>{% endfor %}</ol></section>
-    <section class="tarjeta" aria-labelledby="titulo-categorias"><p class="estadisticas-etiqueta">Objetos compartidos</p><h2 id="titulo-categorias">Categorías con más publicaciones</h2><p class="ayuda">Las 5 primeras desde el inicio, sin publicaciones ocultas.</p><ol class="estadisticas-ranking">{% for c in categorias %}<li><strong>{{ c.nombre }}</strong><span class="estadisticas-ranking-total">{{ c.cantidad }} <small>{{ 'publicación' if c.cantidad == 1 else 'publicaciones' }}</small></span></li>{% else %}<li class="ayuda">Todavía no hay publicaciones para mostrar.</li>{% endfor %}</ol></section>
+    <section class="tarjeta" aria-labelledby="titulo-materias"><p class="estadisticas-etiqueta">Foro académico</p><h2 id="titulo-materias">Materias con más preguntas</h2><p class="ayuda">Las 5 primeras, sin contenido oculto.</p><ol class="estadisticas-ranking">{% for m in materias %}<li><div><strong>{{ m.nombre }}</strong><span>{{ m.carrera }}</span></div><span class="estadisticas-ranking-total">{{ m.cantidad }} <small>{{ 'pregunta' if m.cantidad == 1 else 'preguntas' }}</small></span></li>{% else %}<li class="ayuda">Todavía no hay preguntas para mostrar.</li>{% endfor %}</ol></section>
+    <section class="tarjeta" aria-labelledby="titulo-categorias"><p class="estadisticas-etiqueta">Objetos compartidos</p><h2 id="titulo-categorias">Categorías con más publicaciones</h2><p class="ayuda">Las 5 primeras, sin contenido oculto.</p><ol class="estadisticas-ranking">{% for c in categorias %}<li><strong>{{ c.nombre }}</strong><span class="estadisticas-ranking-total">{{ c.cantidad }} <small>{{ 'publicación' if c.cantidad == 1 else 'publicaciones' }}</small></span></li>{% else %}<li class="ayuda">Todavía no hay publicaciones para mostrar.</li>{% endfor %}</ol></section>
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='estadisticas.js') }}" defer></script>{% endblock %}
