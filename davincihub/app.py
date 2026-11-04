@@ -8,6 +8,7 @@ from davincihub import (
     actividades,
     auth,
     db,
+    estadisticas,
     foro,
     notificaciones,
     perfil,
@@ -45,6 +46,7 @@ def create_app(config: dict | None = None) -> Flask:
         app.config.update(config)
     csrf.init_app(app)
     db.registrar(app)
+    app.register_blueprint(estadisticas.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(perfil.bp)
     app.register_blueprint(reputacion.bp)

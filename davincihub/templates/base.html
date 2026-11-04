@@ -52,6 +52,7 @@
               <a href="{{ url_for('objetos.historial') }}">Mi historial</a>
             {% else %}
               <a href="{{ url_for('reportes.admin_cola') }}">Reportes{% if reportes_pendientes %} <span class="campana-cantidad">{{ reportes_pendientes }}</span>{% endif %}</a>
+              <a href="{{ url_for('estadisticas.panel') }}"{% if request.blueprint == 'estadisticas' %} aria-current="page"{% endif %}>Estadísticas</a>
               <a href="{{ url_for('actividades.admin_panel') }}">Moderación</a>
               <a href="{{ url_for('espacios.admin_lista') }}">Espacios</a>
             {% endif %}
@@ -114,6 +115,7 @@
     <a class="menu-enlace modulo-reservas" href="{{ url_for('espacios.catalogo') }}"{% if request.blueprint == 'espacios' %} aria-current="page"{% endif %}>Reservas</a>
     <a class="menu-enlace modulo-actividades" href="{{ url_for('actividades.index') }}"{% if request.blueprint == 'actividades' %} aria-current="page"{% endif %}>Actividades</a>
     {% if g.usuario and g.usuario.rol == 'admin' %}
+      <a class="menu-enlace modulo-usuarios" href="{{ url_for('estadisticas.panel') }}"{% if request.blueprint == 'estadisticas' %} aria-current="page"{% endif %}>Estadísticas</a>
       <a class="menu-enlace modulo-usuarios" href="{{ url_for('usuarios.lista') }}"{% if request.blueprint == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
       <a class="menu-enlace modulo-carreras" href="{{ url_for('academico.lista') }}"{% if request.blueprint == 'academico' %} aria-current="page"{% endif %}>Carreras</a>
       <a class="menu-enlace modulo-reportes" href="{{ url_for('reportes.admin_cola') }}"{% if request.blueprint == 'reportes' %} aria-current="page"{% endif %}>Reportes{% if reportes_pendientes %} <span class="campana-cantidad">{{ reportes_pendientes }}</span>{% endif %}</a>
@@ -205,6 +207,7 @@
     {% if es_admin %}
       <nav class="pie-columna pie-col-violeta">
         <h3>Administración</h3>
+        <a href="{{ url_for('estadisticas.panel') }}">Estadísticas</a>
         <a href="{{ url_for('reportes.admin_cola') }}">Reportes{% if reportes_pendientes %} ({{ reportes_pendientes }}){% endif %}</a>
         <a href="{{ url_for('actividades.admin_panel') }}">Moderar actividades</a>
         <a href="{{ url_for('usuarios.lista') }}">Usuarios</a>

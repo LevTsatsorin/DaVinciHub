@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block titulo %}Estadísticas — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="cabecera-seccion fondo-oscuro cabecera-estadisticas">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/admin.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    <h1>Estadísticas del Hub</h1>
+    <p>Una mirada a la comunidad, los recursos compartidos y la participación en la plataforma.</p>
+    <div class="acciones-cabecera"><a class="boton boton-grande" href="#evolucion">Ver evolución semanal</a><div class="enlaces-admin"><a class="enlace-admin" href="{{ url_for('inicio') }}">Volver al inicio</a></div></div>
+  </div>
+</section>
+<div class="contenedor pagina-modulo pagina-estadisticas">
+  <section aria-labelledby="titulo-totales">
+    <div class="estadisticas-titulo"><div><p class="estadisticas-etiqueta">Desde el inicio</p><h2 id="titulo-totales">La comunidad en números</h2></div><p class="ayuda">Actualizado al {{ hoy.strftime('%d/%m/%Y') }}</p></div>
+    <p class="ayuda">Totales de todos los estados. Se excluyen los contenidos ocultos por moderación y los registros vinculados a ellos.</p>
+    <dl class="estadisticas-cifras">
+      {% for m in metricas if m.grupo != 'interacciones' %}
+      <div class="tarjeta estadistica-cifra"><dt>{{ m.nombre }}</dt><dd>{{ totales[m.clave] }}</dd><p>{{ m.detalle }}</p></div>
+      {% endfor %}
+    </dl>
+  </section>
+  <section aria-labelledby="titulo-interacciones">
+    <div class="estadisticas-titulo"><div><p class="estadisticas-etiqueta">Participación</p><h2 id="titulo-interacciones">Cómo se conecta la comunidad</h2></div></div>
+    <p class="ayuda">Cada indicador cuenta un tipo de registro. Una misma persona puede participar en varios; no representan usuarios únicos.</p>
+    <dl class="estadisticas-cifras estadisticas-interacciones">
+      {% for m in metricas if m.grupo == 'interacciones' %}
+      <div class="tarjeta estadistica-cifra"><dt>{{ m.nombre }}</dt><dd>{{ totales[m.clave] }}</dd><p>{{ m.detalle }}</p></div>
+      {% endfor %}
+    </dl>
+  </section>
+  <section class="tarjeta estadisticas-evolucion" id="evolucion" aria-labelledby="titulo-evolucion">
+    <div class="estadisticas-titulo estadisticas-evolucion-cabecera"><div><p class="estadisticas-etiqueta">En el tiempo</p><h2 id="titulo-evolucion">Evolución semanal</h2></div>
+      <form class="estadisticas-periodo" method="get" action="{{ url_for('estadisticas.panel') }}#evolucion">
+        <label for="semanas">Período</label><select id="semanas" name="semanas" data-periodo-estadisticas>{% for n in (4, 8, 12) %}<option value="{{ n }}"{% if semanas == n %} selected{% endif %}>Últimas {{ n }} semanas</option>{% endfor %}</select><noscript><button class="boton" type="submit">Aplicar</button></noscript>
+      </form>
+    </div>
+    <p class="ayuda" id="nota-semanas">Semanas de lunes a domingo, hora de Buenos Aires. La semana actual es parcial.</p>
+    <ul class="estadisticas-leyenda" aria-label="Series del gráfico"><li><span class="estadistica-punto serie-registros"></span>Registros de usuarios</li><li><span class="estadistica-punto serie-contenidos"></span>Publicaciones, foro, reservas y actividades</li><li><span class="estadistica-punto serie-interacciones"></span>Interacciones</li></ul>
+    {% if not evolucion | selectattr('registros') | list and not evolucion | selectattr('contenidos') | list and not evolucion | selectattr('interacciones') | list %}<p class="aviso">No hay actividad en este período.</p>{% endif %}
+    <p class="estadisticas-escala">Escala común: de 0 a {{ maximo }} registros por semana.</p>
+    <div class="estadisticas-grafico" aria-hidden="true">
+      {% for s in evolucion %}<div class="estadistica-semana"><div class="estadistica-barras">{% for clave in ('registros', 'contenidos', 'interacciones') %}<div class="estadistica-barra serie-{{ clave }}" style="height: {{ (s[clave] * 100 / maximo) | round(2) }}%" title="{{ s[clave] }}"></div>{% endfor %}</div><span>{{ s.inicio.strftime('%d/%m') }}</span></div>{% endfor %}
+    </div>
+    <details class="estadisticas-tabla"><summary>Ver cifras por semana</summary><div class="estadisticas-tabla-scroll" role="region" aria-label="Cifras semanales" tabindex="0"><table aria-describedby="nota-semanas"><caption>Registros y actividad de las últimas {{ semanas }} semanas</caption><thead><tr><th scope="col">Semana</th><th scope="col">Usuarios nuevos</th><th scope="col">Contenidos y servicios</th><th scope="col">Interacciones</th></tr></thead><tbody>{% for s in evolucion %}<tr><th scope="row">{{ s.inicio.strftime('%d/%m/%Y') }} – {{ s.fin.strftime('%d/%m/%Y') }}{% if loop.last %} (parcial){% endif %}</th><td>{{ s.registros }}</td><td>{{ s.contenidos }}</td><td>{{ s.interacciones }}</td></tr>{% endfor %}</tbody></table></div></details>
+    <details class="estadisticas-definiciones"><summary>Qué incluye la actividad semanal</summary><p>Contenidos y servicios: publicaciones, preguntas, respuestas, reservas y actividades. Interacciones: mensajes, conexiones actualmente aceptadas, pedidos y propuestas, préstamos devueltos, ventas e intercambios completados, opiniones, votos de utilidad, inscripciones y búsquedas guardadas. Un pedido y su finalización son registros distintos. Las conexiones e inscripciones reflejan el estado actual de la base; no se conserva un historial de todos sus cambios.</p><p>Se cuentan las creaciones de registros y las operaciones completadas por su fecha de finalización; si falta esa fecha en un registro anterior, se usa la de creación. La moderación se aplica también a las semanas anteriores: ocultar un contenido lo excluye de sus indicadores relacionados.</p></details>
+  </section>
+  <div class="estadisticas-rankings">
+    <section class="tarjeta" aria-labelledby="titulo-materias"><p class="estadisticas-etiqueta">Foro académico</p><h2 id="titulo-materias">Materias con más preguntas</h2><p class="ayuda">Las 5 primeras, sin contenido oculto.</p><ol class="estadisticas-ranking">{% for m in materias %}<li><div><strong>{{ m.nombre }}</strong><span>{{ m.carrera }}</span></div><span class="estadisticas-ranking-total">{{ m.cantidad }} <small>{{ 'pregunta' if m.cantidad == 1 else 'preguntas' }}</small></span></li>{% else %}<li class="ayuda">Todavía no hay preguntas para mostrar.</li>{% endfor %}</ol></section>
+    <section class="tarjeta" aria-labelledby="titulo-categorias"><p class="estadisticas-etiqueta">Objetos compartidos</p><h2 id="titulo-categorias">Categorías con más publicaciones</h2><p class="ayuda">Las 5 primeras, sin contenido oculto.</p><ol class="estadisticas-ranking">{% for c in categorias %}<li><strong>{{ c.nombre }}</strong><span class="estadisticas-ranking-total">{{ c.cantidad }} <small>{{ 'publicación' if c.cantidad == 1 else 'publicaciones' }}</small></span></li>{% else %}<li class="ayuda">Todavía no hay publicaciones para mostrar.</li>{% endfor %}</ol></section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='estadisticas.js') }}" defer></script>{% endblock %}
