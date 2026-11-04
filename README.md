@@ -32,6 +32,8 @@ pytest
 ruff check .
 ```
 
+Para correr toda la suite contra PostgreSQL (se borra esa base en cada test, nunca usar la de producción): `PRUEBAS_EN_POSTGRES='postgresql://...' TEST_DATABASE_URL='postgresql://...' pytest`.
+
 ## Deploy (Render)
 
 El repo incluye `render.yaml` (Blueprint): web service + PostgreSQL gestionado.

@@ -1,6 +1,7 @@
 import pytest
 
 from davincihub import db
+from davincihub.app import create_app
 
 TABLAS = {
     "carreras",
@@ -32,9 +33,8 @@ TABLAS = {
 def test_init_db_crea_tablas(app):
     with app.app_context():
         db.init_db()
-        filas = db.query("SELECT name FROM sqlite_master WHERE type = :tipo", tipo="table")
-        nombres = {fila["name"] for fila in filas}
-        assert TABLAS <= nombres, TABLAS - nombres
+        faltan = {tabla for tabla in TABLAS if not db._columnas(tabla)}
+        assert not faltan, faltan
 
 
 def test_demo_tiene_admin(app):
@@ -50,8 +50,7 @@ def test_migracion_fotos_perfil_es_idempotente(app):
         db.execute("DROP TABLE fotos_perfil")
         db.migrar()
         db.migrar()
-        tablas = db.query("SELECT name FROM sqlite_master WHERE type = :tipo", tipo="table")
-        assert "fotos_perfil" in {fila["name"] for fila in tablas}
+        assert db._columnas("fotos_perfil")
 
 
 def _insertar_usuario(email):
@@ -105,7 +104,6 @@ def test_init_db_postgres_crea_tablas():
     url = os.environ.get("TEST_DATABASE_URL", "")
     if not url:
         pytest.skip("sin TEST_DATABASE_URL")
-    from davincihub.app import create_app
 
     aplicacion = create_app({"TESTING": True, "DATABASE_URL": url})
     with aplicacion.app_context():
@@ -171,7 +169,6 @@ def test_bloquear_fila_rechaza_tabla_invalida(app):
 def test_postgres_detalle_objeto_y_ocupacion_sin_exclusion():
     import os
 
-    from davincihub.app import create_app
     from davincihub.objetos import datos, prestamos
     from davincihub.utiles import ahora
 
@@ -205,7 +202,6 @@ def test_postgres_detalle_objeto_y_ocupacion_sin_exclusion():
 def test_postgres_c4_migracion_y_ciclos_completos():
     import os
 
-    from davincihub.app import create_app
     from davincihub.objetos import acuerdos, datos
 
     url = os.environ.get("TEST_DATABASE_URL", "")
@@ -271,7 +267,6 @@ def test_postgres_migra_precios_real_a_doble_precision():
     url = os.environ.get("TEST_DATABASE_URL", "")
     if not url:
         pytest.skip("sin TEST_DATABASE_URL")
-    from davincihub.app import create_app
 
     aplicacion = create_app({"TESTING": True, "DATABASE_URL": url})
     with aplicacion.app_context():
@@ -288,3 +283,17 @@ def test_postgres_migra_precios_real_a_doble_precision():
                          " AND table_schema = current_schema()")
         assert {f["tipo"] for f in tipos} == {"double precision"}
         assert db.query_one("SELECT precio FROM publicaciones WHERE titulo = 'Regla'")["precio"] == 12500.5
+
+
+def test_los_datos_confirmados_siguen_despues_de_reiniciar_la_app(app):
+    cliente = app.test_client()
+    cliente.post("/auth/registro", data={"nombre": "Persistente", "apellido": "Prueba", "email": "persiste@davinci.edu.ar",
+                                         "password": "clave-segura-1", "confirmar": "clave-segura-1"})
+    cliente.post("/auth/registro/datos", data={"carrera_id": "1", "comision": "DMT2AP"})
+    reiniciada = create_app({"TESTING": True, "WTF_CSRF_ENABLED": False, "DATABASE_URL": app.config["DATABASE_URL"]})
+    nuevo = reiniciada.test_client()
+    respuesta = nuevo.post("/auth/login", data={"email": "persiste@davinci.edu.ar", "password": "clave-segura-1"})
+    assert respuesta.headers["Location"] == "/"
+    with reiniciada.app_context():
+        fila = db.query_one("SELECT comision, anio FROM usuarios WHERE email = 'persiste@davinci.edu.ar'")
+    assert fila == {"comision": "DMT2AP", "anio": 1}

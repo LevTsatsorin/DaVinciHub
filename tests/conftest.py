@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from davincihub import db
@@ -10,7 +12,7 @@ def app(tmp_path):
         {
             "TESTING": True,
             "WTF_CSRF_ENABLED": False,
-            "DATABASE_URL": f"sqlite:///{tmp_path}/test.db",
+            "DATABASE_URL": os.environ.get("PRUEBAS_EN_POSTGRES") or f"sqlite:///{tmp_path}/test.db",
         }
     )
     with aplicacion.app_context():
