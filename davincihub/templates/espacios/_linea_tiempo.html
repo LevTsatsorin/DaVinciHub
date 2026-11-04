@@ -1,0 +1,45 @@
+{% if es_pasado %}
+  <p class="aviso aviso-error">
+    Ese día ya pasó.
+    {% if siguiente_abierto %}<a href="{{ consulta | default('?') }}fecha={{ siguiente_abierto }}">Ver el {{ siguiente_abierto | dia_y_fecha }}</a>{% endif %}
+  </p>
+{% elif not disponibilidad.abierto %}
+  <p class="aviso aviso-error">
+    {{ espacio.nombre }} no abre los {{ disponibilidad.dia_nombre }}.
+    {% if siguiente_abierto %}<a href="{{ consulta | default('?') }}fecha={{ siguiente_abierto }}">Ver el {{ siguiente_abierto | dia_y_fecha }}</a>{% endif %}
+  </p>
+{% elif not espacio.activo %}
+  <p class="aviso aviso-error">El espacio está deshabilitado y no admite reservas nuevas.</p>
+{% else %}
+  <div class="linea-tiempo">
+    <div class="linea-tiempo-cabecera">
+      <h3>{{ fecha | dia_y_fecha }}</h3>
+      <ul class="leyenda-turnos" aria-hidden="true">
+        <li><i class="turno-muestra libre"></i>Libre</li>
+        <li><i class="turno-muestra ocupado"></i>Ocupado</li>
+        <li><i class="turno-muestra elegido"></i>{{ etiqueta_elegido | default("Tu reserva") }}</li>
+      </ul>
+    </div>
+    {% for bloque in bloques %}
+      <div class="pista-contenedor">
+        <div class="pista" role="group" aria-label="Turnos de {{ bloque.abre }} a {{ bloque.cierra }}"
+             style="--turnos: {{ bloque.turnos | length }}">
+          {% for turno in bloque.turnos %}
+            <button type="button" class="turno turno-{{ turno.estado }}{% if turno.inicio.endswith(':00') %} turno-hora{% endif %}"
+                    data-inicio="{{ turno.inicio }}" data-fin="{{ turno.fin }}"
+                    {% if turno.estado != "libre" %}disabled{% endif %}
+                    aria-label="{{ turno.inicio }} a {{ turno.fin }}, {{ turno.estado }}"></button>
+          {% endfor %}
+          <span class="pista-fin">{{ bloque.cierra }}</span>
+        </div>
+      </div>
+    {% endfor %}
+    {% if hay_libres %}
+      <p class="pista-ayuda" data-ayuda>Tocá la hora de inicio y después la de fin.</p>
+    {% else %}
+      <p class="aviso aviso-error">No quedan horarios libres para este día.
+        {% if siguiente_abierto %}<a href="{{ consulta | default('?') }}fecha={{ siguiente_abierto }}">Ver el {{ siguiente_abierto | dia_y_fecha }}</a>{% endif %}
+      </p>
+    {% endif %}
+  </div>
+{% endif %}

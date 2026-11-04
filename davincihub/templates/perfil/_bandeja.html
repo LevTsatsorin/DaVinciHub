@@ -1,0 +1,23 @@
+<ul class="chat-bandeja">
+  {% for conversacion in conversaciones %}
+    <li>
+      <a class="chat-bandeja-conversacion{% if conversacion.sin_leer %} chat-bandeja-nueva{% endif %}" href="{{ url_for('perfil.chat', usuario_id=conversacion.id) }}">
+        {% if conversacion.tiene_foto %}
+          <img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=conversacion.id) }}" alt="">
+        {% else %}
+          <span class="conexion-avatar" aria-hidden="true">{{ conversacion.nombre[:1] }}{{ conversacion.apellido[:1] }}</span>
+        {% endif %}
+        <span class="chat-bandeja-datos">
+          <strong>{{ conversacion.nombre }} {{ conversacion.apellido }}</strong>
+          <span class="chat-bandeja-ultimo">{% if conversacion.ultimo_emisor_id == g.usuario.id %}Vos: {% endif %}{{ conversacion.ultimo_mensaje }}</span>
+        </span>
+        <span class="chat-bandeja-meta">
+          <time datetime="{{ conversacion.ultimo_creado }}">{{ conversacion.ultimo_creado | fecha_corta }}</time>
+          {% if conversacion.sin_leer %}
+            <span class="chat-bandeja-no-leidos" aria-label="{{ conversacion.sin_leer }} mensaje{{ 's' if conversacion.sin_leer != 1 }} sin leer">{{ conversacion.sin_leer }}</span>
+          {% endif %}
+        </span>
+      </a>
+    </li>
+  {% endfor %}
+</ul>

@@ -1,0 +1,480 @@
+import os
+import re
+import sqlite3
+from contextlib import contextmanager
+from pathlib import Path
+
+import click
+from flask import current_app, g
+from flask.cli import with_appcontext
+
+from davincihub import comision
+from davincihub.utiles import hoy_local, sin_acentos
+
+
+class ErrorIntegridad(Exception):
+    pass
+
+
+def _es_postgres(url: str) -> bool:
+    return url.startswith(("postgres://", "postgresql://"))
+
+
+_LITERAL_O_PARAMETRO = re.compile(r"'(?:[^']|'')*'|(?<!:):([a-zA-Z_][a-zA-Z0-9_]*)")
+
+
+def _a_psycopg(sql: str) -> str:
+    sql = sql.replace("%", "%%")
+    return _LITERAL_O_PARAMETRO.sub(
+        lambda m: f"%({m.group(1)})s" if m.group(1) else m.group(0), sql
+    )
+
+
+def get_db():
+    if "db" not in g:
+        url = current_app.config.get("DATABASE_URL", "")
+        if _es_postgres(url):
+            import psycopg
+            from psycopg.rows import dict_row
+
+            g.db = psycopg.connect(url, row_factory=dict_row)
+            g.db_es_pg = True
+        else:
+            ruta = url.removeprefix("sqlite:///")
+            if not ruta:
+                ruta = os.path.join(current_app.instance_path, "davincihub.db")
+            Path(ruta).parent.mkdir(parents=True, exist_ok=True)
+            conexion = sqlite3.connect(ruta, isolation_level=None)
+            conexion.row_factory = sqlite3.Row
+            conexion.execute("PRAGMA foreign_keys = ON")
+            conexion.create_function("sin_acentos", 1, lambda t: sin_acentos(t) if t else t, deterministic=True)
+            g.db = conexion
+            g.db_es_pg = False
+    return g.db
+
+
+def close_db(e=None):
+    conexion = g.pop("db", None)
+    if conexion is not None:
+        conexion.close()
+
+
+def _ejecutar(sql: str, params: dict):
+    conexion = get_db()
+    if g.db_es_pg:
+        import psycopg
+
+        try:
+            return conexion.execute(_a_psycopg(sql), params)
+        except psycopg.errors.IntegrityError as error:
+            conexion.rollback()
+            raise ErrorIntegridad(str(error)) from error
+    try:
+        return conexion.execute(sql, params)
+    except sqlite3.IntegrityError as error:
+        raise ErrorIntegridad(str(error)) from error
+
+
+_CON_ACENTO = "áàäâãéèëêíìïîóòöôõúùüûñç"
+_SIN_ACENTO = "aaaaaeeeeiiiiooooouuuunc"
+
+
+def sql_sin_acentos(expresion: str) -> str:
+    """Expresión SQL que pasa el texto a minúsculas y sin acentos, igual que utiles.sin_acentos."""
+    get_db()
+    if g.db_es_pg:
+        return f"translate(lower({expresion}), '{_CON_ACENTO}', '{_SIN_ACENTO}')"
+    return f"sin_acentos({expresion})"
+
+
+def _confirmar():
+    if not g.get("en_transaccion"):
+        get_db().commit()
+
+
+def query(sql: str, **params) -> list[dict]:
+    cursor = _ejecutar(sql, params)
+    filas = [dict(fila) for fila in cursor.fetchall()]
+    _confirmar()
+    return filas
+
+
+def query_one(sql: str, **params) -> dict | None:
+    filas = query(sql, **params)
+    return filas[0] if filas else None
+
+
+def execute(sql: str, **params) -> int:
+    cursor = _ejecutar(sql, params)
+    _confirmar()
+    return cursor.rowcount
+
+
+@contextmanager
+def transaccion():
+    if g.get("en_transaccion"):
+        yield
+        return
+    conexion = get_db()
+    if not g.db_es_pg:
+        conexion.execute("BEGIN IMMEDIATE")
+    g.en_transaccion = True
+    try:
+        yield
+    except BaseException:
+        conexion.rollback()
+        raise
+    else:
+        conexion.commit()
+    finally:
+        g.en_transaccion = False
+
+
+_NOMBRE_TABLA = re.compile(r"^[a-z_]+$")
+
+
+def bloquear_fila(tabla: str, fila_id: int) -> bool:
+    if not _NOMBRE_TABLA.match(tabla):
+        raise ValueError(f"Nombre de tabla inválido: {tabla!r}")
+    if not g.get("en_transaccion"):
+        raise RuntimeError("bloquear_fila sólo funciona dentro de db.transaccion().")
+    bloqueo = " FOR UPDATE" if g.db_es_pg else ""
+    fila = query_one(f"SELECT id FROM {tabla} WHERE id = :id{bloqueo}", id=fila_id)
+    return fila is not None
+
+
+def _leer_sql(nombre: str) -> str:
+    with current_app.open_resource(nombre) as archivo:
+        return archivo.read().decode("utf8")
+
+
+# columnas y tablas agregadas después del primer deploy: se crean solas al arrancar
+COLUMNAS_AGREGADAS = [
+    ("intercambios", "confirmado_propietario", "INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_propietario IN (0, 1))"),
+    ("intercambios", "confirmado_solicitante", "INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_solicitante IN (0, 1))"),
+    ("intercambios", "motivo_cierre", "TEXT NOT NULL DEFAULT ''"),
+    ("intercambios", "completado", "TEXT"),
+    ("ventas", "confirmado_propietario", "INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_propietario IN (0, 1))"),
+    ("ventas", "confirmado_solicitante", "INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_solicitante IN (0, 1))"),
+    ("ventas", "motivo_cierre", "TEXT NOT NULL DEFAULT ''"),
+    ("ventas", "completado", "TEXT"),
+    ("ventas", "mensaje", "TEXT NOT NULL DEFAULT ''"),
+    ("prestamos", "mensaje", "TEXT NOT NULL DEFAULT ''"),
+    ("prestamos", "motivo_cierre", "TEXT NOT NULL DEFAULT ''"),
+    ("prestamos", "entregado", "TEXT"),
+    ("prestamos", "devuelto", "TEXT"),
+    ("solicitudes", "modalidad", "TEXT NOT NULL DEFAULT 'cualquiera' CHECK (modalidad IN ('cualquiera', 'venta', 'intercambio', 'prestamo'))"),
+    ("publicaciones", "carrera_id", "INTEGER REFERENCES carreras (id)"),
+    ("reservas", "motivo", "TEXT NOT NULL DEFAULT ''"),
+    ("reservas", "personas", "INTEGER CHECK (personas IS NULL OR personas > 0)"),
+    ("actividades", "reserva_id", "INTEGER REFERENCES reservas (id)"),
+    ("usuarios", "catedra", "INTEGER NOT NULL DEFAULT 0 CHECK (catedra IN (0, 1))"),
+    ("preguntas", "imagen_tipo", "TEXT"),
+    ("preguntas", "imagen", "BYTEA"),
+    ("respuestas", "respuesta_padre_id", "INTEGER REFERENCES respuestas (id)"),
+    ("usuarios", "chat_tema", "TEXT NOT NULL DEFAULT 'davinci'"),
+    ("carreras", "codigo", "TEXT"),
+    ("publicaciones", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
+    ("preguntas", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
+    ("respuestas", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
+    ("actividades", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
+    ("reportes", "accion", "TEXT"),
+    ("reportes", "resuelto", "TEXT"),
+]
+
+TABLAS_AGREGADAS = {
+    "adjuntos_chat": """CREATE TABLE IF NOT EXISTS adjuntos_chat (
+    mensaje_id INTEGER PRIMARY KEY REFERENCES mensajes (id) ON DELETE CASCADE,
+    nombre TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    contenido BYTEA NOT NULL
+)""",
+    "reacciones_chat": """CREATE TABLE IF NOT EXISTS reacciones_chat (
+    mensaje_id INTEGER NOT NULL REFERENCES mensajes (id) ON DELETE CASCADE,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+    emoji TEXT NOT NULL,
+    PRIMARY KEY (mensaje_id, usuario_id)
+)""",
+    "valoraciones_operaciones": """CREATE TABLE IF NOT EXISTS valoraciones_operaciones (
+    id {{PK}},
+    tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('prestamo', 'intercambio', 'venta')),
+    operacion_id INTEGER NOT NULL,
+    autor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    receptor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    valor INTEGER NOT NULL CHECK (valor BETWEEN 1 AND 5),
+    comentario TEXT,
+    creado TEXT NOT NULL,
+    UNIQUE (tipo_operacion, operacion_id, autor_id),
+    CHECK (autor_id <> receptor_id)
+)""",
+    "acuerdos_movimientos": """CREATE TABLE IF NOT EXISTS acuerdos_movimientos (
+        id {{PK}},
+        tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('intercambio', 'venta')),
+        operacion_id INTEGER NOT NULL,
+        estado_anterior TEXT,
+        estado_nuevo TEXT NOT NULL,
+        actor_id INTEGER REFERENCES usuarios (id),
+        detalle TEXT NOT NULL DEFAULT '',
+        creado TEXT NOT NULL
+    )""",
+    "prestamos_movimientos": """CREATE TABLE IF NOT EXISTS prestamos_movimientos (
+        id {{PK}},
+        prestamo_id INTEGER NOT NULL REFERENCES prestamos (id),
+        estado_anterior TEXT,
+        estado_nuevo TEXT NOT NULL,
+        actor_id INTEGER REFERENCES usuarios (id),
+        detalle TEXT NOT NULL DEFAULT '',
+        creado TEXT NOT NULL
+    )""",
+    "coincidencias": """CREATE TABLE IF NOT EXISTS coincidencias (
+        id {{PK}},
+        solicitud_id INTEGER NOT NULL REFERENCES solicitudes (id),
+        publicacion_id INTEGER NOT NULL REFERENCES publicaciones (id),
+        creado TEXT NOT NULL,
+        UNIQUE (solicitud_id, publicacion_id)
+    )""",
+    "bloqueos": """CREATE TABLE IF NOT EXISTS bloqueos (
+        id {{PK}},
+        usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+        admin_id INTEGER NOT NULL REFERENCES usuarios (id),
+        accion TEXT NOT NULL CHECK (accion IN ('bloqueo', 'desbloqueo')),
+        motivo TEXT NOT NULL,
+        creado TEXT NOT NULL
+    )""",
+    "fotos_perfil": """CREATE TABLE IF NOT EXISTS fotos_perfil (
+        usuario_id INTEGER PRIMARY KEY REFERENCES usuarios (id),
+        tipo TEXT NOT NULL,
+        contenido BYTEA NOT NULL,
+        actualizado TEXT NOT NULL
+    )""",
+}
+
+INDICES_AGREGADOS = [
+    ("valoraciones_operaciones", "CREATE INDEX IF NOT EXISTS idx_valoraciones_receptor ON valoraciones_operaciones (receptor_id, creado)"),
+    ("bloqueos", "CREATE INDEX IF NOT EXISTS idx_bloqueos_usuario ON bloqueos (usuario_id, creado)"),
+    ("reportes", "CREATE INDEX IF NOT EXISTS idx_reportes_estado ON reportes (estado, creado)"),
+    ("reportes", "CREATE UNIQUE INDEX IF NOT EXISTS idx_reportes_unico ON reportes (autor_id, tipo_objeto, objeto_id)"),
+    (
+        "conexiones",
+        (
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_conexiones_par"
+            " ON conexiones ((CASE WHEN solicitante_id < receptor_id THEN solicitante_id ELSE receptor_id END),"
+            " (CASE WHEN solicitante_id < receptor_id THEN receptor_id ELSE solicitante_id END))"
+        ),
+    ),
+    (
+        "respuestas",
+        ("CREATE UNIQUE INDEX IF NOT EXISTS idx_respuesta_aceptada"
+         " ON respuestas (pregunta_id) WHERE aceptada = 1"),
+    ),
+    ("mensajes", "CREATE INDEX IF NOT EXISTS idx_mensajes_conversacion ON mensajes (receptor_id, emisor_id, creado)"),
+    ("prestamos", "CREATE INDEX IF NOT EXISTS idx_prestamos_estado ON prestamos (estado, fecha_devolucion)",
+     "estado", "fecha_devolucion"),
+    ("prestamos", "CREATE INDEX IF NOT EXISTS idx_prestamos_publicacion ON prestamos (publicacion_id, estado)",
+     "publicacion_id", "estado"),
+]
+
+# en PostgreSQL REAL tiene 4 bytes y pierde los centavos
+COLUMNAS_PRECIO = [("publicaciones", "precio"), ("solicitudes", "presupuesto_max"), ("ventas", "precio_acordado")]
+
+
+def _columnas(tabla: str) -> set[str]:
+    get_db()
+    if g.db_es_pg:
+        filas = query(
+            "SELECT column_name AS nombre FROM information_schema.columns WHERE table_name = :tabla",
+            tabla=tabla,
+        )
+        return {f["nombre"] for f in filas}
+    return {f["name"] for f in query(f"PRAGMA table_info({tabla})")}
+
+
+def _clave_primaria() -> str:
+    get_db()
+    if g.db_es_pg:
+        return "INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
+    return "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+
+def migrar():
+    if _columnas("usuarios"):
+        for tabla, definicion in TABLAS_AGREGADAS.items():
+            if not _columnas(tabla):
+                execute(definicion.replace("{{PK}}", _clave_primaria()))
+        if _columnas("conexiones") and not _existe_indice_conexiones():
+            _normalizar_conexiones()
+        for tabla, indice, *requeridas in INDICES_AGREGADOS:
+            columnas = _columnas(tabla)
+            if columnas and set(requeridas) <= columnas:
+                execute(indice)
+    for tabla, columna, definicion in COLUMNAS_AGREGADAS:
+        existentes = _columnas(tabla)
+        if existentes and columna not in existentes:
+            si_falta = " IF NOT EXISTS" if g.db_es_pg else ""
+            execute(f"ALTER TABLE {tabla} ADD COLUMN{si_falta} {columna} {definicion}")
+    if g.db_es_pg:
+        for tabla, columna in COLUMNAS_PRECIO:
+            if query_one(
+                "SELECT 1 AS real FROM information_schema.columns WHERE table_schema = current_schema()"
+                " AND table_name = :tabla AND column_name = :columna AND data_type = 'real'",
+                tabla=tabla, columna=columna,
+            ):
+                execute(f"ALTER TABLE {tabla} ALTER COLUMN {columna} TYPE DOUBLE PRECISION"
+                        f" USING round({columna}::numeric, 2)::double precision")
+    if {"codigo", "duracion_anios"} <= _columnas("carreras") and {"comision", "carrera_id", "anio"} <= _columnas("usuarios"):
+        _normalizar_comisiones()
+
+
+def _normalizar_comisiones():
+    """Completa el código de cada carrera y lleva toda comisión de estudiante al formato ACT4AP."""
+    carreras = query("SELECT id, nombre, codigo, duracion_anios FROM carreras ORDER BY id")
+    usados = {c["codigo"] for c in carreras if c["codigo"] and comision.PATRON_CODIGO.fullmatch(c["codigo"])}
+    nuevos, vistos = {}, set()
+    for carrera in carreras:
+        if carrera["codigo"] in usados and carrera["codigo"] not in vistos:
+            vistos.add(carrera["codigo"])
+        else:
+            carrera["codigo"] = comision.codigo_sugerido(carrera["nombre"], usados)
+            usados.add(carrera["codigo"])
+            nuevos[carrera["id"]] = carrera["codigo"]
+    por_id = {c["id"]: c for c in carreras}
+    segundo = int(hoy_local()[5:7]) >= 8
+    cambios = []
+    for estudiante in query(
+        "SELECT id, carrera_id, anio, comision FROM usuarios WHERE rol = 'estudiante' AND carrera_id IS NOT NULL"
+    ):
+        carrera = por_id.get(estudiante["carrera_id"])
+        if carrera is None:
+            continue
+        actual = comision.normalizar(estudiante["comision"])
+        if not comision.error(actual, carrera) and comision.anio(actual) == estudiante["anio"] and actual == estudiante["comision"]:
+            continue
+        datos = comision.partes(actual)
+        if datos and datos["cuatrimestre"] <= (carrera["duracion_anios"] or 6) * 2:
+            cuatrimestre = datos["cuatrimestre"]
+        else:
+            anio = min(max(estudiante["anio"] or 1, 1), carrera["duracion_anios"] or 6)
+            cuatrimestre = anio * 2 if segundo else anio * 2 - 1
+        nueva = comision.armar(carrera["codigo"], cuatrimestre, actual, estudiante["id"])
+        cambios.append((estudiante["id"], nueva, comision.anio(nueva)))
+    if nuevos or cambios:
+        with transaccion():
+            for carrera_id, codigo in nuevos.items():
+                execute("UPDATE carreras SET codigo = :codigo WHERE id = :id", codigo=codigo, id=carrera_id)
+            for usuario_id, nueva, anio in cambios:
+                execute("UPDATE usuarios SET comision = :comision, anio = :anio WHERE id = :id",
+                        comision=nueva, anio=anio, id=usuario_id)
+    execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_carreras_codigo ON carreras (codigo)")
+
+
+def _existe_indice_conexiones() -> bool:
+    if g.db_es_pg:
+        return query_one(
+            "SELECT 1 AS existe FROM pg_indexes WHERE schemaname = current_schema()"
+            " AND tablename = 'conexiones' AND indexname = 'idx_conexiones_par'"
+        ) is not None
+    return any(fila["name"] == "idx_conexiones_par" for fila in query("PRAGMA index_list(conexiones)"))
+
+
+def _normalizar_conexiones():
+    if not {"id", "solicitante_id", "receptor_id", "estado", "creado"} <= _columnas("conexiones"):
+        return
+    filas = query(
+        "SELECT id, solicitante_id, receptor_id, estado FROM conexiones"
+        " ORDER BY CASE WHEN solicitante_id < receptor_id THEN solicitante_id ELSE receptor_id END,"
+        " CASE WHEN solicitante_id < receptor_id THEN receptor_id ELSE solicitante_id END, id"
+    )
+    pares: dict[tuple[int, int], list[dict]] = {}
+    for fila in filas:
+        par = tuple(sorted((fila["solicitante_id"], fila["receptor_id"])))
+        pares.setdefault(par, []).append(fila)
+    duplicados = [filas_par for filas_par in pares.values() if len(filas_par) > 1]
+    if not duplicados:
+        return
+
+    with transaccion():
+        for filas_par in duplicados:
+            ids = [fila["id"] for fila in filas_par]
+            estados = {fila["estado"] for fila in filas_par}
+            if "aceptada" in estados or (
+                len(estados) == 1
+                and estados == {"pendiente"}
+                and len({fila["solicitante_id"] for fila in filas_par}) > 1
+            ):
+                estado = "aceptada"
+            elif "pendiente" in estados:
+                estado = "pendiente"
+            else:
+                estado = "rechazada"
+            superviviente = next(
+                (fila for fila in filas_par if fila["estado"] == estado), filas_par[0]
+            )
+            execute("UPDATE conexiones SET estado = :estado WHERE id = :id", estado=estado, id=superviviente["id"])
+            for fila_id in ids:
+                if fila_id != superviviente["id"]:
+                    execute("DELETE FROM conexiones WHERE id = :id", id=fila_id)
+
+
+def init_db(demo: bool = False):
+    conexion = get_db()
+    esquema = _leer_sql("schema.sql").replace("{{PK}}", _clave_primaria())
+    if g.db_es_pg:
+        conexion.execute(esquema)
+    else:
+        conexion.executescript(esquema)
+    if demo:
+        datos = _leer_sql("datos_demo.sql")
+        if g.db_es_pg:
+            conexion.execute(datos)
+        else:
+            conexion.executescript(datos)
+    conexion.commit()
+    if demo:
+        cargar_publicaciones_demo()
+
+
+def cargar_publicaciones_demo() -> int:
+    """Agrega ejemplos a los estudiantes demo existentes, sin borrar ni actualizar datos."""
+    if not _columnas("usuarios") or not _columnas("publicaciones"):
+        raise click.ClickException("La base debe estar inicializada antes de cargar publicaciones demo.")
+    with transaccion():
+        from davincihub.objetos import busquedas
+
+        filas = query(_leer_sql("publicaciones_demo.sql"))
+        for fila in filas:
+            busquedas.detectar_para_publicacion(fila["id"])
+        return len(filas)
+
+
+@click.command("init-db")
+@click.option("--demo", is_flag=True, help="Carga datos de demostración.")
+@click.option("--si", is_flag=True, help="No pide confirmación aunque la base tenga datos.")
+@with_appcontext
+def comando_init_db(demo: bool, si: bool):
+    cuentas = query_one("SELECT count(*) AS n FROM usuarios")["n"] if _columnas("usuarios") else 0
+    if cuentas and not si:
+        tipo = "PostgreSQL" if g.db_es_pg else "SQLite"
+        click.echo(f"La base {tipo} tiene {cuentas} cuentas: se borra todo y se crea de nuevo.")
+        if click.prompt("Escribí BORRAR para seguir", default="", show_default=False).strip().upper() != "BORRAR":
+            raise click.ClickException("Cancelado: la base quedó como estaba.")
+    init_db(demo)
+    click.echo("Base de datos inicializada." + (" Datos demo cargados." if demo else ""))
+
+
+@click.command("seed-objetos")
+@with_appcontext
+def comando_seed_objetos():
+    """Agrega publicaciones a los usuarios demo existentes sin reiniciar la base."""
+    cantidad = cargar_publicaciones_demo()
+    click.echo(f"Publicaciones demo agregadas: {cantidad}. No se borraron ni modificaron datos existentes.")
+
+
+def registrar(app):
+    app.teardown_appcontext(close_db)
+    app.cli.add_command(comando_init_db)
+    app.cli.add_command(comando_seed_objetos)
+    from davincihub.demo_amplio import comando_seed_amplio
+
+    app.cli.add_command(comando_seed_amplio)
+    with app.app_context():
+        migrar()

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block titulo %}Foro académico — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="cabecera-seccion fondo-oscuro">
+  <img class="cabecera-seccion-imagen" src="{{ url_for('static', filename='img/foro.png') }}" alt="">
+  <div class="contenedor cabecera-seccion-contenido">
+    <h1>Foro <span class="acento-cian">académico</span></h1>
+    <p>Compartí tus dudas por carrera y materia, y aprendé junto a la comunidad Da Vinci</p>
+    <div class="acciones-cabecera">
+      {% if g.usuario %}
+        <a class="boton boton-grande" href="{{ url_for('foro.nueva_pregunta') }}">Hacer una pregunta</a>
+        <div class="enlaces-admin">
+          <a class="enlace-admin" href="{{ url_for('foro.index', mis_dudas=1) }}"
+             {% if mis_dudas %}aria-current="page"{% endif %}>Mis dudas</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+<section class="contenedor pagina-modulo pagina-foro">
+
+  {% if not g.usuario %}
+    <section class="foro-acceso tarjeta">
+       <span class="foro-acceso-icono" aria-hidden="true">
+  <img src="{{ url_for('static', filename='img/perdido.png') }}" alt="">
+</span>
+      <div class="foro-acceso-contenido">
+        <h2>Iniciá sesión para ver el foro</h2>
+        <p>Las preguntas y respuestas están disponibles para estudiantes con una cuenta de Da Vinci Hub.</p>
+        <a class="boton boton-primario" href="{{ url_for('auth.login',  siguiente=url_for('foro.index')) }}">Iniciar sesión</a>
+      </div>
+    </section>
+  {% elif g.usuario %}
+    {% set filtrando = q or carrera_id or materia_id or cuatrimestre %}
+    <form class="filtros-espacios foro-filtros filtros-fijos" method="get" role="search">
+      {% if mis_dudas %}<input type="hidden" name="mis_dudas" value="1">{% endif %}
+      <label class="filtro-buscar" for="foro-buscar">Buscar en el foro
+        <input id="foro-buscar" type="search" name="q" value="{{ q }}"
+               placeholder="Busca algo ..." maxlength="100">
+      </label>
+      <label for="foro-carrera">Carrera
+        <select id="foro-carrera" name="carrera_id">
+          <option value="">Todas las carreras</option>
+          {% for id, materias_carrera in materias | groupby('carrera_id') %}
+            <option value="{{ id }}" {% if carrera_id == id | string %}selected{% endif %}>{{ materias_carrera[0].carrera }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label for="foro-materia">Materia
+        <select id="foro-materia" name="materia_id">
+          <option value="">Todas las materias</option>
+          {% for materia in materias %}
+            <option value="{{ materia.id }}" {% if materia_id == materia.id | string %}selected{% endif %}>
+              {{ materia.nombre }} · {{ materia.carrera }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label for="foro-cuatrimestre">Cuatrimestre
+        <select id="foro-cuatrimestre" name="cuatrimestre">
+          <option value="">Todos</option>
+          {% for numero in materias | map(attribute='cuatrimestre') | select | unique | sort %}
+            <option value="{{ numero }}" {% if cuatrimestre == numero | string %}selected{% endif %}>{{ numero }}.º cuatrimestre</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="boton boton-primario" type="submit">Buscar</button>
+      {% if filtrando %}<a class="enlace-limpiar" href="{{ url_for('foro.index', mis_dudas=1) if mis_dudas else url_for('foro.index') }}">Limpiar</a>{% endif %}
+    </form>
+
+    {% if filtrando %}
+      <p class="resultado-filtros">
+        <strong>{{ preguntas | length }}</strong>
+        {{ "resultado" if preguntas | length == 1 else "resultados" }}
+        {% if mis_dudas %}entre tus dudas{% elif q %}para «{{ q }}»{% else %}con los filtros seleccionados{% endif %}
+      </p>
+    {% endif %}
+
+    {% if preguntas %}
+    <section class="foro-listado" aria-label="Preguntas del foro">
+      {% for pregunta in preguntas %}
+        {% set estado = 'resuelta' if pregunta.tiene_aceptada else ('sin-respuesta' if pregunta.respuestas == 0 else 'abierta') %}
+        <a class="foro-pregunta foro-fila foro-fila-{{ estado }}{% if pregunta.respuestas == 0 %} foro-pregunta-sin-respuesta{% endif %}"
+           href="{{ url_for('foro.detalle', pregunta_id=pregunta.id) }}">
+          <span class="foro-fila-contador" aria-hidden="true">
+            {% if pregunta.tiene_aceptada %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>{% endif %}
+            <strong>{{ pregunta.respuestas }}</strong>
+            <span>{{ "respuesta" if pregunta.respuestas == 1 else "respuestas" }}</span>
+          </span>
+          <span class="foro-fila-cuerpo">
+            <span class="foro-etiquetas">
+              <span class="foro-materia">{{ pregunta.materia }}</span>
+              {% if pregunta.respuestas == 0 %}<span class="foro-sin-responder">Sin responder</span>{% endif %}
+              {% if pregunta.tiene_aceptada %}<span class="foro-resuelta">Resuelta</span>{% endif %}
+            </span>
+            <h2>{{ pregunta.titulo }}</h2>
+            <span class="foro-fila-extracto">{{ pregunta.cuerpo }}</span>
+            <span class="foro-fila-pie">
+              <span class="foro-avatar foro-avatar-chico" aria-hidden="true">{{ pregunta.autor_nombre[:1] }}{{ pregunta.autor_apellido[:1] }}</span>
+              <span class="foro-fila-autor">{{ pregunta.autor_nombre }} {{ pregunta.autor_apellido }}</span>
+              <span class="foro-fila-carrera">{{ pregunta.carrera }}</span>
+              <time datetime="{{ pregunta.creado }}">{{ pregunta.creado | fecha_corta }}</time>
+              <span class="visualmente-oculto">{{ pregunta.respuestas }} {{ "respuesta" if pregunta.respuestas == 1 else "respuestas" }}</span>
+            </span>
+          </span>
+        </a>
+      {% endfor %}
+    </section>
+    {% elif filtrando %}
+      <section class="foro-vacio tarjeta">
+        <h2>No encontramos preguntas con esa búsqueda</h2>
+        <p>Probá con otra materia, carrera o palabra, o limpiá la búsqueda para ver todas las publicaciones.</p>
+        <a class="boton boton-suave" href="{{ url_for('foro.index') }}">Ver todas las publicaciones</a>
+      </section>
+    {% else %}
+    <section class="foro-vacio tarjeta">
+      <h2>{{ "Todavía no publicaste preguntas" if mis_dudas else "El foro empieza con una pregunta" }}</h2>
+      <p>{{ "Cuando publiques una pregunta, la vas a encontrar acá." if mis_dudas else "¿Tenés una duda sobre una materia? Compartila para que la comunidad pueda ayudarte." }}</p>
+      <a class="boton boton-primario" href="{{ url_for('foro.nueva_pregunta') }}">Hacer una pregunta</a>
+    </section>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

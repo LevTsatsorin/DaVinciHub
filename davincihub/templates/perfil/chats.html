@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block titulo %}Mensajes — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+{% set sin_leer = conversaciones | selectattr("sin_leer") | list | length %}
+<section class="contenedor pagina-modulo pagina-perfil">
+  <header class="ficha-usuario fondo-oscuro">
+    <div class="ficha-usuario-datos">
+      <h1>Mensajes</h1>
+      <ul class="cifras-cabecera">
+        <li><strong>{{ conversaciones | length }}</strong> {{ "conversación" if conversaciones | length == 1 else "conversaciones" }}</li>
+        <li data-bandeja-sin-leer><strong>{{ sin_leer }}</strong> sin leer</li>
+      </ul>
+    </div>
+  </header>
+
+  {% if conversaciones %}
+    <div data-bandeja data-estado="{{ url_for('perfil.chats_estado') }}">{% include "perfil/_bandeja.html" %}</div>
+  {% else %}
+    <div class="estado-vacio">
+      <img src="{{ url_for('static', filename='img/chat.png') }}" alt="">
+      <h2>Todavía no tenés conversaciones</h2>
+      <p>Escribile a un compañero desde su perfil, tus conexiones o una publicación del catálogo y la charla aparece acá.</p>
+      <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Ver mis conexiones</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='chat_vivo.js') }}" defer></script>{% endblock %}

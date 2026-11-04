@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block titulo %}Chat con {{ estudiante.nombre }} — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-perfil pagina-chat">
+  <div class="chat-panel chat-tema-{{ g.usuario.chat_tema }}">
+    <header class="chat-cabecera fondo-oscuro">
+      <a class="chat-volver" href="{{ url_for('perfil.chats') }}" aria-label="Volver a Mensajes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </a>
+      <a class="chat-cabecera-persona" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">
+        {% if estudiante.tiene_foto %}
+          <img class="conexion-avatar" src="{{ url_for('perfil.foto', usuario_id=estudiante.id) }}" alt="">
+        {% else %}
+          <span class="conexion-avatar" aria-hidden="true">{{ estudiante.nombre[:1] }}{{ estudiante.apellido[:1] }}</span>
+        {% endif %}
+        <div class="chat-cabecera-datos">
+          <h1>{{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
+          {% if estudiante.carrera %}<span>{{ estudiante.carrera }}</span>{% endif %}
+        </div>
+      </a>
+      <details class="chat-temas">
+        <summary aria-label="Elegir colores del chat" title="Colores del chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5c0-4-4-7.2-9-7.2z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/><circle cx="15" cy="7.5" r="1" fill="currentColor"/></svg>
+        </summary>
+        <form class="chat-temas-opciones" method="post" action="{{ url_for('perfil.tema_chat', usuario_id=estudiante.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <p>Colores del chat</p>
+          {% for clave, nombre in temas.items() %}
+            <button class="chat-tema-{{ clave }}" type="submit" name="tema" value="{{ clave }}" aria-pressed="{{ 'true' if g.usuario.chat_tema == clave else 'false' }}">
+              <span class="chat-tema-muestra" aria-hidden="true"><span></span><span></span></span>
+              {{ nombre }}
+            </button>
+          {% endfor %}
+        </form>
+      </details>
+      <a class="boton boton-ficha" href="{{ url_for('perfil.ver', usuario_id=estudiante.id) }}">Ver perfil</a>
+    </header>
+
+    <ol class="chat-mensajes" aria-label="Conversación" aria-live="polite" data-nuevos="{{ url_for('perfil.chat_nuevos', usuario_id=estudiante.id) }}" data-anteriores="{{ url_for('perfil.chat_anteriores', usuario_id=estudiante.id) }}" data-otro="{{ estudiante.nombre }}">
+      {% if hay_anteriores %}<li class="chat-cargando" data-chat-cargando>Cargando mensajes anteriores…</li>{% endif %}
+      {% for mensaje in mensajes %}
+        {% if mensaje.id == primer_nuevo %}
+          <li class="chat-separador-nuevos" data-primer-nuevo><span>{{ cantidad_nuevos }} {{ "mensaje nuevo" if cantidad_nuevos == 1 else "mensajes nuevos" }}</span></li>
+        {% endif %}
+        {% set propio = mensaje.emisor_id == g.usuario.id %}
+        <li class="chat-mensaje {{ 'chat-mensaje-propio' if propio else 'chat-mensaje-ajeno' }}" data-mensaje-id="{{ mensaje.id }}">
+          <span class="chat-mensaje-autor">{{ "Yo" if propio else mensaje.emisor_nombre }}</span>
+          {% if mensaje.cuerpo %}<p>{{ mensaje.cuerpo }}</p>{% endif %}
+          <time datetime="{{ mensaje.creado }}">{{ mensaje.creado | fecha_corta }}</time>
+          <div class="chat-mensaje-extras">{{ mensaje.extras | safe }}</div>
+        </li>
+      {% else %}
+        <li class="chat-vacio">
+          <img src="{{ url_for('static', filename='img/chat.png') }}" alt="">
+          <strong>Todavía no hay mensajes</strong>
+          <span>Saludá a {{ estudiante.nombre }} para empezar la conversación.</span>
+        </li>
+      {% endfor %}
+    </ol>
+
+    <form class="chat-componer" method="post" enctype="multipart/form-data" data-chat-enviar>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <p class="error-texto" data-chat-error{% if not error %} hidden{% endif %}>{{ error or "" }}</p>
+      <div class="chat-componer-campo">
+        <label class="visualmente-oculto" for="cuerpo">Mensaje</label>
+        <label class="chat-adjuntar" for="archivo-chat" title="Adjuntar archivo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+          <span class="visualmente-oculto">Adjuntar archivo</span>
+        </label>
+        <input class="visualmente-oculto" id="archivo-chat" type="file" name="archivo" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.docx,.xlsx,.pptx" aria-describedby="chat-archivo-info">
+        <div class="chat-componer-contenido">
+          <div class="chat-archivo-seleccionado" data-chat-archivo hidden>
+            <svg class="chat-archivo-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+            <span data-chat-archivo-nombre aria-live="polite"></span>
+            <button class="chat-archivo-quitar" type="button" data-chat-quitar-archivo aria-label="Quitar archivo seleccionado" title="Quitar archivo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+          <textarea id="cuerpo" name="cuerpo" rows="1" maxlength="2000" placeholder="Escribí un mensaje…">{{ cuerpo }}</textarea>
+        </div>
+        <button class="chat-enviar" type="submit" aria-label="Enviar mensaje">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+        <p class="visualmente-oculto" id="chat-archivo-info">Imágenes, PDF, TXT, DOCX, XLSX o PPTX de hasta 10 MB.</p>
+    </form>
+  </div>
+</section>
+<dialog class="chat-imagen-visor" data-chat-visor aria-label="Imagen ampliada">
+  <button class="chat-imagen-cerrar" type="button" data-chat-cerrar aria-label="Cerrar imagen" autofocus>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+  </button>
+  <img data-chat-imagen-ampliada alt="">
+</dialog>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='chat_vivo.js') }}" defer></script>{% endblock %}

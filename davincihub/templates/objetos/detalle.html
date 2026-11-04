@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "reportes/_boton_reporte.html" import boton_reporte %}
+{% from "_insignia.html" import insignia_reputacion %}
+{% block titulo %}{{ publicacion.titulo }} — Da Vinci Hub{% endblock %}
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-objeto-detalle">
+  {% set propia = publicacion.autor_id == g.usuario.id %}
+  <a class="volver" href="{{ url_for('objetos.mis_publicaciones') if propia else url_for('objetos.catalogo') }}">← {{ 'Mis publicaciones' if propia else 'Catálogo de objetos' }}</a>
+  {% if publicacion.oculto %}<p class="aviso aviso-moderado">Ocultada por moderación: no la ve ningún estudiante. Si creés que es un error, escribí a la escuela.</p>{% endif %}
+  {% if publicacion.estado != 'activa' %}<p class="aviso aviso-advertencia">Esta publicación está {{ publicacion.estado }} y no aparece en el catálogo.</p>{% endif %}
+  {% if historica %}<p class="aviso">Publicación vinculada a una operación finalizada.</p>{% endif %}
+  <div class="objeto-ficha">
+    <div class="objeto-ilustracion objeto-ilustracion-detalle objeto-{{ publicacion.categoria }}">{% include "objetos/_icono.html" %}</div>
+    <div class="objeto-ficha-datos">
+      <span class="objeto-categoria">{{ categorias.get(publicacion.categoria, publicacion.categoria) }}</span>
+      <h1>{{ publicacion.titulo }}</h1>
+      <div class="objeto-ficha-chips">
+        <span class="objeto-modalidad objeto-modalidad-{{ publicacion.modalidad }}">{{ modalidades.get(publicacion.modalidad, publicacion.modalidad) }}</span>
+        {% if propia %}<span class="objeto-estado objeto-estado-{{ publicacion.estado }}">{{ estados[publicacion.estado] }}</span>{% endif %}
+      </div>
+      {% if publicacion.modalidad == 'venta' and publicacion.precio is not none %}
+        <p class="objeto-precio">{{ publicacion.precio | precio_corto }}</p>
+      {% else %}
+        <p class="objeto-precio objeto-precio-{{ publicacion.modalidad }}">{{ 'Sin costo · intercambio' if publicacion.modalidad == 'intercambio' else 'Sin costo · préstamo' }}</p>
+      {% endif %}
+      <dl class="objeto-atributos">
+        <div><dt>Estado del objeto</dt><dd>{{ condiciones.get(publicacion.estado_objeto, publicacion.estado_objeto) }}</dd></div>
+        {% if publicacion.carrera %}<div><dt>Carrera</dt><dd>{{ publicacion.carrera }}</dd></div>{% endif %}
+        <div><dt>Publicado por</dt><dd><a href="{{ url_for('perfil.ver', usuario_id=publicacion.autor_id) }}">{{ publicacion.autor_nombre }} {{ publicacion.autor_apellido }}</a>{{ insignia_reputacion(publicacion.autor_id) }}</dd></div>
+        {% set reputacion_autor = reputacion_de(publicacion.autor_id) %}
+        <div><dt>Reputación</dt><dd>{% if reputacion_autor.cantidad %}<span class="reputacion-estrella" aria-hidden="true">★</span> {{ reputacion_autor.promedio }} · {{ reputacion_autor.opiniones }}{% else %}Sin valoraciones todavía{% endif %}</dd></div>
+        <div><dt>Fecha de publicación</dt><dd>{{ publicacion.creado | fecha_corta }}</dd></div>
+      </dl>
+      {% if not historica and not propia and g.usuario.rol == 'estudiante' %}
+      <div class="objeto-acciones-contacto">
+        {% if publicacion.modalidad == 'prestamo' %}
+          {% if prestamo_abierto %}
+            <a class="boton boton-primario" href="{{ url_for('objetos.detalle_prestamo', prestamo_id=prestamo_abierto.id) }}">Ver mi solicitud</a>
+          {% elif objeto_ocupado %}
+            <p class="prestamo-disponibilidad">Este objeto tiene un préstamo en curso.</p>
+          {% else %}
+            <a class="boton boton-primario" href="{{ url_for('objetos.solicitar_prestamo', publicacion_id=publicacion.id) }}">Pedir prestado</a>
+          {% endif %}
+        {% endif %}
+        {% if publicacion.modalidad in tipos_acuerdo %}
+          {% if acuerdo_abierto %}<a class="boton boton-primario" href="{{ url_for('objetos.detalle_acuerdo', tipo=acuerdo_abierto.tipo, acuerdo_id=acuerdo_abierto.id) }}">Ver mi propuesta</a>
+          {% elif acuerdo_reservado %}<p class="prestamo-disponibilidad">Este objeto ya tiene un acuerdo en curso.</p>
+          {% else %}<a class="boton boton-primario" href="{{ url_for('objetos.proponer_acuerdo', publicacion_id=publicacion.id) }}">{{ 'Proponer intercambio' if publicacion.modalidad == 'intercambio' else 'Proponer compra' }}</a>{% endif %}
+        {% endif %}
+        <a class="boton" href="{{ url_for('perfil.chat', usuario_id=publicacion.autor_id) }}">Escribirle a {{ publicacion.autor_nombre }}</a>
+        {{ boton_reporte('publicacion', publicacion.id, request.full_path, publicacion.autor_id) }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <section class="tarjeta objeto-descripcion">
+    <h2 class="titulo-tarjeta">Sobre este material</h2>
+    <p>{{ publicacion.descripcion }}</p>
+  </section>
+  {% if not historica and propia and publicacion.estado != 'cerrada' %}
+    <section class="tarjeta objeto-controles" aria-label="Administrar mi publicación">
+      <h2 class="titulo-tarjeta">Tu publicación</h2>
+      {% if publicacion.modalidad == 'prestamo' %}<p><a class="enlace-admin" href="{{ url_for('objetos.mis_prestamos', vista='otorgados') }}">Ver pedidos de préstamo</a>{% if objeto_ocupado %} · Hay un préstamo en curso.{% endif %}</p>{% endif %}
+      {% if publicacion.modalidad in tipos_acuerdo %}<p><a class="enlace-admin" href="{{ url_for('objetos.mis_acuerdos', vista='recibidas') }}">Ver propuestas de intercambio y compra</a>{% if acuerdo_reservado %} · Hay un acuerdo en curso.{% endif %}</p>{% endif %}
+      <div class="objetos-acciones">
+        <a class="boton boton-primario" href="{{ url_for('objetos.editar', publicacion_id=publicacion.id) }}">Editar</a>
+        <form method="post" action="{{ url_for('objetos.estado', publicacion_id=publicacion.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="estado" value="{{ 'pausada' if publicacion.estado == 'activa' else 'activa' }}">
+          <button class="boton" type="submit">{{ 'Pausar' if publicacion.estado == 'activa' else 'Reactivar' }}</button>
+        </form>
+        <form class="objeto-eliminar" method="post" action="{{ url_for('objetos.estado', publicacion_id=publicacion.id) }}"
+              data-confirmar="¿Eliminar esta publicación?"
+              data-confirmar-texto="Dejará de aparecer en el catálogo y no podrás reactivarla. El registro se conserva en tu historial."
+              data-confirmar-boton="Eliminar">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="estado" value="cerrada">
+          <button class="boton objeto-boton-eliminar" type="submit" aria-describedby="aviso-eliminar">Eliminar</button>
+          <span class="objeto-tooltip" id="aviso-eliminar" role="tooltip">Dejará de aparecer en el catálogo. No podrás reactivarla; se conserva en tu historial.</span>
+        </form>
+      </div>
+    </section>
+  {% endif %}
+</section>
+{% if not historica and propia and publicacion.estado != 'cerrada' %}{% include "espacios/_dialogo.html" %}{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

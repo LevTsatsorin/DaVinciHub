@@ -1,0 +1,29 @@
+<dialog class="dialogo" id="dialogo-confirmar" aria-labelledby="dialogo-confirmar-titulo">
+  <div class="dialogo-icono dialogo-icono-peligro" aria-hidden="true" data-icono-peligro>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
+  </div>
+  <div class="dialogo-icono dialogo-icono-ok" aria-hidden="true" data-icono-ok hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M8 2.5v4M16 2.5v4"/><path d="m9 15 2 2 4-4"/></svg>
+  </div>
+  <h2 id="dialogo-confirmar-titulo"></h2>
+  <p id="dialogo-confirmar-texto"></p>
+  <div class="dialogo-acciones">
+    <button class="boton" type="button" data-dialogo-cancelar autofocus>Cancelar</button>
+    <button class="boton boton-peligro" type="button" data-dialogo-aceptar></button>
+  </div>
+</dialog>
+
+<dialog class="dialogo" id="dialogo-salir" aria-labelledby="dialogo-salir-titulo">
+  <div class="dialogo-icono dialogo-icono-aviso" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+  </div>
+  <h2 id="dialogo-salir-titulo">Tenés cambios sin guardar</h2>
+  <p>Si salís ahora, se pierden los cambios de este espacio.</p>
+  <div class="dialogo-acciones dialogo-acciones-separadas">
+    <button class="boton-texto boton-texto-peligro" type="button" data-salir-descartar>Salir sin guardar</button>
+    <div class="dialogo-acciones-derecha">
+      <button class="boton" type="button" data-salir-seguir autofocus>Seguir editando</button>
+      <button class="boton boton-primario" type="button" data-salir-guardar>Guardar y salir</button>
+    </div>
+  </div>
+</dialog>

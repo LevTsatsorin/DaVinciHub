@@ -1,0 +1,361 @@
+DROP TABLE IF EXISTS reacciones_chat;
+DROP TABLE IF EXISTS adjuntos_chat;
+DROP TABLE IF EXISTS bloqueos;
+DROP TABLE IF EXISTS reportes;
+DROP TABLE IF EXISTS notificaciones;
+DROP TABLE IF EXISTS mensajes;
+DROP TABLE IF EXISTS inscripciones;
+DROP TABLE IF EXISTS actividades;
+DROP TABLE IF EXISTS reservas;
+DROP TABLE IF EXISTS horarios_espacios;
+DROP TABLE IF EXISTS espacios;
+DROP TABLE IF EXISTS valoraciones_operaciones;
+DROP TABLE IF EXISTS acuerdos_movimientos;
+DROP TABLE IF EXISTS ventas;
+DROP TABLE IF EXISTS intercambios;
+DROP TABLE IF EXISTS prestamos_movimientos;
+DROP TABLE IF EXISTS prestamos;
+DROP TABLE IF EXISTS coincidencias;
+DROP TABLE IF EXISTS solicitudes;
+DROP TABLE IF EXISTS publicaciones;
+DROP TABLE IF EXISTS valoraciones_respuestas;
+DROP TABLE IF EXISTS respuestas;
+DROP TABLE IF EXISTS preguntas;
+DROP TABLE IF EXISTS conexiones;
+DROP TABLE IF EXISTS catedras;
+DROP TABLE IF EXISTS fotos_perfil;
+DROP TABLE IF EXISTS usuarios;
+DROP TABLE IF EXISTS materias;
+DROP TABLE IF EXISTS carreras;
+
+CREATE TABLE carreras (
+    id {{PK}},
+    nombre TEXT NOT NULL UNIQUE,
+    titulo TEXT,
+    duracion_anios INTEGER CHECK (duracion_anios BETWEEN 1 AND 6),
+    activa INTEGER NOT NULL DEFAULT 1 CHECK (activa IN (0, 1)),
+    codigo TEXT
+);
+
+CREATE UNIQUE INDEX idx_carreras_codigo ON carreras (codigo);
+
+CREATE TABLE materias (
+    id {{PK}},
+    carrera_id INTEGER NOT NULL REFERENCES carreras (id),
+    nombre TEXT NOT NULL,
+    cuatrimestre INTEGER CHECK (cuatrimestre BETWEEN 1 AND 12),
+    activa INTEGER NOT NULL DEFAULT 1 CHECK (activa IN (0, 1)),
+    UNIQUE (carrera_id, nombre)
+);
+
+CREATE TABLE usuarios (
+    id {{PK}},
+    nombre TEXT NOT NULL,
+    apellido TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    rol TEXT NOT NULL DEFAULT 'estudiante' CHECK (rol IN ('estudiante', 'admin')),
+    carrera_id INTEGER REFERENCES carreras (id),
+    anio INTEGER,
+    comision TEXT,
+    bloqueado INTEGER NOT NULL DEFAULT 0 CHECK (bloqueado IN (0, 1)),
+    catedra INTEGER NOT NULL DEFAULT 0 CHECK (catedra IN (0, 1)),
+    chat_tema TEXT NOT NULL DEFAULT 'davinci',
+    creado TEXT NOT NULL
+);
+
+CREATE TABLE fotos_perfil (
+    usuario_id INTEGER PRIMARY KEY REFERENCES usuarios (id),
+    tipo TEXT NOT NULL,
+    contenido BYTEA NOT NULL,
+    actualizado TEXT NOT NULL
+);
+
+CREATE TABLE bloqueos (
+    id {{PK}},
+    usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+    admin_id INTEGER NOT NULL REFERENCES usuarios (id),
+    accion TEXT NOT NULL CHECK (accion IN ('bloqueo', 'desbloqueo')),
+    motivo TEXT NOT NULL,
+    creado TEXT NOT NULL
+);
+
+CREATE INDEX idx_bloqueos_usuario ON bloqueos (usuario_id, creado);
+
+CREATE TABLE conexiones (
+    id {{PK}},
+    solicitante_id INTEGER NOT NULL REFERENCES usuarios (id),
+    receptor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    estado TEXT NOT NULL DEFAULT 'pendiente'
+        CHECK (estado IN ('pendiente', 'aceptada', 'rechazada')),
+    creado TEXT NOT NULL,
+    UNIQUE (solicitante_id, receptor_id),
+    CHECK (solicitante_id <> receptor_id)
+);
+CREATE UNIQUE INDEX idx_conexiones_par ON conexiones (
+    (CASE WHEN solicitante_id < receptor_id THEN solicitante_id ELSE receptor_id END),
+    (CASE WHEN solicitante_id < receptor_id THEN receptor_id ELSE solicitante_id END)
+);
+
+CREATE TABLE preguntas (
+    id {{PK}},
+    autor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    materia_id INTEGER NOT NULL REFERENCES materias (id),
+    titulo TEXT NOT NULL,
+    cuerpo TEXT NOT NULL,
+    creado TEXT NOT NULL,
+    imagen_tipo TEXT,
+    imagen BYTEA,
+    oculto INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))
+);
+
+CREATE TABLE respuestas (
+    id {{PK}},
+    pregunta_id INTEGER NOT NULL REFERENCES preguntas (id),
+    autor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    cuerpo TEXT NOT NULL,
+    aceptada INTEGER NOT NULL DEFAULT 0 CHECK (aceptada IN (0, 1)),
+    creado TEXT NOT NULL,
+    respuesta_padre_id INTEGER REFERENCES respuestas (id),
+    oculto INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))
+);
+
+CREATE UNIQUE INDEX idx_respuesta_aceptada ON respuestas (pregunta_id) WHERE aceptada = 1;
+
+CREATE TABLE valoraciones_respuestas (
+    id {{PK}},
+    respuesta_id INTEGER NOT NULL REFERENCES respuestas (id),
+    usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+    valor INTEGER NOT NULL DEFAULT 1,
+    creado TEXT NOT NULL,
+    UNIQUE (respuesta_id, usuario_id)
+);
+
+CREATE TABLE publicaciones (
+    id {{PK}},
+    autor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    carrera_id INTEGER REFERENCES carreras (id),
+    titulo TEXT NOT NULL,
+    descripcion TEXT NOT NULL,
+    categoria TEXT NOT NULL,
+    estado_objeto TEXT NOT NULL,
+    modalidad TEXT NOT NULL CHECK (modalidad IN ('venta', 'intercambio', 'prestamo')),
+    precio DOUBLE PRECISION,
+    estado TEXT NOT NULL DEFAULT 'activa' CHECK (estado IN ('activa', 'pausada', 'cerrada')),
+    creado TEXT NOT NULL,
+    oculto INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))
+);
+
+CREATE TABLE solicitudes (
+    id {{PK}},
+    autor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    titulo TEXT NOT NULL,
+    descripcion TEXT,
+    categoria TEXT NOT NULL,
+    modalidad TEXT NOT NULL DEFAULT 'cualquiera'
+        CHECK (modalidad IN ('cualquiera', 'venta', 'intercambio', 'prestamo')),
+    presupuesto_max DOUBLE PRECISION,
+    estado TEXT NOT NULL DEFAULT 'activa' CHECK (estado IN ('activa', 'cerrada')),
+    creado TEXT NOT NULL
+);
+
+CREATE TABLE coincidencias (
+    id {{PK}},
+    solicitud_id INTEGER NOT NULL REFERENCES solicitudes (id),
+    publicacion_id INTEGER NOT NULL REFERENCES publicaciones (id),
+    creado TEXT NOT NULL,
+    UNIQUE (solicitud_id, publicacion_id)
+);
+
+CREATE TABLE prestamos (
+    id {{PK}},
+    publicacion_id INTEGER NOT NULL REFERENCES publicaciones (id),
+    solicitante_id INTEGER NOT NULL REFERENCES usuarios (id),
+    estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (
+        estado IN ('pendiente', 'aceptado', 'en_prestamo', 'devuelto', 'vencido', 'cancelado')
+    ),
+    fecha_entrega TEXT,
+    fecha_devolucion TEXT,
+    condiciones TEXT,
+    mensaje TEXT NOT NULL DEFAULT '',
+    motivo_cierre TEXT NOT NULL DEFAULT '',
+    entregado TEXT,
+    devuelto TEXT,
+    creado TEXT NOT NULL
+);
+CREATE INDEX idx_prestamos_estado ON prestamos (estado, fecha_devolucion);
+CREATE INDEX idx_prestamos_publicacion ON prestamos (publicacion_id, estado);
+
+CREATE TABLE prestamos_movimientos (
+    id {{PK}},
+    prestamo_id INTEGER NOT NULL REFERENCES prestamos (id),
+    estado_anterior TEXT,
+    estado_nuevo TEXT NOT NULL,
+    actor_id INTEGER REFERENCES usuarios (id),
+    detalle TEXT NOT NULL DEFAULT '',
+    creado TEXT NOT NULL
+);
+
+CREATE TABLE intercambios (
+    id {{PK}},
+    publicacion_id INTEGER NOT NULL REFERENCES publicaciones (id),
+    solicitante_id INTEGER NOT NULL REFERENCES usuarios (id),
+    oferta TEXT NOT NULL,
+    publicacion_ofrecida_id INTEGER REFERENCES publicaciones (id),
+    estado TEXT NOT NULL DEFAULT 'propuesto'
+        CHECK (estado IN ('propuesto', 'aceptado', 'completado', 'cancelado')),
+    confirmado_propietario INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_propietario IN (0, 1)),
+    confirmado_solicitante INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_solicitante IN (0, 1)),
+    motivo_cierre TEXT NOT NULL DEFAULT '',
+    completado TEXT,
+    creado TEXT NOT NULL
+);
+
+CREATE TABLE ventas (
+    id {{PK}},
+    publicacion_id INTEGER NOT NULL REFERENCES publicaciones (id),
+    comprador_id INTEGER NOT NULL REFERENCES usuarios (id),
+    precio_acordado DOUBLE PRECISION,
+    estado TEXT NOT NULL DEFAULT 'propuesta'
+        CHECK (estado IN ('propuesta', 'aceptada', 'completada', 'cancelada')),
+    confirmado_propietario INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_propietario IN (0, 1)),
+    confirmado_solicitante INTEGER NOT NULL DEFAULT 0 CHECK (confirmado_solicitante IN (0, 1)),
+    motivo_cierre TEXT NOT NULL DEFAULT '',
+    completado TEXT,
+    mensaje TEXT NOT NULL DEFAULT '',
+    creado TEXT NOT NULL
+);
+
+CREATE TABLE acuerdos_movimientos (
+    id {{PK}},
+    tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('intercambio', 'venta')),
+    operacion_id INTEGER NOT NULL,
+    estado_anterior TEXT,
+    estado_nuevo TEXT NOT NULL,
+    actor_id INTEGER REFERENCES usuarios (id),
+    detalle TEXT NOT NULL DEFAULT '',
+    creado TEXT NOT NULL
+);
+
+CREATE TABLE valoraciones_operaciones (
+    id {{PK}},
+    tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('prestamo', 'intercambio', 'venta')),
+    operacion_id INTEGER NOT NULL,
+    autor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    receptor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    valor INTEGER NOT NULL CHECK (valor BETWEEN 1 AND 5),
+    comentario TEXT,
+    creado TEXT NOT NULL,
+    UNIQUE (tipo_operacion, operacion_id, autor_id),
+    CHECK (autor_id <> receptor_id)
+);
+CREATE INDEX idx_valoraciones_receptor ON valoraciones_operaciones (receptor_id, creado);
+
+CREATE TABLE espacios (
+    id {{PK}},
+    nombre TEXT NOT NULL UNIQUE,
+    descripcion TEXT,
+    capacidad INTEGER,
+    activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1))
+);
+
+CREATE TABLE horarios_espacios (
+    id {{PK}},
+    espacio_id INTEGER NOT NULL REFERENCES espacios (id),
+    dia_semana INTEGER NOT NULL CHECK (dia_semana BETWEEN 0 AND 6),
+    abre TEXT NOT NULL,
+    cierra TEXT NOT NULL,
+    CHECK (abre < cierra)
+);
+
+CREATE TABLE reservas (
+    id {{PK}},
+    espacio_id INTEGER NOT NULL REFERENCES espacios (id),
+    usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+    inicio TEXT NOT NULL,
+    fin TEXT NOT NULL,
+    motivo TEXT NOT NULL DEFAULT '',
+    personas INTEGER CHECK (personas IS NULL OR personas > 0),
+    estado TEXT NOT NULL DEFAULT 'confirmada' CHECK (estado IN ('confirmada', 'cancelada')),
+    creado TEXT NOT NULL,
+    CHECK (inicio < fin)
+);
+
+CREATE INDEX idx_reservas_espacio ON reservas (espacio_id, inicio);
+
+CREATE TABLE actividades (
+    id {{PK}},
+    creador_id INTEGER NOT NULL REFERENCES usuarios (id),
+    nombre TEXT NOT NULL,
+    descripcion TEXT NOT NULL,
+    inicio TEXT NOT NULL,
+    fin TEXT,
+    ubicacion TEXT NOT NULL,
+    cupo_maximo INTEGER NOT NULL CHECK (cupo_maximo > 0),
+    estado TEXT NOT NULL DEFAULT 'pendiente'
+        CHECK (estado IN ('pendiente', 'aprobada', 'rechazada', 'cancelada')),
+    motivo_rechazo TEXT,
+    reserva_id INTEGER REFERENCES reservas (id),
+    creado TEXT NOT NULL,
+    oculto INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))
+);
+
+CREATE TABLE inscripciones (
+    id {{PK}},
+    actividad_id INTEGER NOT NULL REFERENCES actividades (id),
+    usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+    creado TEXT NOT NULL,
+    UNIQUE (actividad_id, usuario_id)
+);
+
+CREATE TABLE mensajes (
+    id {{PK}},
+    emisor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    receptor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    cuerpo TEXT NOT NULL,
+    leido INTEGER NOT NULL DEFAULT 0 CHECK (leido IN (0, 1)),
+    creado TEXT NOT NULL
+);
+CREATE INDEX idx_mensajes_conversacion ON mensajes (receptor_id, emisor_id, creado);
+
+CREATE TABLE IF NOT EXISTS adjuntos_chat (
+    mensaje_id INTEGER PRIMARY KEY REFERENCES mensajes (id) ON DELETE CASCADE,
+    nombre TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    contenido BYTEA NOT NULL
+);
+CREATE TABLE IF NOT EXISTS reacciones_chat (
+    mensaje_id INTEGER NOT NULL REFERENCES mensajes (id) ON DELETE CASCADE,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+    emoji TEXT NOT NULL,
+    PRIMARY KEY (mensaje_id, usuario_id)
+);
+
+CREATE TABLE notificaciones (
+    id {{PK}},
+    usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+    tipo TEXT NOT NULL,
+    cuerpo TEXT NOT NULL,
+    enlace TEXT,
+    leida INTEGER NOT NULL DEFAULT 0 CHECK (leida IN (0, 1)),
+    creado TEXT NOT NULL
+);
+
+CREATE INDEX idx_notificaciones_usuario ON notificaciones (usuario_id, leida);
+
+CREATE TABLE reportes (
+    id {{PK}},
+    autor_id INTEGER NOT NULL REFERENCES usuarios (id),
+    tipo_objeto TEXT NOT NULL
+        CHECK (tipo_objeto IN ('publicacion', 'usuario', 'pregunta', 'respuesta', 'actividad')),
+    objeto_id INTEGER NOT NULL,
+    motivo TEXT NOT NULL,
+    estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'resuelto')),
+    resolucion TEXT,
+    resuelto_por INTEGER REFERENCES usuarios (id),
+    creado TEXT NOT NULL,
+    accion TEXT,
+    resuelto TEXT
+);
+CREATE UNIQUE INDEX idx_reportes_unico ON reportes (autor_id, tipo_objeto, objeto_id);
+CREATE INDEX idx_reportes_estado ON reportes (estado, creado);

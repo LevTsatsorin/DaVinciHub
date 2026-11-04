@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block titulo %}Editar respuesta — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-foro">
+  <a class="enlace-volver foro-volver" href="{{ url_for('foro.detalle', pregunta_id=respuesta.pregunta_id) }}">‹ Volver a la pregunta</a>
+  <div class="foro-editor tarjeta">
+    <h1>Editar respuesta</h1>
+    <p>Las respuestas solo se pueden editar mientras no haya una respuesta aceptada.</p>
+    {% if error %}<p class="error-texto" role="alert">{{ error }}</p>{% endif %}
+    <form method="post" class="formulario foro-formulario">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo">
+        <label for="cuerpo">Tu respuesta</label>
+        <textarea id="cuerpo" name="cuerpo" rows="8" maxlength="5000" required>{{ cuerpo }}</textarea>
+      </div>
+      <div class="foro-form-acciones">
+        <button class="boton boton-primario" type="submit">Guardar cambios</button>
+        <a class="boton boton-suave" href="{{ url_for('foro.detalle', pregunta_id=respuesta.pregunta_id) }}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,4 @@
+{% macro insignia_reputacion(usuario_id, clase="insignia-autor") -%}
+  {%- set r = reputacion_de(usuario_id) -%}
+  {%- if r.insignia %}<img class="insignia {{ clase }}" src="{{ url_for('static', filename='img/insignias/' ~ r.insignia.clave ~ '.png') }}" alt="Insignia {{ r.insignia.nombre }}" title="Reputación {{ r.insignia.nombre }}: {{ r.promedio }} de 5 en {{ r.opiniones }}">{% endif -%}
+{%- endmacro %}

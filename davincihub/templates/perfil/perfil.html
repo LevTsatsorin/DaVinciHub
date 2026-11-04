@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% from "reportes/_boton_reporte.html" import boton_reporte %}
+{% from "_insignia.html" import insignia_reputacion %}
+
+{% block titulo %}{{ estudiante.nombre }} {{ estudiante.apellido }} — Da Vinci Hub{% endblock %}
+
+{% macro avatar(persona, clase) -%}
+  {%- if persona.tiene_foto %}<img class="{{ clase }}" src="{{ url_for('perfil.foto', usuario_id=persona.id) }}" alt="">
+  {%- else %}<span class="{{ clase }}" aria-hidden="true">{{ persona.nombre[:1] }}{{ persona.apellido[:1] }}</span>{% endif -%}
+{%- endmacro %}
+
+{% block contenido %}
+{% set es_yo = g.usuario and g.usuario.id == estudiante.id %}
+<section class="contenedor pagina-modulo pagina-perfil">
+  <header class="ficha-usuario perfil-cabecera fondo-oscuro{% if imagen_carrera %} perfil-con-animal{% endif %}">
+    <span class="perfil-avatar-marco">
+      {{ avatar(estudiante, "ficha-usuario-avatar perfil-avatar") }}
+      {% if materias %}<img class="insignia insignia-avatar" src="{{ url_for('static', filename='img/insignias/catedra.png') }}" alt="" title="Estudiante de cátedra">{% endif %}
+      {{ insignia_reputacion(estudiante.id, "insignia-avatar insignia-avatar-reputacion") }}
+    </span>
+    <div class="ficha-usuario-datos">
+      <div class="ficha-usuario-estados">
+        <span class="estado estado-activo">Estudiante</span>
+        {% if materias %}<span class="estado estado-catedra">Estudiante de cátedra</span>{% endif %}
+        {% if reputacion.insignia %}<span class="estado estado-reputacion">Reputación {{ reputacion.insignia.nombre }}</span>{% endif %}
+      </div>
+      <h1>{{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
+      <ul class="cifras-cabecera">
+        <li>{{ estudiante.carrera or "Carrera sin completar" }}</li>
+        {% if estudiante.anio %}<li>{{ estudiante.anio }}.º año{% if estudiante.comision %} · Com. <abbr title="{{ comision_detalle(estudiante.comision) }}">{{ estudiante.comision }}</abbr>{% endif %}</li>{% endif %}
+      </ul>
+      <div class="perfil-acciones">
+        {% if es_yo %}
+          <a class="boton boton-primario" href="{{ url_for('perfil.editar', usuario_id=estudiante.id) }}">Editar perfil</a>
+          <a class="boton boton-ficha" href="{{ url_for('perfil.conexiones', usuario_id=estudiante.id) }}">Mis conexiones</a>
+        {% elif g.usuario and g.usuario.rol == 'estudiante' %}
+          {% if conexion and conexion.estado == 'aceptada' %}
+            <span class="perfil-estado-conexion perfil-conectados">Ya están conectados</span>
+          {% elif conexion and conexion.solicitante_id == g.usuario.id %}
+            <span class="perfil-estado-conexion perfil-solicitud-enviada">Solicitud enviada</span>
+          {% elif conexion and conexion.estado == 'pendiente' %}
+            <a class="boton boton-primario" href="{{ url_for('perfil.conexiones', usuario_id=g.usuario.id) }}">Responder solicitud</a>
+          {% else %}
+            <form method="post" action="{{ url_for('perfil.solicitar_conexion', usuario_id=estudiante.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="boton boton-primario" type="submit">Pedir conexión</button>
+            </form>
+          {% endif %}
+          <a class="boton boton-ficha" href="{{ url_for('perfil.chat', usuario_id=estudiante.id) }}">Escribir mensaje</a>
+          {{ boton_reporte('usuario', estudiante.id, request.full_path, estudiante.id) }}
+        {% elif not g.usuario %}
+          <a class="boton boton-primario" href="{{ url_for('auth.login') }}">Ingresá para conectar</a>
+        {% else %}
+          <a class="boton boton-ficha" href="{{ url_for('usuarios.ficha', usuario_id=estudiante.id) }}">Ver ficha de usuario</a>
+        {% endif %}
+      </div>
+    </div>
+    {% if imagen_carrera %}
+      <img class="cabecera-carrera-animal"
+           src="{{ url_for('static', filename='img/carreras/' ~ imagen_carrera) }}"
+           alt="">
+    {% endif %}
+  </header>
+
+  <h2 class="subtitulo">Actividad en el Hub</h2>
+  <dl class="perfil-metricas">
+    <div><dt>Reputación{% if reputacion.cantidad %} · {{ reputacion.opiniones }}{% endif %}</dt><dd>{% if reputacion.cantidad %}<span class="reputacion-estrella" aria-hidden="true">★</span> {{ reputacion.promedio }}{% else %}<span class="perfil-metrica-vacia">Sin valoraciones todavía</span>{% endif %}</dd></div>
+    <div><dt>Operaciones completadas</dt><dd>{{ intercambios }}</dd></div>
+    <div><dt>Respuestas útiles</dt><dd>{{ respuestas_utiles }}</dd></div>
+    <div><dt>Actividades</dt><dd>{{ actividades_total }}</dd></div>
+  </dl>
+  <p class="perfil-nota">La reputación se calcula con el promedio de las valoraciones recibidas en operaciones.</p>
+
+  <h2 class="subtitulo">Últimas opiniones recibidas</h2>
+  {% include 'perfil/_opiniones.html' %}
+  {% if reputacion.cantidad > 2 %}
+    <div class="reputacion-ver-todas"><a class="enlace-ver-mas" href="{{ url_for('perfil.opiniones', usuario_id=estudiante.id) }}">Ver todos los comentarios <span aria-hidden="true">→</span></a></div>
+  {% endif %}
+
+  {% if materias %}
+    <h2 class="subtitulo">Materias de cátedra</h2>
+    <p class="perfil-nota">Ya las cursó y puede ayudar en el foro de cada una.</p>
+    <ul class="perfil-materias">
+      {% for materia in materias %}<li>{{ materia.nombre }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+
+  <div class="perfil-agenda-cabecera">
+    <h2 class="subtitulo">{{ "Tus próximas actividades" if es_yo else "Próximas actividades de " ~ estudiante.nombre }}</h2>
+    {% if es_yo and actividades_total %}<a class="enlace-ver-mas" href="{{ url_for('actividades.mis_actividades') }}">Ver todas</a>{% endif %}
+  </div>
+  {% if actividades %}
+    <ul class="perfil-agenda">
+      {% for actividad in actividades %}
+        {% set fecha = actividad.inicio | partes_fecha %}
+        <li>
+          <a class="perfil-agenda-item" href="{{ url_for('actividades.detalle', actividad_id=actividad.id) }}">
+            <span class="perfil-agenda-fecha"><span>{{ fecha.dia }}</span><strong>{{ fecha.numero }}</strong><span>{{ fecha.mes }}</span></span>
+            <span class="perfil-agenda-datos">
+              <strong>{{ actividad.nombre }}</strong>
+              <span>{{ actividad.inicio[11:16] }} h{% if actividad.ubicacion %} · {{ actividad.ubicacion }}{% endif %}</span>
+            </span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if proximas_total > actividades | length %}<p class="perfil-nota">Y {{ proximas_total - actividades | length }} más en el calendario.</p>{% endif %}
+  {% else %}
+    <div class="perfil-vacio">
+      <p>{{ "No estás anotado en ninguna actividad próxima." if es_yo else "No tiene actividades próximas." }}</p>
+      {% if es_yo %}<a class="boton boton-suave" href="{{ url_for('actividades.index') }}">Buscar actividades</a>{% endif %}
+    </div>
+  {% endif %}
+  {% if actividades_pasadas %}
+    <p class="perfil-nota perfil-historial">{{ "Ya participaste" if es_yo else "Ya participó" }} en {{ actividades_pasadas }} actividad{{ "es" if actividades_pasadas != 1 }} del Hub.</p>
+  {% endif %}
+</section>
+{% endblock %}

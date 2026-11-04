@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block titulo %}Proponer actividad — Da Vinci Hub{% endblock %}
+
+{% block contenido %}
+<section class="formulario-pagina">
+  <div class="tarjeta-propuesta">
+    <img class="propuesta-imagen" src="{{ url_for('static', filename='img/actividades.png') }}" alt="">
+    <div class="propuesta-formulario">
+      {% if g.usuario.rol == 'admin' %}
+        <h1>Nueva actividad</h1>
+        <p class="propuesta-intro">Elegí el espacio y el horario. Como la crea la escuela, se publica al guardarla y el espacio queda reservado.</p>
+      {% else %}
+        <h1>Proponer actividad</h1>
+        <p class="propuesta-intro">Elegí el espacio y el horario: queda reservado para tu actividad mientras la escuela revisa la propuesta. Si la rechazan, el horario se libera.</p>
+      {% endif %}
+
+      <form class="propuesta-donde" method="get" data-enviar-al-cambiar>
+        <div class="campo">
+          <label for="espacio">Espacio</label>
+          <select id="espacio" name="espacio" required>
+            <option value="" disabled{% if not elegido %} selected{% endif %}>Elegí un espacio</option>
+            {% for e in espacios %}
+              <option value="{{ e.id }}"{% if elegido and elegido.id == e.id %} selected{% endif %}>
+                {{ e.nombre }}{% if e.capacidad %} · hasta {{ e.capacidad }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label for="fecha">Día</label>
+          <input id="fecha" name="fecha" type="date" min="{{ hoy }}" value="{{ fecha or '' }}">
+        </div>
+        <button class="boton boton-suave" type="submit">Ver horarios</button>
+      </form>
+
+      {% if elegido %}
+        {% set consulta = "?espacio=" ~ elegido.id ~ "&" %}
+        {% set etiqueta_elegido = "Tu actividad" %}
+        <div class="propuesta-agenda">
+          <div class="selector-dia">{% include "espacios/_tira_dias.html" %}</div>
+          {% include "espacios/_linea_tiempo.html" %}
+        </div>
+
+        {% if hay_libres and not es_pasado and disponibilidad.abierto %}
+          <form class="panel-reserva panel-actividad" method="post" action="{{ url_for('actividades.proponer') }}" data-panel-reserva
+                data-espacio="{{ espacio.nombre }}" data-confirmar="{{ '¿Publicar la actividad?' if g.usuario.rol == 'admin' else '¿Enviar la propuesta?' }}" data-confirmar-tono="positivo"
+                data-confirmar-boton="{{ 'Sí, publicar' if g.usuario.rol == 'admin' else 'Sí, enviar' }}" data-confirmar-volver="Revisar"
+                data-confirmar-nota="{{ 'Se publica en el listado y el espacio queda reservado.' if g.usuario.rol == 'admin' else 'El espacio queda reservado mientras la escuela revisa la propuesta.' }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="espacio_id" value="{{ espacio.id }}">
+            <input type="hidden" name="fecha" value="{{ fecha }}">
+            <div class="panel-cabecera">
+              <h3>Tu actividad</h3>
+              <p class="panel-resumen" data-resumen data-dia="{{ fecha | dia_y_fecha }}">Elegí un horario en la línea de tiempo</p>
+            </div>
+            <div class="panel-campos">
+              <label>Desde
+                <select name="inicio" required data-desde>
+                  <option value="">—</option>
+                  {% for bloque in bloques %}{% for turno in bloque.turnos if turno.estado == "libre" %}
+                    <option value="{{ turno.inicio }}" {% if formulario.inicio == turno.inicio %}selected{% endif %}>{{ turno.inicio }}</option>
+                  {% endfor %}{% endfor %}
+                </select>
+              </label>
+              <label>Hasta
+                <select name="fin" required data-hasta>
+                  <option value="">—</option>
+                  {% for bloque in bloques %}{% for turno in bloque.turnos if turno.estado == "libre" %}
+                    <option value="{{ turno.fin }}" {% if formulario.fin == turno.fin %}selected{% endif %}>{{ turno.fin }}</option>
+                  {% endfor %}{% endfor %}
+                </select>
+              </label>
+              <label class="campo-motivo">Nombre de la actividad
+                <input name="nombre" maxlength="120" required value="{{ formulario.nombre or '' }}"
+                       placeholder="Ej.: Torneo de Street Fighter">
+              </label>
+              <label>Cupo
+                <input name="cupo_maximo" type="number" min="1" {% if espacio.capacidad %}max="{{ espacio.capacidad }}" placeholder="Máx. {{ espacio.capacidad }}"{% else %}max="10000"{% endif %}
+                       required inputmode="numeric" value="{{ formulario.cupo_maximo or '' }}">
+              </label>
+              <label class="campo-descripcion">De qué se trata
+                <textarea name="descripcion" maxlength="2000" rows="3" required
+                          placeholder="Qué van a hacer y qué hay que traer.">{{ formulario.descripcion or '' }}</textarea>
+              </label>
+              <button class="boton boton-primario" type="submit" data-confirmar-reserva>{{ "Publicar actividad" if g.usuario.rol == 'admin' else "Enviar propuesta" }}</button>
+            </div>
+            <p class="panel-error" data-error hidden></p>
+          </form>
+        {% endif %}
+      {% else %}
+        <p class="propuesta-pista">Elegí un espacio para ver sus horarios libres.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% include "espacios/_dialogo.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='actividades.js') }}" defer></script>
+<script src="{{ url_for('static', filename='reservas.js') }}" defer></script>
+<script src="{{ url_for('static', filename='admin.js') }}" defer></script>
+{% endblock %}

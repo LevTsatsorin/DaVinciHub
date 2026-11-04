@@ -1,0 +1,21 @@
+{% set fecha = act.inicio | partes_fecha %}
+{% set libres = act.cupo_maximo - act.inscriptos %}
+<div class="destacada-fecha" aria-hidden="true">
+  <span>{{ fecha.dia }}</span>
+  <strong>{{ fecha.numero }}</strong>
+  <span>{{ fecha.mes }}</span>
+</div>
+<div class="destacada-cuerpo">
+  {% if destacar %}<span class="destacada-etiqueta">{{ "En curso" if act.inicio <= ahora else "La próxima" }}</span>{% endif %}
+  <h2 title="{{ act.nombre }}">{{ act.nombre }}</h2>
+  <p class="destacada-descripcion">{{ act.descripcion }}</p>
+  {% include "actividades/_chips.html" %}
+  <div class="cupo">
+    <span class="cupo-barra"><span style="width: {{ (act.inscriptos * 100 / act.cupo_maximo) | round(0) }}%"></span></span>
+    <span class="cupo-texto">{% if libres > 0 %}{{ libres }} de {{ act.cupo_maximo }} {{ "lugar libre" if libres == 1 else "lugares libres" }}{% else %}Completa{% endif %}</span>
+  </div>
+</div>
+<span class="tarjeta-espacio-accion">
+  Ver detalles
+  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</span>

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titulo %}{{ solicitud.titulo }} — Mis búsquedas{% endblock %}
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-objetos">
+  <a class="volver" href="{{ url_for('objetos.mis_busquedas', estado=solicitud.estado) }}">← Mis búsquedas</a>
+  <section class="tarjeta busqueda-resumen">
+    <div class="busqueda-resumen-cabecera">
+      <span class="objeto-categoria">{{ categorias_busqueda.get(solicitud.categoria, solicitud.categoria) }}</span>
+      <span class="objeto-estado objeto-estado-{{ solicitud.estado }}">{{ 'Activa' if solicitud.estado == 'activa' else 'Cerrada' }}</span>
+    </div>
+    <h1>{{ solicitud.titulo }}</h1>
+    <p class="busqueda-modalidad">{{ modalidades_busqueda.get(solicitud.modalidad, solicitud.modalidad) }}{% if solicitud.presupuesto_max is not none %} · Hasta {{ solicitud.presupuesto_max | precio_pesos }}{% endif %}</p>
+    {% if solicitud.descripcion %}<p class="busqueda-descripcion">{{ solicitud.descripcion }}</p>{% endif %}
+    {% if solicitud.estado == 'activa' %}
+      <div class="busqueda-seguimiento">
+        <p>Te avisamos cuando aparece una posible coincidencia. Cada objeto genera un solo aviso para esta búsqueda.</p>
+        <form method="post" action="{{ url_for('objetos.cerrar_busqueda', solicitud_id=solicitud.id) }}"
+              data-confirmar="¿Cerrar esta búsqueda?" data-confirmar-texto="Dejarás de recibir nuevas coincidencias y avisos. La búsqueda se conserva en Cerradas." data-confirmar-boton="Cerrar búsqueda">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="boton" type="submit">Cerrar búsqueda</button>
+        </form>
+      </div>
+    {% else %}
+      <p class="ayuda">Esta búsqueda está cerrada. Ya no genera nuevas coincidencias ni avisos.</p>
+    {% endif %}
+  </section>
+  <div class="busqueda-resultados-cabecera"><h2>Posibles coincidencias</h2><span>{{ publicaciones | length }} {{ 'disponible' if publicaciones | length == 1 else 'disponibles' }}</span></div>
+  {% if publicaciones %}
+    <div class="objetos-grilla">{% for publicacion in publicaciones %}{% include "objetos/_tarjeta.html" %}{% endfor %}</div>
+  {% else %}
+    <div class="estado-vacio busqueda-vacia">
+      <h2>No hay coincidencias disponibles por ahora</h2>
+      <p>{{ 'Tu búsqueda sigue activa. Te avisaremos cuando aparezca un material compatible.' if solicitud.estado == 'activa' else 'Podés crear otra búsqueda o explorar el catálogo.' }}</p>
+      <a class="boton boton-suave" href="{{ url_for('objetos.catalogo') }}">Explorar catálogo</a>
+    </div>
+  {% endif %}
+</section>
+{% if solicitud.estado == 'activa' %}{% include "espacios/_dialogo.html" %}{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}

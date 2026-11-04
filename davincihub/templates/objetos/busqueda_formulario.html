@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block titulo %}Busco un objeto — Da Vinci Hub{% endblock %}
+{% macro error(campo) %}{% if errores.get(campo) %}<p class="error-texto" id="error-{{ campo }}">{{ errores[campo] }}</p>{% endif %}{% endmacro %}
+{% macro validacion(campo) %}{% if errores.get(campo) %}aria-invalid="true" aria-describedby="error-{{ campo }}"{% endif %}{% endmacro %}
+{% block contenido %}
+<section class="contenedor pagina-modulo pagina-objeto-form">
+  <a class="volver" href="{{ url_for('objetos.mis_busquedas') }}">← Mis búsquedas</a>
+  <div class="cabecera-modulo"><h1>Busco un objeto</h1></div>
+  <p class="ayuda">Contanos qué necesitás. Revisamos el catálogo y te avisamos si aparece un material compatible.</p>
+  <form class="formulario-espacio" method="post" data-form-busqueda>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if errores %}<p class="aviso aviso-error" role="alert">Revisá los campos indicados para crear tu búsqueda.</p>{% endif %}
+    <div class="tarjeta">
+      <h2 class="titulo-tarjeta">Qué necesitás</h2>
+      <div class="grilla-datos">
+        <div class="campo campo-completo">
+          <label for="titulo">Nombre del objeto *</label>
+          <input id="titulo" name="titulo" maxlength="120" required value="{{ datos_form.get('titulo', '') }}" placeholder="Por ejemplo: Calculadora científica" {{ validacion('titulo') }}>
+          {{ error('titulo') }}
+        </div>
+        <div class="campo campo-completo">
+          <label for="descripcion">Características <span class="opcional">(opcional)</span></label>
+          <textarea id="descripcion" name="descripcion" rows="4" maxlength="2000" placeholder="Marca, modelo o características que te sirvan para estudiar." {{ validacion('descripcion') }}>{{ datos_form.get('descripcion', '') }}</textarea>
+          {{ error('descripcion') }}
+        </div>
+        <div class="campo campo-completo">
+          <label for="categoria">Categoría *</label>
+          <select id="categoria" name="categoria" required {{ validacion('categoria') }}>
+            <option value="">Elegí una categoría</option>
+            {% for valor, nombre in categorias_busqueda.items() %}<option value="{{ valor }}"{% if datos_form.get('categoria') == valor %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
+          </select>
+          {{ error('categoria') }}
+        </div>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h2 class="titulo-tarjeta">Cómo lo buscás</h2>
+      <div class="grilla-datos">
+        <div class="campo">
+          <label for="modalidad">Modalidad *</label>
+          <select id="modalidad" name="modalidad" required {{ validacion('modalidad') }}>
+            {% for valor, nombre in modalidades_busqueda.items() %}<option value="{{ valor }}"{% if datos_form.get('modalidad', 'cualquiera') == valor %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
+          </select>
+          {{ error('modalidad') }}
+        </div>
+        <div class="campo" data-campo-presupuesto>
+          <label for="presupuesto_max">Presupuesto máximo en pesos <span class="opcional">(opcional)</span></label>
+          <input id="presupuesto_max" name="presupuesto_max" type="number" min="0.01" max="999999999.99" step="0.01" inputmode="decimal" placeholder="30000" value="{{ datos_form.get('presupuesto_max', '') }}" {{ validacion('presupuesto_max') }}>
+          <p class="ayuda">Para compras. Dejalo vacío si no tenés un límite.</p>
+          {{ error('presupuesto_max') }}
+        </div>
+      </div>
+      <p class="ayuda">Buscamos en la categoría elegida o en todas, según tu selección. Ignoramos mayúsculas y tildes y aceptamos el inicio de una palabra (por ejemplo, «calculador» encuentra «calculadora»). Son sugerencias: revisá los detalles de cada objeto.</p>
+    </div>
+    <div class="barra-guardar">
+      <a class="boton" href="{{ url_for('objetos.mis_busquedas') }}">Cancelar</a>
+      <button class="boton boton-primario" type="submit">Crear búsqueda</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='busquedas.js') }}" defer></script>{% endblock %}
