@@ -38,8 +38,7 @@ def test_dueno_puede_subir_foto_y_se_muestra_en_perfil(client, app):
             "apellido": "Suárez",
             "email": "mica@davinci.edu.ar",
             "carrera_id": "1",
-            "anio": "2",
-            "comision": "A",
+            "comision": "DMT4AP",
             "foto": (BytesIO(imagen_png), "avatar.png"),
         },
     )
@@ -63,8 +62,7 @@ def test_no_acepta_archivos_que_no_sean_imagenes(client, app):
             "apellido": "Suárez",
             "email": "mica@davinci.edu.ar",
             "carrera_id": "1",
-            "anio": "2",
-            "comision": "A",
+            "comision": "DMT4AP",
             "foto": (BytesIO(b"<svg onload=alert(1) />"), "avatar.svg"),
         },
     )
@@ -119,22 +117,21 @@ def test_solo_dueno_edita_perfil(client, app):
             "apellido": "Suárez",
             "email": "mica@davinci.edu.ar",
             "carrera_id": "1",
-            "anio": "3",
-            "comision": "C",
+            "comision": "dmt6cp",
         },
     )
     assert respuesta.status_code == 302
     with app.app_context():
         mica = db.query_one("SELECT * FROM usuarios WHERE id = :id", id=2)
-    assert (mica["nombre"], mica["anio"], mica["comision"]) == ("Micaela", 3, "C")
+    assert (mica["nombre"], mica["anio"], mica["comision"]) == ("Micaela", 3, "DMT6CP")
     assert client.get("/estudiantes/2/editar").status_code == 200
     assert client.get("/estudiantes/3/editar").status_code == 403
 
 
-def _editar_lucia(client, carrera_id):
+def _editar_lucia(client, carrera_id, comision="DMN6AP"):
     return client.post(
         "/estudiantes/4/editar",
-        data={"nombre": "Lucía", "apellido": "Paz", "carrera_id": carrera_id, "anio": "3", "comision": "A"},
+        data={"nombre": "Lucía", "apellido": "Paz", "carrera_id": carrera_id, "comision": comision},
     )
 
 
@@ -151,9 +148,9 @@ def test_cambiar_de_carrera_quita_el_rol_de_catedra(client, app):
     ingresar(client, "lucia@davinci.edu.ar")
     with app.app_context():
         otra = db.query_one(
-            "SELECT id FROM carreras WHERE activa = 1 AND id <> (SELECT carrera_id FROM usuarios WHERE id = 4)"
-        )["id"]
-    assert _editar_lucia(client, str(otra)).status_code == 302
+            "SELECT id, codigo FROM carreras WHERE activa = 1 AND id <> (SELECT carrera_id FROM usuarios WHERE id = 4)"
+        )
+    assert _editar_lucia(client, str(otra["id"]), otra["codigo"] + "N2AP").status_code == 302
     with app.app_context():
         assert db.query_one("SELECT catedra FROM usuarios WHERE id = 4")["catedra"] == 0
     assert "Materias de cátedra" not in client.get("/estudiantes/4").get_data(as_text=True)
@@ -181,12 +178,12 @@ def test_la_solicitud_y_la_aceptacion_avisan(client, app):
 
 def test_busqueda_filtra_por_nombre_carrera_anio_y_comision(client, app):
     ingresar(client)
-    contenido = client.get("/estudiantes/buscar?q=lucia&carrera=1&anio=3&comision=a").get_data(as_text=True)
+    contenido = client.get("/estudiantes/buscar?q=lucia&carrera=1&anio=3&comision=dmn6").get_data(as_text=True)
     assert "Lucía Paz" in contenido
     assert "Mica Suárez" not in contenido
     assert "Tomás Vega" not in contenido
 
-    contenido = client.get("/estudiantes/buscar?carrera=2&anio=1&comision=B").get_data(as_text=True)
+    contenido = client.get("/estudiantes/buscar?carrera=2&anio=1&comision=DVM2BP").get_data(as_text=True)
     assert "Tomás Vega" in contenido
     assert "Lucía Paz" not in contenido
 
@@ -581,7 +578,7 @@ def test_el_email_no_se_cambia_desde_el_perfil(client, app):
     client.post(
         "/estudiantes/2/editar",
         data={"nombre": "Mica", "apellido": "Suárez", "email": "otra@davinci.edu.ar",
-              "carrera_id": "1", "anio": "2", "comision": "A"},
+              "carrera_id": "1", "comision": "DMT4AP"},
     )
     with app.app_context():
         assert db.query_one("SELECT email FROM usuarios WHERE id = 2")["email"] == "mica@davinci.edu.ar"

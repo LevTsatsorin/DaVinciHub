@@ -1,0 +1,9 @@
+{% macro campo_comision(valor, error) %}
+<div class="campo">
+  <label for="comision">Comisión</label>
+  <input class="campo-comision" id="comision" name="comision" value="{{ valor or '' }}" maxlength="10" placeholder="ACT4AP"
+         required autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="comision-ayuda">
+  <p class="ayuda-campo" id="comision-ayuda">Como figura en tu inscripción: carrera, turno (M, T o N), cuatrimestre, división y modalidad (P o V). El año se calcula con el cuatrimestre.</p>
+  {% if error %}<p class="error-texto">{{ error }}</p>{% endif %}
+</div>
+{% endmacro %}
