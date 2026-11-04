@@ -12,7 +12,7 @@
 {% block contenido %}
 {% set es_yo = g.usuario and g.usuario.id == estudiante.id %}
 <section class="contenedor pagina-modulo pagina-perfil">
-  <header class="ficha-usuario perfil-cabecera fondo-oscuro">
+  <header class="ficha-usuario perfil-cabecera fondo-oscuro{% if imagen_carrera %} perfil-con-animal{% endif %}">
     <span class="perfil-avatar-marco">
       {{ avatar(estudiante, "ficha-usuario-avatar perfil-avatar") }}
       {% if materias %}<img class="insignia insignia-avatar" src="{{ url_for('static', filename='img/insignias/catedra.png') }}" alt="" title="Estudiante de cátedra">{% endif %}
@@ -55,6 +55,11 @@
         {% endif %}
       </div>
     </div>
+    {% if imagen_carrera %}
+      <img class="cabecera-carrera-animal"
+           src="{{ url_for('static', filename='img/carreras/' ~ imagen_carrera) }}"
+           alt="Animal de {{ estudiante.carrera }}">
+    {% endif %}
   </header>
 
   <h2 class="subtitulo">Actividad en el Hub</h2>

@@ -33,6 +33,15 @@ def test_el_listado_muestra_titulo_duracion_y_materias(client):
     assert "3 años" in texto and "35 materias" in texto
 
 
+@pytest.mark.parametrize(("carrera_id", "imagen"), [(6, "cine.png"), (8, "marketing.png")])
+def test_el_plan_muestra_el_animal_de_cine_y_marketing(client, carrera_id, imagen):
+    login(client)
+    respuesta = client.get(f"/admin/carreras/{carrera_id}")
+    assert respuesta.status_code == 200
+    assert f'/static/img/carreras/{imagen}' in respuesta.get_data(as_text=True)
+    assert client.get(f"/static/img/carreras/{imagen}").status_code == 200
+
+
 def test_el_plan_agrupa_las_materias_por_cuatrimestre(app):
     with app.app_context():
         plan = datos.plan_de_carrera(MULTIMEDIAL)

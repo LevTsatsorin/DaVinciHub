@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS reacciones_chat;
+DROP TABLE IF EXISTS adjuntos_chat;
 DROP TABLE IF EXISTS bloqueos;
 DROP TABLE IF EXISTS reportes;
 DROP TABLE IF EXISTS notificaciones;
@@ -312,6 +314,19 @@ CREATE TABLE mensajes (
     creado TEXT NOT NULL
 );
 CREATE INDEX idx_mensajes_conversacion ON mensajes (receptor_id, emisor_id, creado);
+
+CREATE TABLE IF NOT EXISTS adjuntos_chat (
+    mensaje_id INTEGER PRIMARY KEY REFERENCES mensajes (id) ON DELETE CASCADE,
+    nombre TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    contenido BYTEA NOT NULL
+);
+CREATE TABLE IF NOT EXISTS reacciones_chat (
+    mensaje_id INTEGER NOT NULL REFERENCES mensajes (id) ON DELETE CASCADE,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+    emoji TEXT NOT NULL,
+    PRIMARY KEY (mensaje_id, usuario_id)
+);
 
 CREATE TABLE notificaciones (
     id {{PK}},

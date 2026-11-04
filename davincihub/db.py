@@ -181,6 +181,18 @@ COLUMNAS_AGREGADAS = [
 ]
 
 TABLAS_AGREGADAS = {
+    "adjuntos_chat": """CREATE TABLE IF NOT EXISTS adjuntos_chat (
+    mensaje_id INTEGER PRIMARY KEY REFERENCES mensajes (id) ON DELETE CASCADE,
+    nombre TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    contenido BYTEA NOT NULL
+)""",
+    "reacciones_chat": """CREATE TABLE IF NOT EXISTS reacciones_chat (
+    mensaje_id INTEGER NOT NULL REFERENCES mensajes (id) ON DELETE CASCADE,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+    emoji TEXT NOT NULL,
+    PRIMARY KEY (mensaje_id, usuario_id)
+)""",
     "valoraciones_operaciones": """CREATE TABLE IF NOT EXISTS valoraciones_operaciones (
     id {{PK}},
     tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('prestamo', 'intercambio', 'venta')),

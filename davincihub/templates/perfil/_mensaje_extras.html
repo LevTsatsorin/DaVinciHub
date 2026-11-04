@@ -1,0 +1,23 @@
+{% if adjunto %}
+  {% if adjunto.tipo.startswith('image/') %}
+    <a class="chat-adjunto chat-imagen-abrir" href="{{ url_for('perfil.archivo_chat', mensaje_id=mensaje_id, vista=1) }}" data-chat-imagen aria-label="Ampliar imagen: {{ adjunto.nombre }}">
+      <img src="{{ url_for('perfil.archivo_chat', mensaje_id=mensaje_id, vista=1) }}" alt="{{ adjunto.nombre }}" loading="lazy">
+    </a>
+  {% else %}
+    <a class="chat-adjunto" href="{{ url_for('perfil.archivo_chat', mensaje_id=mensaje_id) }}">
+      <span>📎 {{ adjunto.nombre }} · Descargar</span>
+    </a>
+  {% endif %}
+{% endif %}
+<div class="chat-reacciones" aria-label="Reacciones al mensaje">
+  {% for reaccion in reacciones %}
+    <span class="chat-reaccion{% if reaccion.propia %} chat-reaccion-propia{% endif %}">{{ reaccion.emoji }} {{ reaccion.cantidad }}</span>
+  {% endfor %}
+  <details class="chat-reaccion-elegir">
+    <summary aria-label="Reaccionar al mensaje" title="Reaccionar">☺ +</summary>
+    <form method="post" action="{{ url_for('perfil.reaccion_chat', mensaje_id=mensaje_id) }}" data-chat-reaccion>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% for emoji in emojis %}<button type="submit" name="emoji" value="{{ emoji }}" aria-label="Reaccionar con {{ emoji }}">{{ emoji }}</button>{% endfor %}
+    </form>
+  </details>
+</div>
