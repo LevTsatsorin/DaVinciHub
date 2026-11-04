@@ -448,8 +448,15 @@ def cargar_publicaciones_demo() -> int:
 
 @click.command("init-db")
 @click.option("--demo", is_flag=True, help="Carga datos de demostración.")
+@click.option("--si", is_flag=True, help="No pide confirmación aunque la base tenga datos.")
 @with_appcontext
-def comando_init_db(demo: bool):
+def comando_init_db(demo: bool, si: bool):
+    cuentas = query_one("SELECT count(*) AS n FROM usuarios")["n"] if _columnas("usuarios") else 0
+    if cuentas and not si:
+        tipo = "PostgreSQL" if g.db_es_pg else "SQLite"
+        click.echo(f"La base {tipo} tiene {cuentas} cuentas: se borra todo y se crea de nuevo.")
+        if click.prompt("Escribí BORRAR para seguir", default="", show_default=False).strip().upper() != "BORRAR":
+            raise click.ClickException("Cancelado: la base quedó como estaba.")
     init_db(demo)
     click.echo("Base de datos inicializada." + (" Datos demo cargados." if demo else ""))
 

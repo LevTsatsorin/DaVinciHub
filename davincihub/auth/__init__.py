@@ -6,6 +6,7 @@ from davincihub.academico import datos as academico_datos
 from davincihub.utiles import ahora
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
+_HASH_FALSO = generate_password_hash("sin-cuenta")
 
 
 @bp.route("/registro", methods=("GET", "POST"))
@@ -67,15 +68,19 @@ def login():
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
-        usuario = db.query_one("SELECT * FROM usuarios WHERE email = :email", email=email)
-        if usuario is None or not check_password_hash(usuario["password_hash"], password):
+        usuario = db.query_one(
+            "SELECT id, password_hash, bloqueado FROM usuarios WHERE email = :email", email=email
+        )
+        # hash falso: el tiempo de respuesta no delata si el email existe
+        correcta = check_password_hash(usuario["password_hash"] if usuario else _HASH_FALSO, password)
+        if usuario is None or not correcta:
             error = "Email o contraseña incorrectos."
         elif usuario["bloqueado"]:
             error = "La cuenta está bloqueada."
         else:
             session.clear()
             session["usuario_id"] = usuario["id"]
-            return redirect(url_for("inicio"))
+            return redirect(seguridad.destino_interno(request.args.get("siguiente")) or url_for("inicio"))
     return render_template("auth/login.html", error=error)
 
 
