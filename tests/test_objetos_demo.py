@@ -3,7 +3,7 @@ from davincihub.objetos import datos
 
 
 def test_init_demo_desde_cli_incluye_publicaciones(app):
-    resultado = app.test_cli_runner().invoke(args=["init-db", "--demo"])
+    resultado = app.test_cli_runner().invoke(args=["init-db", "--demo", "--si"])
     assert resultado.exit_code == 0
     with app.app_context():
         assert db.query_one("SELECT count(*) AS n FROM publicaciones")["n"] == 10

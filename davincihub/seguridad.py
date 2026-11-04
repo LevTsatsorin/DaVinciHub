@@ -1,4 +1,5 @@
 from functools import wraps
+from urllib.parse import urlsplit
 
 from flask import abort, g, redirect, render_template, request, session, url_for
 
@@ -19,6 +20,7 @@ def cargar_usuario():
     if usuario is None:
         session.clear()
         return
+    usuario.pop("password_hash")
     if usuario["bloqueado"]:
         session.clear()
         mensaje = "Tu cuenta está bloqueada. Si creés que es un error, escribí a la escuela."
@@ -26,11 +28,24 @@ def cargar_usuario():
     g.usuario = usuario
 
 
+def _pagina_actual() -> str | None:
+    return request.full_path.rstrip("?") if request.method == "GET" else None
+
+
+def destino_interno(valor) -> str | None:
+    """Devuelve el destino sólo si es una ruta de este mismo sitio (evita redirigir a otro dominio)."""
+    texto = str(valor or "")
+    if not texto.startswith("/") or texto.startswith("//") or any(ord(c) < 32 or c == "\\" for c in texto):
+        return None
+    partes = urlsplit(texto)
+    return texto if not partes.scheme and not partes.netloc else None
+
+
 def requiere_login(vista):
     @wraps(vista)
     def envoltura(**kwargs):
         if g.usuario is None:
-            return redirect(url_for("auth.login", siguiente=request.path))
+            return redirect(url_for("auth.login", siguiente=_pagina_actual()))
         return vista(**kwargs)
 
     return envoltura
@@ -40,7 +55,7 @@ def requiere_admin(vista):
     @wraps(vista)
     def envoltura(**kwargs):
         if g.usuario is None:
-            return redirect(url_for("auth.login", siguiente=request.path))
+            return redirect(url_for("auth.login", siguiente=_pagina_actual()))
         if g.usuario["rol"] != "admin":
             abort(403)
         return vista(**kwargs)

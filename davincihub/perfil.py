@@ -846,7 +846,8 @@ def cambiar_contrasena(usuario_id: int):
     actual = request.form.get("password_actual") or ""
     nueva = request.form.get("password_nueva") or ""
     confirmar = request.form.get("confirmar") or ""
-    if not check_password_hash(g.usuario["password_hash"], actual):
+    guardado = db.query_one("SELECT password_hash FROM usuarios WHERE id = :id", id=usuario_id)["password_hash"]
+    if not check_password_hash(guardado, actual):
         flash("La contraseña actual no es correcta.")
     elif len(nueva) < 8:
         flash("La nueva contraseña necesita al menos 8 caracteres.")
