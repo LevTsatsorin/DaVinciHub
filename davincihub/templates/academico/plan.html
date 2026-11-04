@@ -33,6 +33,11 @@
         </form>
       </div>
     </div>
+    {% if imagen_carrera %}
+      <img class="cabecera-carrera-animal"
+           src="{{ url_for('static', filename='img/carreras/' ~ imagen_carrera) }}"
+           alt="">
+    {% endif %}
   </header>
 
   {% if not carrera.activa %}

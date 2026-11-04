@@ -17,6 +17,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from davincihub import comision, db, seguridad, validacion
 from davincihub import reputacion as reputacion_datos
+from davincihub.academico.imagenes import imagen_de_carrera
+from davincihub.chat_archivos import EMOJIS, leer_adjunto
 from davincihub.notificaciones import notificar
 from davincihub.notificaciones import sin_leer as notificaciones_sin_leer
 from davincihub.usuarios import datos as usuarios_datos
@@ -201,6 +203,7 @@ def ver(usuario_id: int):
     return render_template(
         "perfil/perfil.html",
         estudiante=estudiante,
+        imagen_carrera=imagen_de_carrera(estudiante["carrera"]),
         materias=materias,
         reputacion=reputacion,
         opiniones=opiniones,
@@ -514,7 +517,9 @@ def _conversaciones() -> list[dict]:
     return db.query(
         "SELECT u.id, u.nombre, u.apellido,"
         " CASE WHEN f.usuario_id IS NULL THEN 0 ELSE 1 END AS tiene_foto,"
-        " m.cuerpo AS ultimo_mensaje, m.creado AS ultimo_creado,"
+        " COALESCE(NULLIF(m.cuerpo, ''),"
+        " (SELECT '📎 ' || a.nombre FROM adjuntos_chat a WHERE a.mensaje_id = m.id)) AS ultimo_mensaje,"
+        " m.creado AS ultimo_creado,"
         " m.emisor_id AS ultimo_emisor_id,"
         " (SELECT count(*) FROM mensajes sin_leer"
         "  WHERE sin_leer.emisor_id = u.id AND sin_leer.receptor_id = :yo"
@@ -585,6 +590,82 @@ MENSAJES_POR_TANDA = 30
 MAXIMO_NUEVOS = 200
 
 
+def _extras_mensajes(ids: list[int]) -> dict:
+    if not ids:
+        return {}
+    parametros = {f"m{i}": valor for i, valor in enumerate(ids)}
+    marcadores = ",".join(f":{clave}" for clave in parametros)
+    adjuntos = {a["mensaje_id"]: a for a in db.query(
+        f"SELECT mensaje_id, nombre, tipo FROM adjuntos_chat WHERE mensaje_id IN ({marcadores})",
+        **parametros,
+    )}
+    reacciones = {}
+    for reaccion in db.query(
+        "SELECT mensaje_id, emoji, COUNT(*) AS cantidad,"
+        " MAX(CASE WHEN usuario_id = :yo THEN 1 ELSE 0 END) AS propia"
+        f" FROM reacciones_chat WHERE mensaje_id IN ({marcadores})"
+        " GROUP BY mensaje_id, emoji ORDER BY emoji", yo=g.usuario["id"], **parametros,
+    ):
+        reacciones.setdefault(reaccion["mensaje_id"], []).append(reaccion)
+    return {str(i): render_template("perfil/_mensaje_extras.html", mensaje_id=i,
+                                   adjunto=adjuntos.get(i), reacciones=reacciones.get(i, []),
+                                   emojis=EMOJIS) for i in ids}
+
+
+def _extras_mensaje(mensaje_id: int) -> str:
+    return _extras_mensajes([mensaje_id])[str(mensaje_id)]
+
+
+def _mensaje_autorizado(mensaje_id: int) -> dict:
+    _solo_estudiante()
+    mensaje = db.query_one("SELECT * FROM mensajes WHERE id = :id", id=mensaje_id)
+    if not mensaje or g.usuario["id"] not in (mensaje["emisor_id"], mensaje["receptor_id"]):
+        abort(404)
+    otro = mensaje["receptor_id"] if mensaje["emisor_id"] == g.usuario["id"] else mensaje["emisor_id"]
+    _chat_con(otro)
+    return mensaje
+
+
+@bp.get("/chat/mensajes/<int:mensaje_id>/archivo")
+@seguridad.requiere_login
+def archivo_chat(mensaje_id: int):
+    _mensaje_autorizado(mensaje_id)
+    adjunto = db.query_one("SELECT * FROM adjuntos_chat WHERE mensaje_id = :id", id=mensaje_id)
+    if not adjunto:
+        abort(404)
+    vista = request.args.get("vista") == "1" and adjunto["tipo"].startswith("image/")
+    respuesta = send_file(BytesIO(bytes(adjunto["contenido"])), mimetype=adjunto["tipo"],
+                          download_name=adjunto["nombre"], as_attachment=not vista,
+                          max_age=0)
+    respuesta.headers["Cache-Control"] = "private, no-store"
+    respuesta.headers["X-Content-Type-Options"] = "nosniff"
+    return respuesta
+
+
+@bp.post("/chat/mensajes/<int:mensaje_id>/reaccion")
+@seguridad.requiere_login
+def reaccion_chat(mensaje_id: int):
+    mensaje = _mensaje_autorizado(mensaje_id)
+    emoji = request.form.get("emoji")
+    if emoji not in EMOJIS:
+        abort(400)
+    with db.transaccion():
+        db.bloquear_fila("mensajes", mensaje_id)
+        anterior = db.query_one(
+            "SELECT emoji FROM reacciones_chat WHERE mensaje_id = :m AND usuario_id = :u",
+            m=mensaje_id, u=g.usuario["id"],
+        )
+        db.execute("DELETE FROM reacciones_chat WHERE mensaje_id = :m AND usuario_id = :u",
+                   m=mensaje_id, u=g.usuario["id"])
+        if not anterior or anterior["emoji"] != emoji:
+            db.execute("INSERT INTO reacciones_chat (mensaje_id, usuario_id, emoji) VALUES (:m, :u, :e)",
+                       m=mensaje_id, u=g.usuario["id"], e=emoji)
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify(extras=_extras_mensaje(mensaje_id))
+    otro = mensaje["receptor_id"] if mensaje["emisor_id"] == g.usuario["id"] else mensaje["emisor_id"]
+    return redirect(url_for("perfil.chat", usuario_id=otro))
+
+
 def _mensajes(otro_id: int, desde: int = 0, antes: int | None = None, limite: int | None = None) -> list[dict]:
     """Mensajes de la conversación en orden; con `antes` o `limite` trae los más recientes de ese tramo."""
     condiciones = "m.id > :desde" + (" AND m.id < :antes" if antes else "")
@@ -601,6 +682,9 @@ def _mensajes(otro_id: int, desde: int = 0, antes: int | None = None, limite: in
         antes=antes,
         limite=limite,
     )
+    extras = _extras_mensajes([fila["id"] for fila in filas])
+    for fila in filas:
+        fila["extras"] = extras[str(fila["id"])]
     return filas[::-1] if limite else filas
 
 
@@ -621,10 +705,11 @@ def _como_json(mensaje: dict) -> dict:
         "cuerpo": mensaje["cuerpo"],
         "creado": mensaje["creado"],
         "hora": fecha_corta(mensaje["creado"]),
+        "extras": mensaje["extras"],
     }
 
 
-def _enviar(otro_id: int, cuerpo: str) -> dict:
+def _enviar(otro_id: int, cuerpo: str, adjunto: dict | None = None) -> dict:
     enlace = url_for("perfil.chat", usuario_id=g.usuario["id"])
     with db.transaccion():
         fila = db.query_one(
@@ -635,6 +720,12 @@ def _enviar(otro_id: int, cuerpo: str) -> dict:
             cuerpo=cuerpo,
             creado=ahora(),
         )
+        if adjunto:
+            db.execute(
+                "INSERT INTO adjuntos_chat (mensaje_id, nombre, tipo, contenido)"
+                " VALUES (:mensaje, :nombre, :tipo, :contenido)",
+                mensaje=fila["id"], **adjunto,
+            )
         if not db.query_one(
             "SELECT id FROM notificaciones WHERE usuario_id = :u AND enlace = :e AND leida = 0",
             u=otro_id,
@@ -657,12 +748,18 @@ def chat(usuario_id: int):
     error = None
     cuerpo = (request.form.get("cuerpo") or "").replace("\r\n", "\n").strip()
     if request.method == "POST":
-        if not cuerpo or len(cuerpo) > 2000:
-            error = "El mensaje debe tener entre 1 y 2000 caracteres."
+        adjunto = None
+        try:
+            adjunto = leer_adjunto(request.files.get("archivo"))
+        except ValueError as exc:
+            error = str(exc)
+        if not error and ((not cuerpo and not adjunto) or len(cuerpo) > 2000):
+            error = "El mensaje debe tener entre 1 y 2000 caracteres. Podés enviar también un archivo sin texto."
+        if error:
             if por_fetch:
                 return jsonify(error=error), 400
         else:
-            mensaje = _enviar(usuario_id, cuerpo)
+            mensaje = _enviar(usuario_id, cuerpo, adjunto)
             if por_fetch:
                 return jsonify(mensaje=_como_json(mensaje)), 201
             return redirect(url_for("perfil.chat", usuario_id=usuario_id))
@@ -712,7 +809,21 @@ def chat_nuevos(usuario_id: int):
     nuevos = _mensajes(usuario_id, desde)
     if any(m["emisor_id"] == usuario_id for m in nuevos):
         _marcar_leidos(usuario_id)
-    return jsonify(mensajes=[_como_json(m) for m in nuevos], avisos=notificaciones_sin_leer(g.usuario["id"]))
+    visibles = request.args.get("visibles", "").split(",")[-100:]
+    ids = [int(i) for i in visibles if i.isdecimal() and len(i) < 15]
+    actualizaciones = {}
+    if ids:
+        parametros = {f"m{i}": valor for i, valor in enumerate(ids)}
+        marcadores = ",".join(f":{clave}" for clave in parametros)
+        filas = db.query(
+            f"SELECT id FROM mensajes WHERE id IN ({marcadores})"
+            " AND ((emisor_id = :yo AND receptor_id = :otro)"
+            " OR (emisor_id = :otro AND receptor_id = :yo))",
+            yo=g.usuario["id"], otro=usuario_id, **parametros,
+        )
+        actualizaciones = _extras_mensajes([m["id"] for m in filas])
+    return jsonify(mensajes=[_como_json(m) for m in nuevos],
+                   extras=actualizaciones, avisos=notificaciones_sin_leer(g.usuario["id"]))
 
 
 @bp.post("/<int:usuario_id>/chat/tema")

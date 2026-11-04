@@ -42,10 +42,49 @@ if (lista) {
   const campo = formulario.querySelector("textarea");
   const boton = formulario.querySelector("button[type=submit]");
   const error = formulario.querySelector("[data-chat-error]");
+  const visor = document.querySelector("[data-chat-visor]");
+  const imagenAmpliada = visor.querySelector("[data-chat-imagen-ampliada]");
+  let imagenOrigen = null;
+  lista.addEventListener("click", (evento) => {
+    const enlace = evento.target.closest("[data-chat-imagen]");
+    if (!enlace || evento.ctrlKey || evento.metaKey || evento.shiftKey || evento.altKey) return;
+    evento.preventDefault();
+    imagenOrigen = enlace;
+    imagenAmpliada.src = enlace.href;
+    imagenAmpliada.alt = enlace.querySelector("img").alt;
+    visor.showModal();
+  });
+  visor.querySelector("[data-chat-cerrar]").addEventListener("click", () => visor.close());
+  visor.addEventListener("click", (evento) => {
+    if (evento.target === visor) visor.close();
+  });
+  visor.addEventListener("close", () => {
+    imagenAmpliada.removeAttribute("src");
+    imagenAmpliada.alt = "";
+    imagenOrigen?.focus();
+  });
+  const archivo = formulario.querySelector("input[type=file]");
+  const nombreArchivo = formulario.querySelector("[data-chat-archivo-nombre]");
+  const tarjetaArchivo = formulario.querySelector("[data-chat-archivo]");
+  const quitarArchivo = formulario.querySelector("[data-chat-quitar-archivo]");
+  const actualizarArchivo = () => {
+    nombreArchivo.textContent = archivo.files[0]?.name || "";
+    nombreArchivo.title = nombreArchivo.textContent;
+    tarjetaArchivo.hidden = !archivo.files.length;
+  };
+  archivo.addEventListener("change", actualizarArchivo);
+  quitarArchivo.addEventListener("click", () => { archivo.value = ""; actualizarArchivo(); campo.focus(); });
   const ids = new Set([...lista.querySelectorAll("[data-mensaje-id]")].map((li) => Number(li.dataset.mensajeId)));
   const ultimo = () => Math.max(0, ...ids);
   const pegadoAbajo = () => lista.scrollHeight - lista.scrollTop - lista.clientHeight < 80;
   const bajar = () => { lista.scrollTop = lista.scrollHeight; };
+  const actualizarReacciones = (extras, html) => {
+    const fragmento = document.createElement("template");
+    fragmento.innerHTML = html;
+    const nuevas = fragmento.content.querySelector(".chat-reacciones");
+    const actuales = extras.querySelector(".chat-reacciones");
+    if (nuevas && actuales) actuales.replaceWith(nuevas);
+  };
 
   const crear = (mensaje) => {
     const item = document.createElement("li");
@@ -59,7 +98,10 @@ if (lista) {
     const hora = document.createElement("time");
     hora.dateTime = mensaje.creado;
     hora.textContent = mensaje.hora;
-    item.append(autor, texto, hora);
+    const extras = document.createElement("div");
+    extras.className = "chat-mensaje-extras";
+    extras.innerHTML = mensaje.extras;
+    item.append(...[autor, mensaje.cuerpo && texto, hora, extras].filter(Boolean));
     return item;
   };
 
@@ -102,11 +144,16 @@ if (lista) {
   }
 
   const traerNuevos = async () => {
-    const respuesta = await fetch(`${lista.dataset.nuevos}?desde=${ultimo()}`, { headers: { "X-Requested-With": "fetch" } });
+    const visibles = [...ids].slice(-100).join(",");
+    const respuesta = await fetch(`${lista.dataset.nuevos}?desde=${ultimo()}&visibles=${visibles}`, { headers: { "X-Requested-With": "fetch" } });
     if (!respuesta.ok) return;
     const datos = await respuesta.json();
     const abajo = pegadoAbajo();
     datos.mensajes.forEach(pintar);
+    Object.entries(datos.extras || {}).forEach(([id, html]) => {
+      const extras = lista.querySelector(`[data-mensaje-id="${id}"] .chat-mensaje-extras`);
+      if (extras && !extras.querySelector("details[open]") && !extras.contains(document.activeElement)) actualizarReacciones(extras, html);
+    });
     if (datos.mensajes.length && abajo) bajar();
     actualizarCampana(datos.avisos);
   };
@@ -124,7 +171,8 @@ if (lista) {
 
   formulario.addEventListener("submit", async (evento) => {
     evento.preventDefault();
-    if (!campo.value.trim() || boton.disabled) return;
+    if ((!campo.value.trim() && !archivo.files.length) || boton.disabled) return;
+    if (archivo.files[0]?.size > 10 * 1024 * 1024) return mostrarError("El archivo supera los 10 MB.");
     boton.disabled = true;
     try {
       const respuesta = await fetch(formulario.action || location.pathname, {
@@ -137,6 +185,8 @@ if (lista) {
       mostrarError("");
       pintar(datos.mensaje);
       campo.value = "";
+      archivo.value = "";
+      actualizarArchivo();
       ajustar();
       bajar();
     } catch {
@@ -144,6 +194,50 @@ if (lista) {
     } finally {
       boton.disabled = false;
       campo.focus();
+    }
+  });
+
+  // El menú de reacciones se abre hacia abajo si arriba no entra en la conversación.
+  lista.addEventListener("toggle", (evento) => {
+    const elegir = evento.target;
+    if (!elegir.matches?.(".chat-reaccion-elegir") || !elegir.open) return;
+    lista.querySelectorAll(".chat-reaccion-elegir[open]").forEach((otro) => { if (otro !== elegir) otro.open = false; });
+    elegir.classList.remove("chat-reaccion-abajo");
+    const menu = elegir.querySelector(".chat-reaccion-menu");
+    if (menu.getBoundingClientRect().top < lista.getBoundingClientRect().top) elegir.classList.add("chat-reaccion-abajo");
+  }, true);
+  document.addEventListener("click", (evento) => {
+    lista.querySelectorAll(".chat-reaccion-elegir[open]").forEach((elegir) => { if (!elegir.contains(evento.target)) elegir.open = false; });
+  });
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key !== "Escape") return;
+    lista.querySelectorAll(".chat-reaccion-elegir[open]").forEach((elegir) => {
+      elegir.open = false;
+      elegir.querySelector("summary").focus();
+    });
+  });
+
+  lista.addEventListener("submit", async (evento) => {
+    const reaccion = evento.target.closest("[data-chat-reaccion]");
+    if (!reaccion) return;
+    evento.preventDefault();
+    const seleccionado = evento.submitter;
+    if (!seleccionado || reaccion.dataset.enviando) return;
+    reaccion.dataset.enviando = "1";
+    const datos = new FormData(reaccion);
+    datos.set("emoji", seleccionado.value);
+    try {
+      const respuesta = await fetch(reaccion.action, {
+        method: "POST", body: datos, headers: { "X-Requested-With": "fetch" },
+      });
+      if (!respuesta.ok) throw new Error();
+      const resultado = await respuesta.json();
+      actualizarReacciones(reaccion.closest(".chat-mensaje-extras"), resultado.extras);
+      mostrarError("");
+    } catch {
+      mostrarError("No pudimos guardar la reacción. Probá de nuevo.");
+    } finally {
+      delete reaccion.dataset.enviando;
     }
   });
 

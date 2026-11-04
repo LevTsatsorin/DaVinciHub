@@ -2,6 +2,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 
 from davincihub import seguridad
 from davincihub.academico import datos
+from davincihub.academico.imagenes import imagen_de_carrera
 
 bp = Blueprint("academico", __name__, url_prefix="/admin/carreras")
 
@@ -93,7 +94,12 @@ def _formulario_carrera(carrera: dict | None):
 @seguridad.requiere_admin
 def plan(carrera_id: int):
     carrera = _carrera_o_404(carrera_id)
-    return render_template("academico/plan.html", carrera=carrera, plan=datos.plan_de_carrera(carrera_id))
+    return render_template(
+        "academico/plan.html",
+        carrera=carrera,
+        plan=datos.plan_de_carrera(carrera_id),
+        imagen_carrera=imagen_de_carrera(carrera["nombre"]),
+    )
 
 
 @bp.route("/<int:carrera_id>/estado", methods=("POST",))

@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, g, render_template, url_for
+from flask import Flask, g, jsonify, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
 from davincihub import (
@@ -42,7 +42,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["DATABASE_URL"] = os.environ.get("DATABASE_URL", "")
-    app.config["MAX_CONTENT_LENGTH"] = 3 * 1024 * 1024 + 65536
+    app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024 + 65536
     if config:
         app.config.update(config)
     csrf.init_app(app)
@@ -104,7 +104,9 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.errorhandler(413)
     def solicitud_demasiado_grande(error):
-        mensaje = "La imagen supera el tamaño máximo permitido de 3 MB."
+        mensaje = "El archivo supera el tamaño máximo permitido."
+        if request.headers.get("X-Requested-With") == "fetch":
+            return jsonify(error=mensaje), 413
         return render_template("error.html", codigo=413, mensaje=mensaje), 413
 
     return app
