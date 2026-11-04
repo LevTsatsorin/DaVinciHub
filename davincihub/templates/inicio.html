@@ -99,7 +99,7 @@
 
     {% if comunidad is defined %}
     <section class="inicio-bloque" aria-labelledby="titulo-comunidad">
-      <h2 id="titulo-comunidad">La comunidad hoy</h2>
+      <div class="estadisticas-acceso"><h2 id="titulo-comunidad">La comunidad hoy</h2><a class="enlace-admin" href="{{ url_for('estadisticas.panel') }}">Ver estadísticas →</a></div>
       <div class="inicio-numeros">
         <a href="{{ url_for('usuarios.lista', rol='estudiante') }}"><strong>{{ comunidad.estudiantes }}</strong><span>estudiantes{% if comunidad.nuevos %}<small>+{{ comunidad.nuevos }} esta semana</small>{% endif %}</span></a>
         <a href="{{ url_for('foro.index') }}"><strong>{{ comunidad.preguntas }}</strong><span>preguntas{% if comunidad.preguntas_semana %}<small>+{{ comunidad.preguntas_semana }} esta semana</small>{% endif %}</span></a>
