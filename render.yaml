@@ -3,7 +3,7 @@ services:
     name: davincihub
     runtime: python
     plan: free
-    branch: dev
+    branch: main
     buildCommand: pip install .
     startCommand: gunicorn 'davincihub.app:create_app()'
     envVars:
