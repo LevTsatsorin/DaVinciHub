@@ -20,7 +20,7 @@
       <p class="ficha-usuario-email">{{ u.email }}</p>
       <ul class="cifras-cabecera">
         {% if u.carrera_nombre %}<li>{{ u.carrera_nombre }}</li>{% endif %}
-        {% if u.anio %}<li>{{ u.anio }}.º año{% if u.comision %} · Com. {{ u.comision }}{% endif %}</li>{% endif %}
+        {% if u.anio %}<li>{{ u.anio }}.º año{% if u.comision %} · Com. <abbr title="{{ comision_detalle(u.comision) }}">{{ u.comision }}</abbr>{% endif %}</li>{% endif %}
         <li>Alta {{ (u.creado | fecha_corta)[:5] }}/{{ u.creado[:4] }}</li>
       </ul>
       {% set perfil = url_perfil(u.id, u.rol) %}

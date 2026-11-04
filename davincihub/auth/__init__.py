@@ -43,19 +43,14 @@ def registro():
 def registro_datos():
     errores = {}
     if request.method == "POST":
-        errores = validacion.validar_datos_estudiante(request.form)
-        if not errores and not db.query_one(
-            "SELECT id FROM carreras WHERE id = :id AND activa = 1",
-            id=int(request.form["carrera_id"]),
-        ):
-            errores["carrera_id"] = "Elegí una carrera válida."
+        errores, valores = validacion.validar_datos_estudiante(request.form)
         if not errores:
             db.execute(
                 "UPDATE usuarios SET carrera_id = :carrera, anio = :anio, comision = :comision"
                 " WHERE id = :id",
-                carrera=int(request.form["carrera_id"]),
-                anio=int(request.form["anio"]),
-                comision=request.form["comision"].strip(),
+                carrera=valores["carrera_id"],
+                anio=valores["anio"],
+                comision=valores["comision"],
                 id=g.usuario["id"],
             )
             flash("¡Listo! Tu cuenta quedó completa.")

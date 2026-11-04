@@ -15,7 +15,7 @@
     <p class="ayuda">Totales de todos los estados. Se excluyen los contenidos ocultos por moderación y los registros vinculados a ellos.</p>
     <dl class="estadisticas-cifras">
       {% for m in metricas if m.grupo != 'interacciones' %}
-      <div class="tarjeta estadistica-cifra"><dt>{{ m.nombre }}</dt><dd>{{ totales[m.clave] }}</dd><p>{{ m.detalle }}</p></div>
+      <div class="tarjeta estadistica-cifra"><dt>{{ m.nombre }}</dt><dd class="estadistica-valor">{{ totales[m.clave] }}</dd><dd class="estadistica-nota">{{ m.detalle }}</dd></div>
       {% endfor %}
     </dl>
   </section>
@@ -24,7 +24,7 @@
     <p class="ayuda">Cada indicador cuenta un tipo de registro. Una misma persona puede participar en varios; no representan usuarios únicos.</p>
     <dl class="estadisticas-cifras estadisticas-interacciones">
       {% for m in metricas if m.grupo == 'interacciones' %}
-      <div class="tarjeta estadistica-cifra"><dt>{{ m.nombre }}</dt><dd>{{ totales[m.clave] }}</dd><p>{{ m.detalle }}</p></div>
+      <div class="tarjeta estadistica-cifra"><dt>{{ m.nombre }}</dt><dd class="estadistica-valor">{{ totales[m.clave] }}</dd><dd class="estadistica-nota">{{ m.detalle }}</dd></div>
       {% endfor %}
     </dl>
   </section>

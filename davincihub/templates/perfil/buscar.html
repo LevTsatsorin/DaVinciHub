@@ -44,7 +44,7 @@
       </select>
     </label>
     <label>Comisión
-      <input name="comision" value="{{ filtros.comision }}" maxlength="40" placeholder="Ej. A">
+      <input class="campo-comision" name="comision" value="{{ filtros.comision }}" maxlength="7" placeholder="Ej. ACT4 o ACT4AP" autocapitalize="characters" spellcheck="false">
     </label>
     <button class="boton boton-primario" type="submit">Buscar</button>
     <a class="boton boton-suave" href="{{ url_for('perfil.buscar_estudiantes', vista=vista if vista == 'conexiones' else None) }}">Limpiar</a>

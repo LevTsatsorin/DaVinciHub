@@ -27,6 +27,7 @@
             {% if c.titulo %}<p class="fila-admin-detalle">{{ c.titulo }}</p>{% endif %}
             <ul class="reserva-chips chips-carrera">
               <li class="chip-fecha">{{ c.duracion_anios }} {{ "año" if c.duracion_anios == 1 else "años" }}</li>
+              {% if c.codigo %}<li class="chip-fecha">Comisiones {{ c.codigo }}</li>{% endif %}
               <li class="chip-personas">{{ c.materias }} {{ "materia" if c.materias == 1 else "materias" }}</li>
               <li class="chip-hora">{{ c.estudiantes }} {{ "estudiante" if c.estudiantes == 1 else "estudiantes" }}</li>
             </ul>

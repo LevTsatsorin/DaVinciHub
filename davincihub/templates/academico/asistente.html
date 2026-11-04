@@ -43,6 +43,11 @@
               {% endfor %}
             </select>
           </div>
+          <div class="campo">
+            <label for="codigo">Código de comisión <span class="opcional">(opcional)</span></label>
+            <input class="campo-comision" id="codigo" name="codigo" value="{{ datos_form.get('codigo') or '' }}" maxlength="2" placeholder="AC" autocapitalize="characters" spellcheck="false" aria-describedby="codigo-ayuda">
+            <p class="ayuda-campo" id="codigo-ayuda">Las dos letras con que empiezan sus comisiones, como AC en ACT4AP. Si lo dejás vacío se genera uno.</p>
+          </div>
           <div class="campo campo-completo">
             <label for="titulo">Título que otorga <span class="opcional">(opcional)</span></label>
             <input id="titulo" name="titulo" value="{{ datos_form.get('titulo') or '' }}" maxlength="160" placeholder="Por ejemplo: Técnico Superior en Diseño y Programación Web">

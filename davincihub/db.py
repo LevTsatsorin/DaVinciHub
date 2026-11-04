@@ -8,7 +8,8 @@ import click
 from flask import current_app, g
 from flask.cli import with_appcontext
 
-from davincihub.utiles import sin_acentos
+from davincihub import comision
+from davincihub.utiles import hoy_local, sin_acentos
 
 
 class ErrorIntegridad(Exception):
@@ -172,6 +173,7 @@ COLUMNAS_AGREGADAS = [
     ("preguntas", "imagen", "BYTEA"),
     ("respuestas", "respuesta_padre_id", "INTEGER REFERENCES respuestas (id)"),
     ("usuarios", "chat_tema", "TEXT NOT NULL DEFAULT 'davinci'"),
+    ("carreras", "codigo", "TEXT"),
     ("publicaciones", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
     ("preguntas", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
     ("respuestas", "oculto", "INTEGER NOT NULL DEFAULT 0 CHECK (oculto IN (0, 1))"),
@@ -307,6 +309,50 @@ def migrar():
             ):
                 execute(f"ALTER TABLE {tabla} ALTER COLUMN {columna} TYPE DOUBLE PRECISION"
                         f" USING round({columna}::numeric, 2)::double precision")
+    if {"codigo", "duracion_anios"} <= _columnas("carreras") and {"comision", "carrera_id", "anio"} <= _columnas("usuarios"):
+        _normalizar_comisiones()
+
+
+def _normalizar_comisiones():
+    """Completa el código de cada carrera y lleva toda comisión de estudiante al formato ACT4AP."""
+    carreras = query("SELECT id, nombre, codigo, duracion_anios FROM carreras ORDER BY id")
+    usados = {c["codigo"] for c in carreras if c["codigo"] and comision.PATRON_CODIGO.fullmatch(c["codigo"])}
+    nuevos, vistos = {}, set()
+    for carrera in carreras:
+        if carrera["codigo"] in usados and carrera["codigo"] not in vistos:
+            vistos.add(carrera["codigo"])
+        else:
+            carrera["codigo"] = comision.codigo_sugerido(carrera["nombre"], usados)
+            usados.add(carrera["codigo"])
+            nuevos[carrera["id"]] = carrera["codigo"]
+    por_id = {c["id"]: c for c in carreras}
+    segundo = int(hoy_local()[5:7]) >= 8
+    cambios = []
+    for estudiante in query(
+        "SELECT id, carrera_id, anio, comision FROM usuarios WHERE rol = 'estudiante' AND carrera_id IS NOT NULL"
+    ):
+        carrera = por_id.get(estudiante["carrera_id"])
+        if carrera is None:
+            continue
+        actual = comision.normalizar(estudiante["comision"])
+        if not comision.error(actual, carrera) and comision.anio(actual) == estudiante["anio"] and actual == estudiante["comision"]:
+            continue
+        datos = comision.partes(actual)
+        if datos and datos["cuatrimestre"] <= (carrera["duracion_anios"] or 6) * 2:
+            cuatrimestre = datos["cuatrimestre"]
+        else:
+            anio = min(max(estudiante["anio"] or 1, 1), carrera["duracion_anios"] or 6)
+            cuatrimestre = anio * 2 if segundo else anio * 2 - 1
+        nueva = comision.armar(carrera["codigo"], cuatrimestre, actual, estudiante["id"])
+        cambios.append((estudiante["id"], nueva, comision.anio(nueva)))
+    if nuevos or cambios:
+        with transaccion():
+            for carrera_id, codigo in nuevos.items():
+                execute("UPDATE carreras SET codigo = :codigo WHERE id = :id", codigo=codigo, id=carrera_id)
+            for usuario_id, nueva, anio in cambios:
+                execute("UPDATE usuarios SET comision = :comision, anio = :anio WHERE id = :id",
+                        comision=nueva, anio=anio, id=usuario_id)
+    execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_carreras_codigo ON carreras (codigo)")
 
 
 def _existe_indice_conexiones() -> bool:
