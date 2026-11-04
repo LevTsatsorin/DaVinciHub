@@ -7,7 +7,9 @@ from davincihub import (
     academico,
     actividades,
     auth,
+    comision,
     db,
+    estadisticas,
     foro,
     notificaciones,
     perfil,
@@ -45,6 +47,7 @@ def create_app(config: dict | None = None) -> Flask:
         app.config.update(config)
     csrf.init_app(app)
     db.registrar(app)
+    app.register_blueprint(estadisticas.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(perfil.bp)
     app.register_blueprint(reputacion.bp)
@@ -64,6 +67,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.cli.add_command(comando_seed_reputacion)
     app.cli.add_command(comando_seed_operaciones)
     app.add_template_global(seguridad.es_catedra)
+    app.add_template_global(comision.detalle, "comision_detalle")
 
     @app.template_global()
     def paginacion(endpoint: str, pagina: int, paginas: int, ancla: str = "", **argumentos) -> dict:

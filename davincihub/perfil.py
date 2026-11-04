@@ -1,3 +1,4 @@
+import re
 from io import BytesIO
 
 from flask import (
@@ -14,7 +15,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from davincihub import db, seguridad, validacion
+from davincihub import comision, db, seguridad, validacion
 from davincihub import reputacion as reputacion_datos
 from davincihub.academico.imagenes import imagen_de_carrera
 from davincihub.chat_archivos import EMOJIS, leer_adjunto
@@ -79,7 +80,7 @@ def buscar_estudiantes():
         "q": (request.args.get("q") or "").strip()[:100],
         "carrera": request.args.get("carrera", type=int),
         "anio": request.args.get("anio", type=int),
-        "comision": (request.args.get("comision") or "").strip()[:40],
+        "comision": re.sub(r"[^A-Z0-9]", "", comision.normalizar(request.args.get("comision")))[:7],
     }
     condiciones = ["u.rol = 'estudiante'", "u.bloqueado = 0", "u.id <> :yo"]
     params = {"yo": g.usuario["id"]}
@@ -100,8 +101,8 @@ def buscar_estudiantes():
     else:
         filtros["anio"] = None
     if filtros["comision"]:
-        condiciones.append("lower(trim(u.comision)) = :comision")
-        params["comision"] = filtros["comision"].lower()
+        condiciones.append("u.comision LIKE :comision")
+        params["comision"] = filtros["comision"] + "%"
     desde_sql = (
         " FROM usuarios u LEFT JOIN carreras c ON c.id = u.carrera_id"
         " LEFT JOIN conexiones x ON (x.solicitante_id = :yo AND x.receptor_id = u.id)"
@@ -249,15 +250,10 @@ def editar(usuario_id: int):
     errores = {}
     if request.method == "POST":
         datos = request.form
-        errores = validacion.validar_datos_estudiante(datos)
+        errores, valores = validacion.validar_datos_estudiante(datos)
         for campo in ("nombre", "apellido"):
             if not (datos.get(campo) or "").strip():
                 errores[campo] = "Campo obligatorio."
-        carrera_id = (datos.get("carrera_id") or "").strip()
-        if not errores and not db.query_one(
-            "SELECT id FROM carreras WHERE id = :id AND activa = 1", id=int(carrera_id)
-        ):
-            errores["carrera_id"] = "Elegí una carrera válida."
         archivo_foto = request.files.get("foto")
         contenido_foto = archivo_foto.read(MAX_FOTO_BYTES + 1) if archivo_foto and archivo_foto.filename else None
         tipo_foto = _tipo_foto(contenido_foto) if contenido_foto else None
@@ -273,9 +269,9 @@ def editar(usuario_id: int):
                     " catedra = CASE WHEN carrera_id = :carrera THEN catedra ELSE 0 END WHERE id = :id",
                     nombre=datos["nombre"].strip(),
                     apellido=datos["apellido"].strip(),
-                    carrera=int(carrera_id),
-                    anio=int(datos["anio"]),
-                    comision=datos["comision"].strip(),
+                    carrera=valores["carrera_id"],
+                    anio=valores["anio"],
+                    comision=valores["comision"],
                     id=usuario_id,
                 )
                 if contenido_foto:
@@ -813,7 +809,7 @@ def chat_nuevos(usuario_id: int):
     nuevos = _mensajes(usuario_id, desde)
     if any(m["emisor_id"] == usuario_id for m in nuevos):
         _marcar_leidos(usuario_id)
-    visibles = request.args.get("visibles", "").split(",")[:500]
+    visibles = request.args.get("visibles", "").split(",")[-100:]
     ids = [int(i) for i in visibles if i.isdecimal() and len(i) < 15]
     actualizaciones = {}
     if ids:

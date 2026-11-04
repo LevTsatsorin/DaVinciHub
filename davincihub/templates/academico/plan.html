@@ -16,6 +16,7 @@
       {% if carrera.titulo %}<p class="ficha-usuario-email">{{ carrera.titulo }}</p>{% endif %}
       <ul class="cifras-cabecera">
         <li>{{ carrera.duracion_anios }} {{ "año" if carrera.duracion_anios == 1 else "años" }}</li>
+        {% if carrera.codigo %}<li>Comisiones {{ carrera.codigo }}</li>{% endif %}
         <li>{{ activas }} {{ "materia" if activas == 1 else "materias" }}</li>
       </ul>
       <div class="acciones-carrera">
@@ -35,7 +36,7 @@
     {% if imagen_carrera %}
       <img class="cabecera-carrera-animal"
            src="{{ url_for('static', filename='img/carreras/' ~ imagen_carrera) }}"
-           alt="Animal de {{ carrera.nombre }}">
+           alt="">
     {% endif %}
   </header>
 

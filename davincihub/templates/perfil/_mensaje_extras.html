@@ -4,20 +4,23 @@
       <img src="{{ url_for('perfil.archivo_chat', mensaje_id=mensaje_id, vista=1) }}" alt="{{ adjunto.nombre }}" loading="lazy">
     </a>
   {% else %}
-    <a class="chat-adjunto" href="{{ url_for('perfil.archivo_chat', mensaje_id=mensaje_id) }}">
-      <span>📎 {{ adjunto.nombre }} · Descargar</span>
+    <a class="chat-adjunto chat-adjunto-archivo" href="{{ url_for('perfil.archivo_chat', mensaje_id=mensaje_id) }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 11v6m-3-3 3 3 3-3"/></svg>
+      <span><strong>{{ adjunto.nombre }}</strong><small>{{ adjunto.nombre.rsplit('.', 1)[-1] | upper }} · Descargar</small></span>
     </a>
   {% endif %}
 {% endif %}
-<div class="chat-reacciones" aria-label="Reacciones al mensaje">
+<form class="chat-reacciones" method="post" action="{{ url_for('perfil.reaccion_chat', mensaje_id=mensaje_id) }}" data-chat-reaccion aria-label="Reacciones al mensaje">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% for reaccion in reacciones %}
-    <span class="chat-reaccion{% if reaccion.propia %} chat-reaccion-propia{% endif %}">{{ reaccion.emoji }} {{ reaccion.cantidad }}</span>
+    <button class="chat-reaccion{% if reaccion.propia %} chat-reaccion-propia{% endif %}" type="submit" name="emoji" value="{{ reaccion.emoji }}" aria-pressed="{{ 'true' if reaccion.propia else 'false' }}" title="{{ 'Quitar tu reacción' if reaccion.propia else 'Reaccionar con ' ~ reaccion.emoji }}">{{ reaccion.emoji }} {{ reaccion.cantidad }}</button>
   {% endfor %}
   <details class="chat-reaccion-elegir">
-    <summary aria-label="Reaccionar al mensaje" title="Reaccionar">☺ +</summary>
-    <form method="post" action="{{ url_for('perfil.reaccion_chat', mensaje_id=mensaje_id) }}" data-chat-reaccion>
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <summary aria-label="Reaccionar al mensaje" title="Reaccionar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 11a9 9 0 1 1-7.8-7.9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01M19 2v6m-3-3h6"/></svg>
+    </summary>
+    <div class="chat-reaccion-menu">
       {% for emoji in emojis %}<button type="submit" name="emoji" value="{{ emoji }}" aria-label="Reaccionar con {{ emoji }}">{{ emoji }}</button>{% endfor %}
-    </form>
+    </div>
   </details>
-</div>
+</form>

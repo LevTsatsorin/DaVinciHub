@@ -1,13 +1,13 @@
 -- carreras y planes de estudio reales: davinci.edu.ar/carreras (oct 2026)
-INSERT INTO carreras (nombre, titulo, duracion_anios) VALUES
-    ('Diseño Multimedial', 'Diseñador Multimedial', 3),
-    ('Diseño y Programación de Videojuegos', 'Diseñador y Programador de Simuladores Virtuales', 3),
-    ('Diseño y Programación Web', 'Técnico Superior en Diseño y Programación Web', 2),
-    ('Diseño Gráfico', 'Diseñador Gráfico Artístico Digital', 3),
-    ('Cine de Animación y Posproducción', 'Realizador Integral de Animación y Cine Digital', 3),
-    ('Cine y Nuevos Formatos Audiovisuales', 'Técnico Superior en Dirección de Cine y Nuevos Formatos Audiovisuales', 3),
-    ('Analista de Sistemas', 'Analista de Sistemas', 3),
-    ('Marketing y Negocios Digitales con Inteligencia Artificial', 'Técnico Superior en Comunicación y Marketing Digital', 2);
+INSERT INTO carreras (nombre, titulo, duracion_anios, codigo) VALUES
+    ('Diseño Multimedial', 'Diseñador Multimedial', 3, 'DM'),
+    ('Diseño y Programación de Videojuegos', 'Diseñador y Programador de Simuladores Virtuales', 3, 'DV'),
+    ('Diseño y Programación Web', 'Técnico Superior en Diseño y Programación Web', 2, 'DW'),
+    ('Diseño Gráfico', 'Diseñador Gráfico Artístico Digital', 3, 'DG'),
+    ('Cine de Animación y Posproducción', 'Realizador Integral de Animación y Cine Digital', 3, 'CA'),
+    ('Cine y Nuevos Formatos Audiovisuales', 'Técnico Superior en Dirección de Cine y Nuevos Formatos Audiovisuales', 3, 'CF'),
+    ('Analista de Sistemas', 'Analista de Sistemas', 3, 'AC'),
+    ('Marketing y Negocios Digitales con Inteligencia Artificial', 'Técnico Superior en Comunicación y Marketing Digital', 2, 'MD');
 
 INSERT INTO materias (carrera_id, nombre, cuatrimestre) VALUES
     (1, 'Ilustración Digital', 1),
@@ -266,11 +266,11 @@ INSERT INTO materias (carrera_id, nombre, cuatrimestre) VALUES
 -- contraseña de todos los usuarios demo: davinci123
 INSERT INTO usuarios (nombre, apellido, email, password_hash, rol, carrera_id, anio, comision, creado) VALUES
     ('Admin', 'Demo', 'admin@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'admin', NULL, NULL, NULL, '2026-10-18T00:00:00'),
-    ('Mica', 'Suárez', 'mica@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 2, 'A', '2026-10-18T00:00:00'),
-    ('Tomás', 'Vega', 'tomas@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 2, 1, 'B', '2026-10-18T00:00:00'),
-    ('Lucía', 'Paz', 'lucia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 3, 'A', '2026-10-18T00:00:00'),
-    ('Bruno', 'Ferreyra', 'bruno@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 3, 1, 'C', '2026-10-18T00:00:00'),
-    ('Sofía', 'Ríos', 'sofia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 4, 2, 'A', '2026-10-18T00:00:00');
+    ('Mica', 'Suárez', 'mica@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 2, 'DMT4AP', '2026-10-18T00:00:00'),
+    ('Tomás', 'Vega', 'tomas@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 2, 1, 'DVM2BP', '2026-10-18T00:00:00'),
+    ('Lucía', 'Paz', 'lucia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 1, 3, 'DMN6AP', '2026-10-18T00:00:00'),
+    ('Bruno', 'Ferreyra', 'bruno@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 3, 1, 'DWT2CV', '2026-10-18T00:00:00'),
+    ('Sofía', 'Ríos', 'sofia@davinci.edu.ar', 'scrypt:32768:8:1$sGpYiUzO5F81DL8G$6a6727ccdacd68eee1e3cb0bf1a9c5b073e3dfa4474801868532015ff6a620c96c0e161fd0cb26bf69de2326b273be21527c84d6d9e8033dcfd35b272e24c24f', 'estudiante', 4, 2, 'DGM4AP', '2026-10-18T00:00:00');
 
 UPDATE usuarios SET catedra = 1 WHERE email = 'lucia@davinci.edu.ar';
 UPDATE usuarios SET bloqueado = 1 WHERE email = 'bruno@davinci.edu.ar';

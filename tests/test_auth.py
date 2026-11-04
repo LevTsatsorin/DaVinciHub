@@ -1,3 +1,5 @@
+import pytest
+
 from davincihub import db
 
 PASO1 = {
@@ -8,7 +10,7 @@ PASO1 = {
     "confirmar": "clave-segura-1",
 }
 
-DATOS_ESTUDIANTE = {"carrera_id": "1", "anio": "1", "comision": "A"}
+DATOS_ESTUDIANTE = {"carrera_id": "1", "comision": "DMT2AP"}
 
 
 def registrar(client, **cambios):
@@ -61,7 +63,7 @@ def test_registro_paso2_ok(client, app):
         usuario = db.query_one("SELECT * FROM usuarios WHERE email = :email", email=PASO1["email"])
     assert usuario["carrera_id"] == 1
     assert usuario["anio"] == 1
-    assert usuario["comision"] == "A"
+    assert usuario["comision"] == "DMT2AP"
 
 
 def test_registro_paso2_requiere_login(client):
@@ -77,13 +79,38 @@ def test_registro_paso2_carrera_inexistente(client):
     assert "Elegí una carrera válida" in respuesta.get_data(as_text=True)
 
 
-def test_registro_paso2_anio_fuera_de_rango(client):
+@pytest.mark.parametrize("valor, mensaje", [
+    ("A", "por ejemplo ACT4AP"),
+    ("DMT²AP", "por ejemplo ACT4AP"),
+    ("DMX2AP", "por ejemplo ACT4AP"),
+    ("DMT2AX", "por ejemplo ACT4AP"),
+    ("DMT0AP", "por ejemplo ACT4AP"),
+    ("ACT4AP", "empiezan con DM"),
+    ("DMT7AP", "tiene 6 cuatrimestres"),
+])
+def test_registro_paso2_rechaza_comision_invalida(client, app, valor, mensaje):
     registrar(client)
-    respuesta = client.post(
-        "/auth/registro/datos", data=DATOS_ESTUDIANTE | {"anio": "99999999999999999999"}
-    )
+    respuesta = client.post("/auth/registro/datos", data=DATOS_ESTUDIANTE | {"comision": valor})
     assert respuesta.status_code == 200
-    assert "entre 1 y 10" in respuesta.get_data(as_text=True)
+    assert mensaje in respuesta.get_data(as_text=True)
+    with app.app_context():
+        assert db.query_one("SELECT comision FROM usuarios WHERE email = :e", e=PASO1["email"])["comision"] is None
+
+
+def test_registro_paso2_normaliza_comision_y_calcula_el_anio(client, app):
+    registrar(client)
+    respuesta = client.post("/auth/registro/datos", data=DATOS_ESTUDIANTE | {"comision": " dmn 5bv ", "anio": "1"})
+    assert respuesta.status_code == 302
+    with app.app_context():
+        usuario = db.query_one("SELECT anio, comision FROM usuarios WHERE email = :e", e=PASO1["email"])
+    assert (usuario["anio"], usuario["comision"]) == (3, "DMN5BV")
+
+
+def test_registro_paso2_carrera_enorme(client):
+    registrar(client)
+    respuesta = client.post("/auth/registro/datos", data=DATOS_ESTUDIANTE | {"carrera_id": "99999999999999999999"})
+    assert respuesta.status_code == 200
+    assert "Elegí una carrera válida" in respuesta.get_data(as_text=True)
 
 
 def test_login_ok(client):
@@ -147,13 +174,6 @@ def test_login_usuario_bloqueado(client, app):
     respuesta = login(client)
     assert respuesta.status_code == 200
     assert "bloqueada" in respuesta.get_data(as_text=True)
-
-
-def test_registro_paso2_anio_superindice(client):
-    registrar(client)
-    respuesta = client.post("/auth/registro/datos", data=DATOS_ESTUDIANTE | {"anio": "²"})
-    assert respuesta.status_code == 200
-    assert "entre 1 y 10" in respuesta.get_data(as_text=True)
 
 
 def test_registro_paso2_carrera_superindice(client):

@@ -33,8 +33,11 @@ CREATE TABLE carreras (
     nombre TEXT NOT NULL UNIQUE,
     titulo TEXT,
     duracion_anios INTEGER CHECK (duracion_anios BETWEEN 1 AND 6),
-    activa INTEGER NOT NULL DEFAULT 1 CHECK (activa IN (0, 1))
+    activa INTEGER NOT NULL DEFAULT 1 CHECK (activa IN (0, 1)),
+    codigo TEXT
 );
+
+CREATE UNIQUE INDEX idx_carreras_codigo ON carreras (codigo);
 
 CREATE TABLE materias (
     id {{PK}},

@@ -120,7 +120,7 @@ def test_deshabilitar_una_carrera_la_saca_del_registro_sin_romper_perfiles(clien
                                         "password": "clave-segura-1", "confirmar": "clave-segura-1"})
     registro = client.get("/auth/registro/datos").get_data(as_text=True)
     assert "Diseño Multimedial" not in registro and "Diseño Gráfico" in registro
-    respuesta = client.post("/auth/registro/datos", data={"carrera_id": str(MULTIMEDIAL), "anio": "1", "comision": "A"})
+    respuesta = client.post("/auth/registro/datos", data={"carrera_id": str(MULTIMEDIAL), "comision": "DMT2AP"})
     assert "Elegí una carrera válida" in respuesta.get_data(as_text=True)
     client.post("/auth/salir")
     login(client, "mica@davinci.edu.ar")

@@ -27,7 +27,7 @@
       <h1>{{ estudiante.nombre }} {{ estudiante.apellido }}</h1>
       <ul class="cifras-cabecera">
         <li>{{ estudiante.carrera or "Carrera sin completar" }}</li>
-        {% if estudiante.anio %}<li>{{ estudiante.anio }}.º año{% if estudiante.comision %} · Com. {{ estudiante.comision }}{% endif %}</li>{% endif %}
+        {% if estudiante.anio %}<li>{{ estudiante.anio }}.º año{% if estudiante.comision %} · Com. <abbr title="{{ comision_detalle(estudiante.comision) }}">{{ estudiante.comision }}</abbr>{% endif %}</li>{% endif %}
       </ul>
       <div class="perfil-acciones">
         {% if es_yo %}
@@ -58,7 +58,7 @@
     {% if imagen_carrera %}
       <img class="cabecera-carrera-animal"
            src="{{ url_for('static', filename='img/carreras/' ~ imagen_carrera) }}"
-           alt="Animal de {{ estudiante.carrera }}">
+           alt="">
     {% endif %}
   </header>
 

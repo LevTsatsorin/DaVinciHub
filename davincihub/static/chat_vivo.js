@@ -101,7 +101,7 @@ if (lista) {
     const extras = document.createElement("div");
     extras.className = "chat-mensaje-extras";
     extras.innerHTML = mensaje.extras;
-    item.append(autor, texto, hora, extras);
+    item.append(...[autor, mensaje.cuerpo && texto, hora, extras].filter(Boolean));
     return item;
   };
 
@@ -144,7 +144,7 @@ if (lista) {
   }
 
   const traerNuevos = async () => {
-    const visibles = [...ids].slice(-500).join(",");
+    const visibles = [...ids].slice(-100).join(",");
     const respuesta = await fetch(`${lista.dataset.nuevos}?desde=${ultimo()}&visibles=${visibles}`, { headers: { "X-Requested-With": "fetch" } });
     if (!respuesta.ok) return;
     const datos = await respuesta.json();
@@ -195,6 +195,26 @@ if (lista) {
       boton.disabled = false;
       campo.focus();
     }
+  });
+
+  // El menú de reacciones se abre hacia abajo si arriba no entra en la conversación.
+  lista.addEventListener("toggle", (evento) => {
+    const elegir = evento.target;
+    if (!elegir.matches?.(".chat-reaccion-elegir") || !elegir.open) return;
+    lista.querySelectorAll(".chat-reaccion-elegir[open]").forEach((otro) => { if (otro !== elegir) otro.open = false; });
+    elegir.classList.remove("chat-reaccion-abajo");
+    const menu = elegir.querySelector(".chat-reaccion-menu");
+    if (menu.getBoundingClientRect().top < lista.getBoundingClientRect().top) elegir.classList.add("chat-reaccion-abajo");
+  }, true);
+  document.addEventListener("click", (evento) => {
+    lista.querySelectorAll(".chat-reaccion-elegir[open]").forEach((elegir) => { if (!elegir.contains(evento.target)) elegir.open = false; });
+  });
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key !== "Escape") return;
+    lista.querySelectorAll(".chat-reaccion-elegir[open]").forEach((elegir) => {
+      elegir.open = false;
+      elegir.querySelector("summary").focus();
+    });
   });
 
   lista.addEventListener("submit", async (evento) => {

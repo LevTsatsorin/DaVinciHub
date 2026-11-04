@@ -47,7 +47,7 @@
         {% set propio = mensaje.emisor_id == g.usuario.id %}
         <li class="chat-mensaje {{ 'chat-mensaje-propio' if propio else 'chat-mensaje-ajeno' }}" data-mensaje-id="{{ mensaje.id }}">
           <span class="chat-mensaje-autor">{{ "Yo" if propio else mensaje.emisor_nombre }}</span>
-          <p>{{ mensaje.cuerpo }}</p>
+          {% if mensaje.cuerpo %}<p>{{ mensaje.cuerpo }}</p>{% endif %}
           <time datetime="{{ mensaje.creado }}">{{ mensaje.creado | fecha_corta }}</time>
           <div class="chat-mensaje-extras">{{ mensaje.extras | safe }}</div>
         </li>
@@ -84,7 +84,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </button>
       </div>
-     
+        <p class="visualmente-oculto" id="chat-archivo-info">Imágenes, PDF, TXT, DOCX, XLSX o PPTX de hasta 10 MB.</p>
     </form>
   </div>
 </section>

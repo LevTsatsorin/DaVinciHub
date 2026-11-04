@@ -1,4 +1,4 @@
-from davincihub import db
+from davincihub import comision, db
 from davincihub.utiles import sin_acentos
 
 LIMITE_NOMBRE = 120
@@ -66,14 +66,23 @@ def guardar_carrera(formulario, carrera_id: int | None = None) -> int:
     titulo = _texto(formulario.get("titulo"), "título", LIMITE_TITULO, obligatorio=False)
     duracion = _entero(formulario.get("duracion_anios"), 1, DURACION_MAXIMA,
                        f"La duración tiene que ser entre 1 y {DURACION_MAXIMA} años.")
+    codigo = comision.normalizar(formulario.get("codigo"))
+    if codigo and not comision.PATRON_CODIGO.fullmatch(codigo):
+        raise ErrorAcademico("El código de comisión son dos letras, por ejemplo AC o DW.")
     with db.transaccion():
-        for otra in db.query("SELECT id, nombre FROM carreras"):
-            if otra["id"] != carrera_id and sin_acentos(otra["nombre"]) == sin_acentos(nombre):
+        otras = [c for c in db.query("SELECT id, nombre, codigo FROM carreras") if c["id"] != carrera_id]
+        for otra in otras:
+            if sin_acentos(otra["nombre"]) == sin_acentos(nombre):
                 raise ErrorAcademico(f"Ya existe la carrera «{otra['nombre']}».")
+            if codigo and otra["codigo"] == codigo:
+                raise ErrorAcademico(f"El código {codigo} ya es de «{otra['nombre']}».")
+        actual = obtener_carrera(carrera_id) if carrera_id is not None else None
+        anterior = actual["codigo"] if actual else None
+        codigo = codigo or anterior or comision.codigo_sugerido(nombre, {c["codigo"] for c in otras if c["codigo"]})
         if carrera_id is None:
             fila = db.query_one(
-                "INSERT INTO carreras (nombre, titulo, duracion_anios) VALUES (:n, :t, :d) RETURNING id",
-                n=nombre, t=titulo, d=duracion,
+                "INSERT INTO carreras (nombre, titulo, duracion_anios, codigo) VALUES (:n, :t, :d, :c) RETURNING id",
+                n=nombre, t=titulo, d=duracion, c=codigo,
             )
             return fila["id"]
         if not db.bloquear_fila("carreras", carrera_id):
@@ -83,10 +92,21 @@ def guardar_carrera(formulario, carrera_id: int | None = None) -> int:
             raise ErrorAcademico(
                 f"Hay materias en el cuatrimestre {ultimo}: movelas antes de acortar la carrera a {duracion} años."
             )
+        anio = db.query_one(
+            "SELECT max(anio) AS a FROM usuarios WHERE carrera_id = :id AND rol = 'estudiante'", id=carrera_id
+        )["a"]
+        if anio and anio > duracion:
+            raise ErrorAcademico(f"Hay estudiantes en {anio}.º año: no se puede acortar la carrera a {duracion} años.")
         db.execute(
-            "UPDATE carreras SET nombre = :n, titulo = :t, duracion_anios = :d WHERE id = :id",
-            n=nombre, t=titulo, d=duracion, id=carrera_id,
+            "UPDATE carreras SET nombre = :n, titulo = :t, duracion_anios = :d, codigo = :c WHERE id = :id",
+            n=nombre, t=titulo, d=duracion, c=codigo, id=carrera_id,
         )
+        if anterior != codigo:
+            db.execute(
+                "UPDATE usuarios SET comision = :c || substr(comision, 3)"
+                " WHERE carrera_id = :id AND rol = 'estudiante' AND comision IS NOT NULL",
+                c=codigo, id=carrera_id,
+            )
         return carrera_id
 
 

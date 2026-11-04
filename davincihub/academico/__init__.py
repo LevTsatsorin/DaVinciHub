@@ -7,7 +7,6 @@ from davincihub.academico.imagenes import imagen_de_carrera
 bp = Blueprint("academico", __name__, url_prefix="/admin/carreras")
 
 
-
 def _carrera_o_404(carrera_id: int) -> dict:
     carrera = datos.obtener_carrera(carrera_id)
     if carrera is None:
